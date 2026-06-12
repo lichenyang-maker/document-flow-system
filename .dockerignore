@@ -1,0 +1,7 @@
+node_modules
+document_flow.db
+.git
+*.md
+!.README.md
+.env
+.DS_Store
