@@ -1,0 +1,1 @@
+<!DOCTYPE html><html><head><meta charset='UTF-8'><title>公文流转系统</title></head><body><h1>公文列表</h1><a href='/create'>创建新公文</a><ul id='docList'></ul><script>fetch('/api/documents').then(r=>r.json()).then(d=>{d.forEach(doc=>{let li=document.createElement('li');li.innerHTML=<a href='/doc/'></a> - ;document.getElementById('docList').appendChild(li);});});</script></body></html>

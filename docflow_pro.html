@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公文流转审批系统 - AI智能版 v2.0</title>
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --primary-dark: #3730a3;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --dark: #1e293b;
+  --dark-2: #334155;
+  --gray: #64748b;
+  --gray-light: #94a3b8;
+  --light: #f1f5f9;
+  --lighter: #f8fafc;
+  --white: #ffffff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --transition: all 0.2s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--light);
+  color: var(--dark);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+}
+
+/* ===== 侧边栏 ===== */
+.sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, var(--dark) 0%, var(--dark-2) 100%);
+  color: var(--white);
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.sidebar-header p {
+  font-size: 12px;
+  color: var(--gray-light);
+  margin-top: 4px;
+}
+
+.nav {
+  flex: 1;
+  padding: 16px 12px;
+  overflow-y: auto;
+}
+
+.nav-group {
+  margin-bottom: 24px;
+}
+
+.nav-group-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--gray-light);
+  padding: 8px 12px;
+  letter-spacing: 0.5px;
+}
+
+.nav-item {
+  padding: 12px 16px;
+  margin: 4px 0;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255,255,255,0.8);
+  font-size: 14px;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+}
+
+.nav-item.active {
+  background: var(--primary);
+  color: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.nav-item .icon {
+  width: 20px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  color: var(--gray-light);
+}
+
+/* ===== 主内容区 ===== */
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  padding: 32px;
+  min-height: 100vh;
+}
+
+/* ===== 顶部栏 ===== */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.topbar h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ===== 卡片 ===== */
+.card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  transition: var(--transition);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+/* ===== 统计卡片 ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1;
+}
+
+.stat-card .stat-label {
+  font-size: 14px;
+  color: var(--gray);
+  margin-top: 4px;
+}
+
+.stat-card.primary .stat-icon { background: rgba(79,70,229,0.1); color: var(--primary); }
+.stat-card.success .stat-icon { background: rgba(16,185,129,0.1); color: var(--success); }
+.stat-card.warning .stat-icon { background: rgba(245,158,11,0.1); color: var(--warning); }
+.stat-card.danger .stat-icon { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+/* ===== 按钮 ===== */
+.btn {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  box-shadow: var(--shadow);
+}
+
+.btn-success { background: var(--success); color: var(--white); }
+.btn-success:hover { background: #059669; }
+
+.btn-warning { background: var(--warning); color: var(--white); }
+.btn-warning:hover { background: #d97706; }
+
+.btn-danger { background: var(--danger); color: var(--white); }
+.btn-danger:hover { background: #dc2626; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.btn-ghost:hover {
+  background: rgba(79,70,229,0.1);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+/* ===== 表单 ===== */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dark);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius);
+  font-size: 14px;
+  transition: var(--transition);
+  background: var(--white);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+textarea.form-input {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* ===== 表格 ===== */
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+}
+
+th {
+  background: var(--lighter);
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gray);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+tbody tr {
+  transition: var(--transition);
+}
+
+tbody tr:hover {
+  background: var(--lighter);
+}
+
+/* ===== 状态标签 ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-draft { background: rgba(100,116,139,0.1); color: var(--gray); }
+.badge-pending { background: rgba(245,158,11,0.1); color: var(--warning); }
+.badge-approved { background: rgba(16,185,129,0.1); color: var(--success); }
+.badge-rejected { background: rgba(239,68,68,0.1); color: var(--danger); }
+.badge-reviewing { background: rgba(59,130,246,0.1); color: var(--info); }
+
+/* ===== 模态框 ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(20px);
+  transition: var(--transition);
+}
+
+.modal-overlay.active .modal {
+  transform: translateY(0);
+}
+
+.modal-header {
+  padding: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  font-size: 20px;
+  color: var(--gray);
+}
+
+.modal-close:hover {
+  background: var(--light);
+  color: var(--dark);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+/* ===== Toast通知 ===== */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast {
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast.success { border-left: 4px solid var(--success); }
+.toast.error { border-left: 4px solid var(--danger); }
+.toast.info { border-left: 4px solid var(--info); }
+.toast.warning { border-left: 4px solid var(--warning); }
+
+/* ===== 登录页 ===== */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.login-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 48px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
+}
+
+.login-card h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.login-card p {
+  color: var(--gray);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+/* ===== AI助手 ===== */
+.ai-panel {
+  background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  color: var(--white);
+  margin-bottom: 24px;
+}
+
+.ai-panel h3 {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.ai-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ai-feature-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: var(--radius);
+  padding: 16px;
+  color: var(--white);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: left;
+}
+
+.ai-feature-btn:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+
+.ai-feature-btn h4 {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.ai-feature-btn p {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ===== 配置 =====
+const API = '/api';
+const AI_API_KEY = 'sk-fpooieexrobdjbeqvdftsjhwptlptxbuhotmyzrpbniafxlb';
+const AI_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const AI_MODEL = 'Qwen/Qwen2.5-72B-Instruct';
+
+// ===== 状态 =====
+let currentUser = null;
+let currentPage = 'login';
+let docsCache = [];
+let usersCache = [];
+
+// ===== DOM助手 =====
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+// ===== Toast通知 =====
+function toast(msg, type) {
+  type = type || 'info';
+  let container = $('#toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<span>' + { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' }[type] + '</span><span>' + msg + '</span>';
+  container.appendChild(el);
+  
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// ===== API调用 =====
+async function api(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  
+  try {
+    const res = await fetch(API + url, opts);
+    if (!res.ok) {
+      const e = await res.json().catch(() => null);
+      throw new Error(e && e.message || 'HTTP ' + res.status);
+    }
+    return await res.json();
+  } catch (e) {
+    toast('请求失败：' + e.message, 'error');
+    throw e;
+  }
+}
+
+// ===== AI调用 =====
+async function callAI(prompt, maxTokens) {
+  maxTokens = maxTokens || 2000;
+  
+  try {
+    const res = await fetch(AI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + AI_API_KEY
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        temperature: 0.7
+      })
+    });
+    
+    if (!res.ok) {
+      throw new Error('AI调用失败：' + res.status);
+    }
+    
+    const data = await res.json();
+    return data.choices[0].message.content;
+  } catch (e) {
+    toast('AI调用失败：' + e.message, 'error');
+    throw e;
+  }
+}
+
+// ===== 登录 =====
+async function login() {
+  const username = $('#login-username').value.trim();
+  const password = $('#login-password').value.trim();
+  
+  if (!username || !password) {
+    return toast('请输入用户名和密码', 'warning');
+  }
+  
+  try {
+    const d = await api('/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (d.success) {
+      currentUser = d.user;
+      currentPage = 'dashboard';
+      render();
+      toast('登录成功，欢迎回来！', 'success');
+    }
+  } catch (e) {
+    // 登录失败
+  }
+}
+
+// ===== 渲染函数 =====
+function render() {
+  const app = $('#app');
+  
+  if (currentPage === 'login' || !currentUser) {
+    renderLogin(app);
+  } else {
+    renderApp(app);
+  }
+}
+
+function renderLogin(app) {
+  app.innerHTML = `
+    <div class="login-container">
+      <div class="login-card">
+        <h1>📄 公文流转审批系统</h1>
+        <p>AI智能版 v2.0</p>
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" id="login-username" class="form-input" placeholder="请输入用户名" value="admin">
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" id="login-password" class="form-input" placeholder="请输入密码" value="admin123">
+        </div>
+        <button onclick="login()" class="btn btn-primary btn-lg" style="width:100%">登录系统</button>
+        <div style="margin-top:16px;padding:16px;background:var(--lighter);border-radius:var(--radius);font-size:12px;color:var(--gray);">
+          <p><strong>演示账号：</strong></p>
+          <p>管理员：admin / admin123</p>
+          <p>普通用户：zhangsan / 123456</p>
+          <p>审批人：lisi / 123456</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderApp(app) {
+  app.innerHTML = `
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>📄 公文流转系统</h2>
+        <p>AI智能版 v2.0</p>
+      </div>
+      <nav class="nav">
+        <div class="nav-group">
+          <div class="nav-group-title">主要功能</div>
+          <div class="nav-item ${currentPage==='dashboard'?'active':''}" onclick="navigateTo('dashboard')">
+            <span class="icon">📊</span>
+            <span>工作台</span>
+          </div>
+          <div class="nav-item ${currentPage==='docs'?'active':''}" onclick="navigateTo('docs')">
+            <span class="icon">📄</span>
+            <span>公文列表</span>
+          </div>
+          <div class="nav-item ${currentPage==='create'?'active':''}" onclick="navigateTo('create')">
+            <span class="icon">✏️</span>
+            <span>创建公文</span>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">AI智能</div>
+          <div class="nav-item ${currentPage==='ai'?'active':''}" onclick="navigateTo('ai')">
+            <span class="icon">🤖</span>
+            <span>AI助手</span>
+          </div>
+        </div>
+        ${currentUser.role==='admin'?`
+        <div class="nav-group">
+          <div class="nav-group-title">系统管理</div>
+          <div class="nav-item ${currentPage==='users'?'active':''}" onclick="navigateTo('users')">
+            <span class="icon">👥</span>
+            <span>用户管理</span>
+          </div>
+          <div class="nav-item ${currentPage==='stats'?'active':''}" onclick="navigateTo('stats')">
+            <span class="icon">📈</span>
+            <span>统计报表</span>
+          </div>
+        </div>
+        `:''}
+      </nav>
+      <div class="sidebar-footer">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;">${currentUser.username[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:500;">${currentUser.username}</div>
+            <div style="font-size:11px;color:var(--gray-light);">${currentUser.role==='admin'?'管理员':currentUser.role==='user'?'普通用户':'审批人'}}</div>
+          </div>
+        </div>
+        <button onclick="logout()" class="btn btn-ghost btn-sm" style="width:100%">退出登录</button>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div id="page-content"></div>
+    </div>
+  `;
+  
+  renderPageContent();
+}
+
+function renderPageContent() {
+  const content = $('#page-content');
+  
+  switch (currentPage) {
+    case 'dashboard': renderDashboard(content); break;
+    case 'docs': renderDocs(content); break;
+    case 'create': renderCreateDoc(content); break;
+    case 'ai': renderAIPanel(content); break;
+    case 'users': renderUsers(content); break;
+    case 'stats': renderStats(content); break;
+    default: renderDashboard(content);
+  }
+}
+
+// ===== 页面内容 =====
+function renderDashboard(content) {
+  content.innerHTML = `
+    <div class="topbar">
+      <h1>工作台</h1>
+      <div class="topbar-actions">
+        <button onclick="navigateTo('create')" class="btn btn-primary">✏️ 创建公文</button>
+      </div>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card primary">
+        <div class="stat-icon">📄</div>
+        <div class="stat-value" id="stat-total">-</div>
+        <div class="stat-label">公文总数</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-value" id="stat-pending">-</div>
+        <div class="stat-label">待审批</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value" id="stat-approved">-</div>
+        <div class="stat-label">已通过</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-icon">❌</div>
+        <div class="stat-value" id="stat-rejected">-</div>
+        <div class="stat-label">已驳回</div>
+      </div>
+    </div>
+    
+    <div class="ai-panel">
+      <h3>🤖 AI智能助手已启用</h3>
+      <p>本系统已集成Qwen2.5-72B大模型，提供智能公文写作、内容润色、审批建议等功能</p>
+      <div class="ai-features">
+        <div class="ai-feature-btn" onclick="navigateTo('ai')">
+          <h4>📝 AI公文写作</h4>
+          <p>输入主题，AI自动生成公文草稿</p>
+        </div>
+        <div class="ai-feature-btn" onclick="navigateTo('ai')">
+          <h4>✨ 内容润色</h4>
+          <p>优化公文语言表达</p>
+        </div>
+        <div class="ai-feature-btn" onclick="navigateTo('ai')">
+          <h4>💡 审批建议</h4>
+          <p>AI分析公文内容给出审批建议</p>
+        </div>
+        <div class="ai-feature-btn" onclick="navigateTo('ai')">
+          <h4>❓ 智能问答</h4>
+          <p>询问公文相关问题</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">最近公文</h3>
+        <button onclick="navigateTo('docs')" class="btn btn-ghost btn-sm">查看全部</button>
+      </div>
+      <div id="recent-docs">
+        <p style="color:var(--gray);text-align:center;padding:20px;">加载中...</p>
+      </div>
+    </div>
+  `;
+  
+  loadStats();
+  loadRecentDocs();
+}
+
+async function loadStats() {
+  try {
+    const stats = await api('/stats');
+    $('#stat-total').textContent = stats.total || 0;
+    $('#stat-pending').textContent = stats.pending || 0;
+    $('#stat-approved').textContent = stats.approved || 0;
+    $('#stat-rejected').textContent = stats.rejected || 0;
+  } catch (e) {
+    console.error('加载统计失败', e);
+  }
+}
+
+async function loadRecentDocs() {
+  try {
+    const docs = await api('/docs');
+    docsCache = docs;
+    
+    const container = $('#recent-docs');
+    if (docs.length === 0) {
+      container.innerHTML = '<p style="color:var(--gray);text-align:center;padding:20px;">暂无公文</p>';
+      return;
+    }
+    
+    const recent = docs.slice(0, 5);
+    container.innerHTML = `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>标题</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recent.map(d => `
+              <tr>
+                <td>${d.title}</td>
+                <td><span class="badge badge-${d.status}">${getStatusText(d.status)}</span></td>
+                <td>${formatDate(d.createdAt)}</td>
+                <td><button onclick="viewDoc('${d.id}')" class="btn btn-ghost btn-sm">查看</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    $('#recent-docs').innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px;">加载失败</p>';
+  }
+}
+
+// ===== 公文管理 =====
+function renderDocs(content) {
+  content.innerHTML = `
+    <div class="topbar">
+      <h1>公文列表</h1>
+      <div class="topbar-actions">
+        <button onclick="navigateTo('create')" class="btn btn-primary">✏️ 创建公文</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">所有公文</h3>
+        <div style="display:flex;gap:8px;">
+          <input type="text" placeholder="搜索公文..." class="form-input" style="width:200px;" oninput="filterDocs(this.value)">
+          <select class="form-input" style="width:150px;" onchange="filterDocsByStatus(this.value)">
+            <option value="">全部状态</option>
+            <option value="draft">草稿</option>
+            <option value="pending">待审批</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已驳回</option>
+          </select>
+        </div>
+      </div>
+      <div id="docs-list">
+        <p style="color:var(--gray);text-align:center;padding:20px;">加载中...</p>
+      </div>
+    </div>
+  `;
+  
+  loadDocs();
+}
+
+async function loadDocs() {
+  try {
+    const docs = await api('/docs');
+    docsCache = docs;
+    renderDocsList(docs);
+  } catch (e) {
+    $('#docs-list').innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px;">加载失败</p>';
+  }
+}
+
+function renderDocsList(docs) {
+  const container = $('#docs-list');
+  
+  if (docs.length === 0) {
+    container.innerHTML = '<p style="color:var(--gray);text-align:center;padding:20px;">暂无公文</p>';
+    return;
+  }
+  
+  container.innerHTML = `
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${docs.map(d => `
+            <tr>
+              <td>${d.title}</td>
+              <td>${d.type || '-'}</td>
+              <td><span class="badge badge-${d.status}">${getStatusText(d.status)}</span></td>
+              <td>${formatDate(d.createdAt)}</td>
+              <td>
+                <button onclick="viewDoc('${d.id}')" class="btn btn-ghost btn-sm">查看</button>
+                ${d.status==='draft'?'<button onclick="editDoc(\''+d.id+'\')" class="btn btn-ghost btn-sm">编辑</button>':''}
+                ${d.status==='pending'&&currentUser.role!=='user'?'<button onclick="approveDoc(\''+d.id+'\')" class="btn btn-success btn-sm">审批</button>':''}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ===== AI功能 =====
+function renderAIPanel(content) {
+  content.innerHTML = `
+    <div class="topbar">
+      <h1>🤖 AI智能助手</h1>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">AI公文写作助手</h3>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
+        <div>
+          <div class="form-group">
+            <label class="form-label">公文主题</label>
+            <input type="text" id="ai-topic" class="form-input" placeholder="例如：关于加强公司内部管理的通知">
+          </div>
+          <div class="form-group">
+            <label class="form-label">公文类型</label>
+            <select id="ai-type" class="form-input">
+              <option value="通知">通知</option>
+              <option value="报告">报告</option>
+              <option value="请示">请示</option>
+              <option value="函">函</option>
+            </select>
+          </div>
+          <button onclick="aiGenerateDoc()" class="btn btn-primary">🤖 生成公文草稿</button>
+        </div>
+        <div>
+          <div class="form-group">
+            <label class="form-label">生成结果</label>
+            <textarea id="ai-result" class="form-input" style="min-height:200px;" placeholder="AI生成的内容将显示在这里..."></textarea>
+          </div>
+          <button onclick="useAIGenerated()" class="btn btn-success">使用此内容</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">AI内容润色</h3>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="form-group">
+            <label class="form-label">原始内容</label>
+            <textarea id="ai-polish-input" class="form-input" style="min-height:150px;" placeholder="粘贴需要润色的内容..."></textarea>
+          </div>
+          <button onclick="aiPolish()" class="btn btn-primary">✨ 润色内容</button>
+        </div>
+        <div>
+          <div class="form-group">
+            <label class="form-label">润色结果</label>
+            <textarea id="ai-polish-result" class="form-input" style="min-height:150px;" placeholder="润色后的内容将显示在这里..."></textarea>
+          </div>
+          <button onclick="usePolished()" class="btn btn-success">使用润色结果</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">AI审批建议</h3>
+      </div>
+      <div class="form-group">
+        <label class="form-label">公文内容</label>
+        <textarea id="ai-approve-input" class="form-input" style="min-height:120px;" placeholder="粘贴公文内容，AI将给出审批建议..."></textarea>
+      </div>
+      <button onclick="aiApproveSuggestion()" class="btn btn-primary">💡 获取审批建议</button>
+      <div id="ai-approve-result" style="margin-top:16px;"></div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">AI智能问答</h3>
+      </div>
+      <div class="form-group">
+        <label class="form-label">提问</label>
+        <input type="text" id="ai-qa-input" class="form-input" placeholder="例如：公文中应该如何表达感谢？" onkeypress="if(event.key==='Enter')aiQA()">
+      </div>
+      <button onclick="aiQA()" class="btn btn-primary">❓ 提问</button>
+      <div id="ai-qa-result" style="margin-top:16px;padding:16px;background:var(--lighter);border-radius:var(--radius);"></div>
+    </div>
+  `;
+}
+
+async function aiGenerateDoc() {
+  const topic = $('#ai-topic').value.trim();
+  const type = $('#ai-type').value;
+  
+  if (!topic) return toast('请输入公文主题', 'warning');
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '🤖 生成中...';
+  
+  try {
+    const prompt = `请生成一份正式的${type}，主题是：${topic}。\n\n要求：\n1. 符合中国公文写作规范\n2. 语言正式、严谨\n3. 结构完整（标题、正文、落款）\n4. 字数在500-800字`;
+    const result = await callAI(prompt, 1500);
+    $('#ai-result').value = result;
+    toast('生成成功', 'success');
+  } catch (e) {
+    // 错误已处理
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 生成公文草稿';
+  }
+}
+
+function useAIGenerated() {
+  const content = $('#ai-result').value.trim();
+  if (!content) return toast('没有可使用的內容', 'warning');
+  
+  navigateTo('create');
+  setTimeout(() => {
+    $('#doc-content').value = content;
+    $('#doc-title').value = $('#ai-topic').value || 'AI生成公文';
+    toast('内容已填入编辑器', 'success');
+  }, 100);
+}
+
+async function aiPolish() {
+  const content = $('#ai-polish-input').value.trim();
+  if (!content) return toast('请输入需要润色的内容', 'warning');
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '✨ 润色中...';
+  
+  try {
+    const prompt = `请对以下公文内容进行润色，使其更加正式、严谨、流畅：\n\n${content}\n\n要求：\n1. 保持原意\n2. 使用更规范的公务用语\n3. 优化句式结构\n4. 去除口语化表达`;
+    const result = await callAI(prompt, 1000);
+    $('#ai-polish-result').value = result;
+    toast('润色成功', 'success');
+  } catch (e) {
+    // 错误已处理
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ 润色内容';
+  }
+}
+
+// ===== 工具函数 =====
+function getStatusText(status) {
+  const map = {
+    'draft': '草稿',
+    'pending': '待审批',
+    'reviewing': '审批中',
+    'approved': '已通过',
+    'rejected': '已驳回'
+  };
+  return map[status] || status;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function navigateTo(page) {
+  currentPage = page;
+  render();
+}
+
+function logout() {
+  currentUser = null;
+  currentPage = 'login';
+  render();
+  toast('已退出登录', 'info');
+}
+
+// ===== 初始化 =====
+render();
+</script>
+</body>
+</html>

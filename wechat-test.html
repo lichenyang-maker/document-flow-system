@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微信消息模拟测试 - 请假系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height: 100vh; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; }
+.card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+h1 { font-size: 24px; margin-bottom: 8px; color: #1a1a2e; }
+.subtitle { color: #666; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; }
+textarea { width: 100%; height: 120px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical; transition: border-color 0.3s; }
+textarea:focus { outline: none; border-color: #667eea; }
+.btn { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s,box-shadow 0.2s; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.result { margin-top: 20px; padding: 16px; border-radius: 8px; display: none; }
+.result.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; display: block; }
+.result.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; display: block; }
+.result pre { white-space: pre-wrap; word-break: break-all; margin-top: 10px; font-size: 12px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 4px; }
+.examples { background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+.examples h3 { font-size: 14px; margin-bottom: 10px; color: #495057; }
+.examples button { background: #fff; border: 1px solid #dee2e6; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; margin-bottom: 8px; transition: all 0.2s; }
+.examples button:hover { background: #667eea; color: #fff; border-color: #667eea; }
+.status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+.status.pending { background: #fff3cd; color: #856404; }
+.status.connected { background: #d4edda; color: #155724; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>📱 微信消息模拟测试 <span class="status pending">待连接公网</span></h1>
+    <p class="subtitle">模拟微信发送消息，测试 AI 解析 + 自动提交请假功能</p>
+    
+    <div class="examples">
+      <h3>💡 示例消息（点击填入）：</h3>
+      <button onclick="fillExample('我要请3天年假，6月15到17号，去旅游')">简单请假</button>
+      <button onclick="fillExample('我是张三，想请2天事假，因为家里有事要处理，6月20号到21号')">带姓名</button>
+      <button onclick="fillExample('帮我请病假，下周一到周三，感冒发烧去医院')">相对日期</button>
+      <button onclick="fillExample('请假#李四#年假#2026-06-25#2026-06-27#3#回老家探亲')">格式化</button>
+    </div>
+    
+    <div class="form-group">
+      <label>微信消息内容：</label>
+      <textarea id="message" placeholder="输入模拟的微信消息，例如：&#10;我要请3天年假，6月15到17号，去旅游"></textarea>
+    </div>
+    
+    <button class="btn" onclick="sendTest()">🚀 发送测试</button>
+    
+    <div id="result" class="result"></div>
+  </div>
+  
+  <div class="card">
+    <h3>📋 工作原理</h3>
+    <ol style="padding-left: 20px; line-height: 1.8; color: #555;">
+      <li><strong>微信用户</strong>发送消息给公众号（或企业微信）</li>
+      <li><strong>微信服务器</strong>POST 消息到你的 webhook 地址（需要公网）</li>
+      <li><strong>后端 AI</strong>解析消息，识别请假意图、时间、事由</li>
+      <li><strong>系统自动</strong>创建请假记录，通知审批人</li>
+      <li><strong>审批结果</strong>推送到微信</li>
+    </ol>
+    <div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 8px; font-size: 13px;">
+      <strong>⚠️ 当前状态：</strong>公网穿透未配置，微信无法直接访问本机。<br>
+      本页面通过直接调用后端 API 模拟微信消息，用于测试 AI 解析逻辑。<br>
+      配置公网穿透后，将 webhook URL 填入微信公众号后台即可启用真实微信消息接收。
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:3000';
+
+function fillExample(text) {
+  document.getElementById('message').value = text;
+}
+
+async function sendTest() {
+  const message = document.getElementById('message').value.trim();
+  if (!message) {
+    showResult('error', '请输入消息内容');
+    return;
+  }
+  
+  const btn = document.querySelector('.btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 处理中...';
+  
+  try {
+    // 模拟微信消息 XML 格式
+    const fromUser = 'test_wx_user_' + Date.now();
+    const toUser = 'gh_test_system';
+    const xml = `<xml>
+<ToUserName><![CDATA[${toUser}]]></ToUserName>
+<FromUserName><![CDATA[${fromUser}]]></FromUserName>
+<CreateTime>${Math.floor(Date.now()/1000)}</CreateTime>
+<MsgType><![CDATA[text]]></MsgType>
+<Content><![CDATA[${message}]]></Content>
+<MsgId>${Date.now()}</MsgId>
+</xml>`;
+    
+    const response = await fetch(`${API_BASE}/api/wechat/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xml
+    });
+    
+    const responseText = await response.text();
+    
+    // 解析 XML 响应
+    const contentMatch = responseText.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+    const replyContent = contentMatch ? contentMatch[1] : responseText;
+    
+    if (replyContent.includes('✅') || replyContent.includes('已提交')) {
+      showResult('success', '🎉 请假申请已成功创建！', replyContent);
+    } else if (replyContent.includes('❌')) {
+      showResult('error', '处理失败', replyContent);
+    } else {
+      showResult('success', '服务器响应', replyContent);
+    }
+  } catch (err) {
+    showResult('error', '请求失败', err.message);
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '🚀 发送测试';
+}
+
+function showResult(type, title, detail) {
+  const el = document.getElementById('result');
+  el.className = 'result ' + type;
+  el.innerHTML = `<strong>${title}</strong>${detail ? '<pre>' + escapeHtml(detail) + '</pre>' : ''}`;
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>

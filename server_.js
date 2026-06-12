@@ -1,0 +1,1 @@
+﻿const express = require(" express\); const app = express(); const PORT = 3000; app.get(\/\, (req, res) => res.send(\<h1>公文流转系统</h1><p>系统正在启动...</p>\)); app.listen(PORT, () => console.log(服务器运行在 http://localhost:));

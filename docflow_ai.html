@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>公文流转审批系统 - AI版</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", sans-serif; background: #ecf0f1; }
+.header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+.nav { background: #34495e; padding: 15px; text-align: center; }
+.nav button { background: #3498db; color: white; border: none; padding: 10px 20px; margin: 0 10px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+.nav button:hover { background: #2980b9; }
+.container { max-width: 1200px; margin: 0 auto; padding: 30px; }
+.card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.btn { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+.btn:hover { background: #219a52; }
+.btn-danger { background: #e74c3c; }
+.btn-danger:hover { background: #c0392b; }
+.btn-warning { background: #f39c12; }
+.btn-warning:hover { background: #e67e22; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+th { background: #34495e; color: white; }
+tr:hover { background: #f5f5f5; }
+input, textarea, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+label { font-weight: bold; display: block; margin-top: 10px; }
+.status-draft { color: #95a5a6; }
+.status-pending { color: #f39c12; font-weight: bold; }
+.status-approved { color: #27ae60; font-weight: bold; }
+.status-rejected { color: #e74c3c; font-weight: bold; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+.modal-content { background: white; width: 90%; max-width: 600px; margin: 50px auto; padding: 30px; border-radius: 8px; }
+.close { float: right; font-size: 28px; cursor: pointer; }
+.alert { padding: 15px; margin: 10px 0; border-radius: 5px; }
+.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.loading { text-align: center; padding: 20px; color: #3498db; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>公文流转审批系统 - AI智能版</h1>
+    <p id="currentUser"></p>
+</div>
+
+<div class="nav">
+    <button onclick="showPage('login')">登录</button>
+    <button onclick="showPage('list')">公文列表</button>
+    <button onclick="showPage('create')">创建公文</button>
+    <button onclick="showPage('ai')">🤖 AI智能体</button>
+    <button onclick="showPage('stats')">统计报表</button>
+    <button onclick="logout()">退出登录</button>
+</div>
+
+<div id="content" class="container"></div>
+
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+// 数据初始化
+const STORAGE_KEY = 'docflow_docs';
+const USER_KEY = 'docflow_users';
+
+// 硅基流动API配置
+const AI_API_KEY = 'sk-fpooieexrobdjbeqvdftsjhwptlptxbuhotmyzrpbniafxlb';
+const AI_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const AI_MODEL = 'Qwen/Qwen2.5-72B-Instruct';
+
+// 通用AI调用函数
+async function callAI(prompt, maxTokens = 2000) {
+    try {
+        const response = await fetch(AI_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: AI_MODEL,
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: maxTokens,
+                temperature: 0.7
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API调用失败：${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content;
+    } catch (error) {
+        console.error('AI调用错误：', error);
+        throw error;
+    }
+}
+
+function initData() {
+    if (!localStorage.getItem(USER_KEY)) {
+        const users = [
+            { id: 1, username: 'admin', password: 'admin123', role: 'admin', department: '管理部', createdAt: new Date().toISOString() },
+            { id: 2, username: 'zhangsan', password: '123456', role: 'user', department: '技术部', createdAt: new Date().toISOString() },
+            { id: 3, username: 'lisi', password: '123456', role: 'approver', department: '技术部', createdAt: new Date().toISOString() },
+            { id: 4, username: 'wangwu', password: '123456', role: 'approver', department: '财务部', createdAt: new Date().toISOString() }
+        ];
+        localStorage.setItem(USER_KEY, JSON.stringify(users));
+    }
+    
+    if (!localStorage.getItem(STORAGE_KEY)) {
+        const docs = [
+            { id: 1, title: '关于2026年项目立项的申请', content: '<p>尊敬的领导：</p><p>我部门拟申请启动2026年新技术研发项目，预算500万元，预计周期12个月。</p><p>请审批。</p>', creatorId: 2, creatorName: 'zhangsan', status: 'pending', currentApproverId: 3, approverName: 'lisi', priority: 'high', department: '技术部', comments: [], createdAt: '2026-05-20T10:00:00Z', updatedAt: '2026-05-20T10:00:00Z' },
+            { id: 2, title: '办公用品采购申请', content: '<p>申请采购办公电脑10台，预算8万元。</p>', creatorId: 2, creatorName: 'zhangsan', status: 'draft', currentApproverId: null, approverName: '', priority: 'normal', department: '技术部', comments: [], createdAt: '2026-05-25T14:00:00Z', updatedAt: '2026-05-25T14:00:00Z' },
+            { id: 3, title: '年度培训计划', content: '<p>2026年度员工培训计划，包括技术培训、管理培训等。</p>', creatorId: 1, creatorName: 'admin', status: 'approved', currentApproverId: 3, approverName: 'lisi', priority: 'normal', department: '管理部', comments: [{ approverId: 3, approverName: 'lisi', text: '同意', time: '2026-05-22T09:00:00Z' }], createdAt: '2026-05-18T08:00:00Z', updatedAt: '2026-05-22T09:00:00Z' }
+        ];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+    }
+}
+
+initData();
+
+function getCurrentUser() {
+    return JSON.parse(localStorage.getItem('current_user') || 'null');
+}
+
+function setCurrentUser(user) {
+    localStorage.setItem('current_user', JSON.stringify(user));
+}
+
+function getUsers() {
+    return JSON.parse(localStorage.getItem(USER_KEY) || '[]');
+}
+
+function getDocs() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+}
+
+function saveDocs(docs) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+}
+
+function login(username, password) {
+    const users = getUsers();
+    const user = users.find(u => u.username === username && u.password === password);
+    if (user) {
+        setCurrentUser(user);
+        showAlert('登录成功！', 'success');
+        showPage('list');
+        updateUserDisplay();
+        return true;
+    }
+    showAlert('用户名或密码错误！', 'error');
+    return false;
+}
+
+function logout() {
+    localStorage.removeItem('current_user');
+    showAlert('已退出登录', 'success');
+    showPage('login');
+    updateUserDisplay();
+}
+
+function updateUserDisplay() {
+    const user = getCurrentUser();
+    const el = document.getElementById('currentUser');
+    if (user) {
+        el.innerHTML = `当前用户：${user.username}（${user.role === 'admin' ? '管理员' : user.role === 'approver' ? '审批人' : '普通用户'}）- ${user.department}`;
+    } else {
+        el.innerHTML = '未登录';
+    }
+}
+
+function showAlert(msg, type) {
+    const div = document.createElement('div');
+    div.className = `alert alert-${type}`;
+    div.textContent = msg;
+    document.getElementById('content').prepend(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+function showPage(page) {
+    const user = getCurrentUser();
+    if (!user && page !== 'login') {
+        showAlert('请先登录！', 'error');
+        page = 'login';
+    }
+    
+    const content = document.getElementById('content');
+    
+    switch(page) {
+        case 'login':
+            content.innerHTML = `
+                <div class="card">
+                    <h2>登录系统</h2>
+                    <label>用户名</label>
+                    <input type="text" id="loginUser" placeholder="请输入用户名" value="admin">
+                    <label>密码</label>
+                    <input type="password" id="loginPass" placeholder="请输入密码" value="admin123">
+                    <button class="btn" onclick="doLogin()" style="margin-top: 20px;">登录</button>
+                    <hr style="margin: 20px 0;">
+                    <p>测试账号：</p>
+                    <p>管理员：admin / admin123</p>
+                    <p>普通用户：zhangsan / 123456</p>
+                    <p>审批人：lisi / 123456</p>
+                </div>
+            `;
+            break;
+            
+        case 'list':
+            const docs = getDocs();
+            let html = '<h2>公文列表</h2>';
+            
+            const filterStatus = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : 'all';
+            const filterDept = document.getElementById('filterDept') ? document.getElementById('filterDept').value : 'all';
+            
+            let filteredDocs = docs.filter(d => {
+                if (filterStatus !== 'all' && d.status !== filterStatus) return false;
+                if (filterDept !== 'all' && d.department !== filterDept) return false;
+                return true;
+            });
+            
+            html += `
+                <div class="card">
+                    <label>按状态筛选</label>
+                    <select id="filterStatus" onchange="showPage('list')">
+                        <option value="all">全部</option>
+                        <option value="draft">草稿</option>
+                        <option value="pending">待审批</option>
+                        <option value="approved">已通过</option>
+                        <option value="rejected">已驳回</option>
+                    </select>
+                    <label>按部门筛选</label>
+                    <select id="filterDept" onchange="showPage('list')">
+                        <option value="all">全部</option>
+                        <option value="技术部">技术部</option>
+                        <option value="管理部">管理部</option>
+                        <option value="财务部">财务部</option>
+                    </select>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>编号</th>
+                            <th>标题</th>
+                            <th>创建人</th>
+                            <th>状态</th>
+                            <th>优先级</th>
+                            <th>部门</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            filteredDocs.forEach(doc => {
+                const statusMap = { draft: '草稿', pending: '待审批', approved: '已通过', rejected: '已驳回' };
+                const priorityMap = { normal: '普通', high: '高', urgent: '紧急' };
+                html += `
+                        <tr>
+                            <td>${doc.id}</td>
+                            <td><a href="#" onclick="viewDoc(${doc.id})">${doc.title}</a></td>
+                            <td>${doc.creatorName}</td>
+                            <td class="status-${doc.status}">${statusMap[doc.status]}</td>
+                            <td>${priorityMap[doc.priority]}</td>
+                            <td>${doc.department}</td>
+                            <td>${new Date(doc.createdAt).toLocaleString('zh-CN')}</td>
+                            <td>
+                                <button class="btn" onclick="viewDoc(${doc.id})">查看</button>
+                                ${doc.status === 'draft' && doc.creatorId === user.id ? `<button class="btn btn-warning" onclick="submitDoc(${doc.id})">提交审批</button>` : ''}
+                                ${doc.status === 'pending' && user.role === 'approver' ? `<button class="btn" onclick="approveDoc(${doc.id}, 'approved')">通过</button><button class="btn btn-danger" onclick="approveDoc(${doc.id}, 'rejected')">驳回</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+            break;
+            
+        case 'create':
+            content.innerHTML = `
+                <div class="card">
+                    <h2>创建新公文</h2>
+                    <label>标题</label>
+                    <input type="text" id="docTitle" placeholder="请输入公文标题">
+                    <label>内容（支持HTML）</label>
+                    <textarea id="docContent" rows="10" placeholder="请输入公文内容"></textarea>
+                    <label>优先级</label>
+                    <select id="docPriority">
+                        <option value="normal">普通</option>
+                        <option value="high">高</option>
+                        <option value="urgent">紧急</option>
+                    </select>
+                    <label>部门</label>
+                    <select id="docDept">
+                        <option value="技术部">技术部</option>
+                        <option value="管理部">管理部</option>
+                        <option value="财务部">财务部</option>
+                    </select>
+                    <button class="btn" onclick="createDoc()" style="margin-top: 20px;">创建</button>
+                    <button class="btn btn-warning" onclick="showPage('ai')" style="margin-top: 20px; margin-left: 10px;">🤖 使用AI助手</button>
+                </div>
+            `;
+            break;
+            
+        case 'ai':
+            content.innerHTML = `
+                <h2>🤖 AI智能体</h2>
+                <div class="card">
+                    <h3>📝 AI公文写作助手</h3>
+                    <p>输入关键词，AI帮你生成公文内容</p>
+                    <input type="text" id="aiKeyword" placeholder="例：项目立项申请、采购申请">
+                    <select id="aiDocType">
+                        <option value="申请">申请书</option>
+                        <option value="报告">报告</option>
+                        <option value="通知">通知</option>
+                        <option value="总结">工作总结</option>
+                    </select>
+                    <button class="btn" onclick="aiGenerateDoc()">生成公文</button>
+                    <div id="aiResult" style="margin-top: 20px;"></div>
+                </div>
+                <div class="card">
+                    <h3>💡 AI内容润色</h3>
+                    <p>粘贴内容，AI帮你润色优化</p>
+                    <textarea id="aiPolishInput" rows="6" placeholder="粘贴需要润色的内容"></textarea>
+                    <button class="btn btn-warning" onclick="aiPolish()">润色优化</button>
+                    <div id="aiPolishResult" style="margin-top: 20px;"></div>
+                </div>
+                <div class="card">
+                    <h3>🤖 AI审批建议</h3>
+                    <p>选择公文，AI提供审批建议</p>
+                    <select id="aiDocSelect">
+                        ${getDocs().map(d => `<option value="${d.id}">${d.title}</option>`).join('')}
+                    </select>
+                    <button class="btn" onclick="aiApproveSuggestion()">获取审批建议</button>
+                    <div id="aiApproveResult" style="margin-top: 20px;"></div>
+                </div>
+                <div class="card">
+                    <h3>🔍 AI智能问答</h3>
+                    <p>询问任何问题</p>
+                    <input type="text" id="aiQuestion" placeholder="例：如何提高公文写作质量？">
+                    <button class="btn btn-warning" onclick="aiQA()">提问</button>
+                    <div id="aiQAResult" style="margin-top: 20px;"></div>
+                </div>
+            `;
+            break;
+            
+        case 'stats':
+            const allDocs = getDocs();
+            const stats = {
+                total: allDocs.length,
+                draft: allDocs.filter(d => d.status === 'draft').length,
+                pending: allDocs.filter(d => d.status === 'pending').length,
+                approved: allDocs.filter(d => d.status === 'approved').length,
+                rejected: allDocs.filter(d => d.status === 'rejected').length
+            };
+            
+            content.innerHTML = `
+                <h2>统计报表</h2>
+                <div class="card">
+                    <h3>总体统计</h3>
+                    <p>总公文数：<strong>${stats.total}</strong></p>
+                    <p>草稿：<strong>${stats.draft}</strong></p>
+                    <p>待审批：<strong>${stats.pending}</strong></p>
+                    <p>已通过：<strong>${stats.approved}</strong></p>
+                    <p>已驳回：<strong>${stats.rejected}</strong></p>
+                </div>
+                <div class="card">
+                    <h3>按部门统计</h3>
+                    <p>技术部：${allDocs.filter(d => d.department === '技术部').length} 份</p>
+                    <p>管理部：${allDocs.filter(d => d.department === '管理部').length} 份</p>
+                    <p>财务部：${allDocs.filter(d => d.department === '财务部').length} 份</p>
+                </div>
+            `;
+            break;
+    }
+}
+
+function doLogin() {
+    const username = document.getElementById('loginUser').value;
+    const password = document.getElementById('loginPass').value;
+    login(username, password);
+}
+
+function createDoc() {
+    const user = getCurrentUser();
+    const title = document.getElementById('docTitle').value;
+    const content = document.getElementById('docContent').value;
+    const priority = document.getElementById('docPriority').value;
+    const department = document.getElementById('docDept').value;
+    
+    if (!title || !content) {
+        showAlert('请填写完整信息！', 'error');
+        return;
+    }
+    
+    const docs = getDocs();
+    const newId = docs.length > 0 ? Math.max(...docs.map(d => d.id)) + 1 : 1;
+    
+    docs.push({
+        id: newId,
+        title: title,
+        content: content,
+        creatorId: user.id,
+        creatorName: user.username,
+        status: 'draft',
+        currentApproverId: null,
+        approverName: '',
+        priority: priority,
+        department: department,
+        comments: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    });
+    
+    saveDocs(docs);
+    showAlert('公文创建成功！', 'success');
+    showPage('list');
+}
+
+function viewDoc(id) {
+    const docs = getDocs();
+    const doc = docs.find(d => d.id === id);
+    if (!doc) return;
+    
+    const statusMap = { draft: '草稿', pending: '待审批', approved: '已通过', rejected: '已驳回' };
+    const priorityMap = { normal: '普通', high: '高', urgent: '紧急' };
+    
+    let commentsHtml = '';
+    if (doc.comments && doc.comments.length > 0) {
+        commentsHtml = '<h3>审批意见</h3>';
+        doc.comments.forEach(c => {
+            commentsHtml += `<p><strong>${c.approverName}</strong> (${new Date(c.time).toLocaleString('zh-CN')})：${c.text}</p>`;
+        });
+    }
+    
+    document.getElementById('modalBody').innerHTML = `
+        <h2>${doc.title}</h2>
+        <p><strong>状态：</strong><span class="status-${doc.status}">${statusMap[doc.status]}</span></p>
+        <p><strong>优先级：</strong>${priorityMap[doc.priority]}</p>
+        <p><strong>部门：</strong>${doc.department}</p>
+        <p><strong>创建人：</strong>${doc.creatorName}</p>
+        <p><strong>审批人：</strong>${doc.approverName || '无'}</p>
+        <p><strong>创建时间：</strong>${new Date(doc.createdAt).toLocaleString('zh-CN')}</p>
+        <hr>
+        <div>${doc.content}</div>
+        <hr>
+        ${commentsHtml}
+        ${doc.status === 'pending' && getCurrentUser().role === 'approver' ? `
+            <h3>审批操作</h3>
+            <textarea id="approveComment" placeholder="请输入审批意见"></textarea>
+            <button class="btn" onclick="approveDoc(${doc.id}, 'approved')">通过</button>
+            <button class="btn btn-danger" onclick="approveDoc(${doc.id}, 'rejected')">驳回</button>
+        ` : ''}
+    `;
+    
+    document.getElementById('modal').style.display = 'block';
+}
+
+function submitDoc(id) {
+    const docs = getDocs();
+    const idx = docs.findIndex(d => d.id === id);
+    if (idx === -1) return;
+    
+    const users = getUsers();
+    const approvers = users.filter(u => u.role === 'approver' && u.department === docs[idx].department);
+    
+    if (approvers.length === 0) {
+        showAlert('该部门没有审批人！', 'error');
+        return;
+    }
+    
+    docs[idx].status = 'pending';
+    docs[idx].currentApproverId = approvers[0].id;
+    docs[idx].approverName = approvers[0].username;
+    docs[idx].updatedAt = new Date().toISOString();
+    
+    saveDocs(docs);
+    showAlert('公文已提交审批！', 'success');
+    showPage('list');
+}
+
+function approveDoc(id, action) {
+    const docs = getDocs();
+    const idx = docs.findIndex(d => d.id === id);
+    if (idx === -1) return;
+    
+    const comment = document.getElementById('approveComment') ? document.getElementById('approveComment').value : '';
+    const user = getCurrentUser();
+    
+    docs[idx].status = action;
+    docs[idx].updatedAt = new Date().toISOString();
+    docs[idx].comments.push({
+        approverId: user.id,
+        approverName: user.username,
+        text: comment || (action === 'approved' ? '同意' : '驳回'),
+        time: new Date().toISOString()
+    });
+    
+    saveDocs(docs);
+    showAlert(action === 'approved' ? '审批通过！' : '已驳回', 'success');
+    closeModal();
+    showPage('list');
+}
+
+// AI公文生成
+async function aiGenerateDoc() {
+    const keyword = document.getElementById('aiKeyword').value;
+    const docType = document.getElementById('aiDocType').value;
+    if (!keyword) { showAlert('请输入关键词！', 'error'); return; }
+    
+    document.getElementById('aiResult').innerHTML = '<div class="loading">🤖 AI正在生成公文，请稍候...</div>';
+    
+    try {
+        const prompt = `你是一位专业的公文写作助手。请生成一份规范的${docType}，主题是"${keyword}"。\n\n要求：\n1. 符合中国行政机关公文格式\n2. 语言正式、规范、简洁\n3. 结构清晰，层次分明\n4. 使用HTML格式输出（用<p>、<h2>、<h3>等标签）\n5. 字数800-1200字\n6. 包含完整的公文要素（标题、正文、落款等）\n\n直接输出公文内容，不要加任何解释。`;
+        
+        const result = await callAI(prompt, 2000);
+        
+        document.getElementById('aiResult').innerHTML = `
+            <div class="alert alert-success">✅ AI生成完成！</div>
+            <div style="border: 1px solid #ddd; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto;">${result}</div>
+            <button class="btn" onclick="useAIDoc()" style="margin-top: 10px;">使用此内容</button>
+            <button class="btn btn-warning" onclick="regenerateDoc()" style="margin-top: 10px; margin-left: 10px;">重新生成</button>
+        `;
+        window.tempAIDoc = result;
+        window.tempAIPrompt = prompt;
+    } catch (error) {
+        document.getElementById('aiResult').innerHTML = `<div class="alert alert-error">AI调用失败：${error.message}</div>`;
+    }
+}
+
+async function regenerateDoc() {
+    if (window.tempAIPrompt) {
+        document.getElementById('aiResult').innerHTML = '<div class="loading">🤖 AI正在重新生成，请稍候...</div>';
+        try {
+            const result = await callAI(window.tempAIPrompt + '\n\n请换一个角度或风格重新生成。', 2000);
+            document.getElementById('aiResult').innerHTML = `
+                <div class="alert alert-success">✅ AI重新生成完成！</div>
+                <div style="border: 1px solid #ddd; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto;">${result}</div>
+                <button class="btn" onclick="useAIDoc()" style="margin-top: 10px;">使用此内容</button>
+                <button class="btn btn-warning" onclick="regenerateDoc()" style="margin-top: 10px; margin-left: 10px;">重新生成</button>
+            `;
+            window.tempAIDoc = result;
+        } catch (error) {
+            document.getElementById('aiResult').innerHTML = `<div class="alert alert-error">AI调用失败：${error.message}</div>`;
+        }
+    }
+}
+
+function useAIDoc() {
+    if (window.tempAIDoc) {
+        document.getElementById('docContent').value = window.tempAIDoc;
+        showPage('create');
+        showAlert('AI生成的内容已填入，请完善标题后创建！', 'success');
+    }
+}
+
+// AI内容润色
+async function aiPolish() {
+    const content = document.getElementById('aiPolishInput').value;
+    if (!content) { showAlert('请粘贴需要润色的内容！', 'error'); return; }
+    
+    document.getElementById('aiPolishResult').innerHTML = '<div class="loading">🤖 AI正在润色，请稍候...</div>';
+    
+    try {
+        const prompt = `你是一位专业的公文润色专家。请对以下公文内容进行润色和优化，使其更加规范、专业、简洁。\n\n要求：\n1. 使用正式、规范的公文语言\n2. 优化表达，提升专业性\n3. 保持原意，不改变核心内容\n4. 使用HTML格式输出\n\n原文：\n${content}\n\n直接输出润色后的内容，不要加任何解释。`;
+        
+        const result = await callAI(prompt, 2000);
+        
+        document.getElementById('aiPolishResult').innerHTML = `
+            <div class="alert alert-success">✅ AI润色完成！</div>
+            <div style="border: 1px solid #ddd; padding: 15px; margin-top: 10px;">${result}</div>
+            <button class="btn" onclick="usePolished()" style="margin-top: 10px;">使用润色后内容</button>
+        `;
+        window.tempPolished = result;
+    } catch (error) {
+        document.getElementById('aiPolishResult').innerHTML = `<div class="alert alert-error">AI调用失败：${error.message}</div>`;
+    }
+}
+
+function usePolished() {
+    if (window.tempPolished) {
+        document.getElementById('aiPolishInput').value = window.tempPolished;
+        showAlert('已更新为润色后的内容！', 'success');
+    }
+}
+
+// AI审批建议
+async function aiApproveSuggestion() {
+    const docId = parseInt(document.getElementById('aiDocSelect').value);
+    const docs = getDocs();
+    const doc = docs.find(d => d.id === docId);
+    if (!doc) { showAlert('请选择公文！', 'error'); return; }
+    
+    document.getElementById('aiApproveResult').innerHTML = '<div class="loading">🤖 AI正在分析，请稍候...</div>';
+    
+    try {
+        const prompt = `你是一位经验丰富的公文审批专家。请对以下公文提供审批建议。\n\n公文信息：\n标题：${doc.title}\n状态：${doc.status}\n优先级：${doc.priority}\n部门：${doc.department}\n内容：${doc.content}\n\n请提供：\n1. 审批建议（通过/驳回/修改后再审）\n2. 理由说明\n3. 如果需要修改，给出具体修改建议\n\n直接输出审批建议，格式清晰，语言专业。`;
+        
+        const result = await callAI(prompt, 1000);
+        
+        document.getElementById('aiApproveResult').innerHTML = `
+            <div class="alert alert-success">✅ AI审批建议</div>
+            <div style="border: 1px solid #ddd; padding: 15px; margin-top: 10px;">
+                <p><strong>公文：</strong>${doc.title}</p>
+                <p><strong>状态：</strong>${doc.status}</p>
+                <hr>
+                <p><strong>AI建议：</strong></p>
+                <div>${result.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById('aiApproveResult').innerHTML = `<div class="alert alert-error">AI调用失败：${error.message}</div>`;
+    }
+}
+
+// AI智能问答
+async function aiQA() {
+    const question = document.getElementById('aiQuestion').value;
+    if (!question) { showAlert('请输入问题！', 'error'); return; }
+    
+    document.getElementById('aiQAResult').innerHTML = '<div class="loading">🤖 AI正在思考，请稍候...</div>';
+    
+    try {
+        const prompt = `你是一位公文写作和办公自动化专家。请专业、准确地回答以下问题。\n\n问题：${question}\n\n要求：\n1. 回答专业、准确\n2. 语言简洁明了\n3. 如果适用，提供具体示例或操作步骤\n4. 直接回答，不要加任何多余的解释`;
+        
+        const result = await callAI(prompt, 1000);
+        
+        document.getElementById('aiQAResult').innerHTML = `
+            <div class="alert alert-success">✅ AI回答</div>
+            <div style="border: 1px solid #ddd; padding: 15px; margin-top: 10px;">
+                <p><strong>问题：</strong>${question}</p>
+                <hr>
+                <p><strong>回答：</strong></p>
+                <div>${result.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById('aiQAResult').innerHTML = `<div class="alert alert-error">AI调用失败：${error.message}</div>`;
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+// 初始化
+updateUserDisplay();
+showPage('login');
+</script>
+
+</body>
+</html>

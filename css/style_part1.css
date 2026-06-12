@@ -1,0 +1,8 @@
+/* style.css - 公文流转审批系统样式（完整版） */
+:root {
+  --primary: #4f46e5; --primary-light: #818cf8; --primary-dark: #3730a3;
+  --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+  --dark:#1e293b;--dark-2:#334155;--gray:#64748b;--gray-light:#94a3b8;
+  --light:#f1f5f9;border-radius-base=8p;}
+*{margin0padding0box-sizing=border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,-segoe UI,-Microsoft YaHei,sans-serifbackground var(--light);color var(--dark);line-height15min-height100vh}

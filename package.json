@@ -1,0 +1,21 @@
+{
+  "name": "document-flow-system",
+  "version": "1.0.0",
+  "description": "公文流转与请假管理系统",
+  "main": "server-merged.js",
+  "scripts": {
+    "start": "node server-merged.js",
+    "dev": "nodemon server-merged.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "axios": "^1.6.0",
+    "@larksuiteoapi/node-sdk": "^1.35.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
