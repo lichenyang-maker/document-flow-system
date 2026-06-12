@@ -20,6 +20,16 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
+// 健康检查端点（Sealos 需要）
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// 根路径测试
+app.get('/', (req, res) => {
+    res.send('✅ 公文流转系统运行中<br>API: /api/stats');
+});
+
 // ---------- SQLite ----------
 let db;
 function initDB() {
@@ -530,8 +540,9 @@ async function start() {
         await initLarkLongConnection();
         
         // 启动 HTTP 服务
-        app.listen(PORT, () => {
-            console.log(`\n🚀 服务已启动: http://localhost:${PORT}`);
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`\n🚀 服务已启动: http://0.0.0.0:${PORT}`);
+            console.log(`🌐 公网访问: https://${process.env.HOSTNAME || 'app'}.sealoszh.site:${PORT}`);
             console.log(`📱 数据库: ${DB_PATH}`);
             console.log(`🤖 飞书应用: ${FEISHU_APP_ID}`);
         });
