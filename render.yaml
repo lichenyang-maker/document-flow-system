@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: document-flow-system
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        value: charts-db.fly.dev
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        value: your_password_here
+      - key: DB_NAME
+        value: document_flow
+      - key: PORT
+        value: 3000
+      - key: FEISHU_APP_ID
+        value: cli_aaa152828fb95bda
+      - key: FEISHU_APP_SECRET
+        value: CSyWDYc75HnNz7k0MLn6EciZ5ajjwNvZ
