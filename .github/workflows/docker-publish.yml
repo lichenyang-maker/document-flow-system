@@ -3,13 +3,6 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ "main" ]
-    # 当修改这些文件时触发
-    paths:
-      - 'Dockerfile'
-      - 'server-sqlite.js'
-      - 'package.json'
-      - 'public/**'
-      - '.github/workflows/docker-publish.yml'
 
 env:
   REGISTRY: ghcr.io
