@@ -21,4 +21,4 @@ services:
       - key: FEISHU_APP_ID
         value: cli_aaa152828fb95bda
       - key: FEISHU_APP_SECRET
-        value: CSyWDYc75HnNz7k0MLn6EciZ5ajjwNvZ
+        value: 61tkmvxLdXZ2Tx0m4AgZFez4CC0xvzjx
