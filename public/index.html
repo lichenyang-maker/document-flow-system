@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>公文流转系统</title>
+<title>??????</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--primary:#1a73e8;--primary-light:#e8f0fe;--primary-dark:#1558b0;--accent:#00bcd4;--sidebar:#f5f7fa;--bg:#eef2f7;--card:#fff;--text:#1f2937;--text2:#6b7280;--border:#e5e7eb;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1)}
@@ -99,11 +99,11 @@ tr:hover td{background:#f9fafb}
 <!-- Login -->
 <div class="modal-overlay" id="loginModal">
   <div class="login-box">
-    <h2>📋 公文流转系统</h2>
-    <p>请登录以继续</p>
-    <div class="field"><label>用户名</label><input id="loginUser" placeholder="请输入用户名" value=""></div>
-    <div class="field"><label>密码</label><input id="loginPass" type="password" placeholder="请输入密码" value=""></div>
-    <button class="btn" onclick="doLogin()">登 录</button>
+    <h2>?? ??????</h2>
+    <p>??????</p>
+    <div class="field"><label>???</label><input id="loginUser" placeholder="??????" value=""></div>
+    <div class="field"><label>??</label><input id="loginPass" type="password" placeholder="?????" value=""></div>
+    <button class="btn" onclick="doLogin()">? ?</button>
     <div class="error" id="loginError"></div>
   </div>
 </div>
@@ -113,66 +113,66 @@ tr:hover td{background:#f9fafb}
 
 <!-- Mobile Header -->
 <div class="mobile-header" id="mobileHeader" style="display:none">
-  <span class="menu-btn" onclick="openSidebar()">☰</span>
-  <span>公文流转系统</span>
+  <span class="menu-btn" onclick="openSidebar()">?</span>
+  <span>??????</span>
   <span id="mobileUser" style="font-size:13px;opacity:.8"></span>
 </div>
 
 <!-- App -->
 <div class="app">
   <aside class="sidebar" id="sidebar">
-    <div class="logo"><span>📋</span>公文流转</div>
+    <div class="logo"><span>??</span>????</div>
     <nav>
       <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard',this)">
-        <span class="icon">📊</span>工作台
+        <span class="icon">??</span>???
       </div>
       <div class="nav-item" data-page="docs" onclick="switchPage('docs',this)">
-        <span class="icon">📄</span>公文管理
+        <span class="icon">??</span>????
       </div>
       <div class="nav-item" data-page="leave" onclick="switchPage('leave',this)">
-        <span class="icon">🏖️</span>请假管理
+        <span class="icon">???</span>????
       </div>
       <div class="nav-item" onclick="window.location.href='/chat'">
-        <span class="icon">🤖</span>AI 智能助手
-        <span style="margin-left:auto;font-size:10px;padding:2px 8px;background:#3b82f6;color:white;border-radius:10px">新</span>
+        <span class="icon">??</span>AI ????
+        <span style="margin-left:auto;font-size:10px;padding:2px 8px;background:#3b82f6;color:white;border-radius:10px">?</span>
       </div>
     </nav>
     <div class="user-info">
       <div class="avatar" id="avatarLetter">U</div>
-      <div><div id="sidebarUser" style="font-weight:500;color:var(--text)">—</div><div id="sidebarRole" style="font-size:12px">—</div></div>
+      <div><div id="sidebarUser" style="font-weight:500;color:var(--text)">-</div><div id="sidebarRole" style="font-size:12px">-</div></div>
     </div>
   </aside>
 
   <div class="main">
     <!-- Dashboard -->
     <div class="page active" id="page-dashboard">
-      <h1>工作台</h1>
+      <h1>???</h1>
       <div class="stats">
-        <div class="stat-card c-blue"><div class="icon-box">👥</div><div><div class="num" id="statUsers">—</div><div class="label">总用户数</div></div></div>
-        <div class="stat-card c-cyan"><div class="icon-box">📄</div><div><div class="num" id="statDocs">—</div><div class="label">公文总数</div></div></div>
-        <div class="stat-card c-green"><div class="icon-box">🏖️</div><div><div class="num" id="statLeave">—</div><div class="label">请假申请</div></div></div>
-        <div class="stat-card c-orange"><div class="icon-box">⏳</div><div><div class="num" id="statPending">—</div><div class="label">待审批</div></div></div>
+        <div class="stat-card c-blue"><div class="icon-box">??</div><div><div class="num" id="statUsers">-</div><div class="label">????</div></div></div>
+        <div class="stat-card c-cyan"><div class="icon-box">??</div><div><div class="num" id="statDocs">-</div><div class="label">????</div></div></div>
+        <div class="stat-card c-green"><div class="icon-box">???</div><div><div class="num" id="statLeave">-</div><div class="label">????</div></div></div>
+        <div class="stat-card c-orange"><div class="icon-box">?</div><div><div class="num" id="statPending">-</div><div class="label">???</div></div></div>
       </div>
       <div class="activity">
-        <h3>最近动态</h3>
-        <div id="activityList"><div class="empty">暂无动态</div></div>
+        <h3>????</h3>
+        <div id="activityList"><div class="empty">????</div></div>
       </div>
     </div>
 
     <!-- Docs -->
     <div class="page" id="page-docs">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h1 style="margin:0;">公文管理</h1>
-        <button class="btn btn-primary" onclick="showDocModal()"><i class="bi bi-plus-lg"></i> 新增公文</button>
+        <h1 style="margin:0;">????</h1>
+        <button class="btn btn-primary" onclick="showDocModal()"><i class="bi bi-plus-lg"></i> ????</button>
       </div>
       <div class="table-wrap">
         <div class="filters">
-          <select id="filterDocType" onchange="loadDocs()"><option value="">全部类型</option><option value="NOTICE">通知</option><option value="ANNOUNCEMENT">公告</option><option value="REPORT">报告</option><option value="PROPOSAL">请示</option><option value="APPROVAL">批复</option></select>
-          <select id="filterDocStatus" onchange="loadDocs()"><option value="">全部状态</option><option value="DRAFT">草稿</option><option value="PENDING">待审批</option><option value="APPROVED">已通过</option><option value="REJECTED">已驳回</option></select>
+          <select id="filterDocType" onchange="loadDocs()"><option value="">????</option><option value="NOTICE">??</option><option value="ANNOUNCEMENT">??</option><option value="REPORT">??</option><option value="PROPOSAL">??</option><option value="APPROVAL">??</option></select>
+          <select id="filterDocStatus" onchange="loadDocs()"><option value="">????</option><option value="DRAFT">??</option><option value="PENDING">???</option><option value="APPROVED">???</option><option value="REJECTED">???</option></select>
         </div>
         <table>
-          <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>申请人</th><th>创建时间</th><th>操作</th></tr></thead>
-          <tbody id="docsBody"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody>
+          <thead><tr><th>??</th><th>??</th><th>??</th><th>???</th><th>????</th><th>??</th></tr></thead>
+          <tbody id="docsBody"><tr><td colspan="6" class="empty">???.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -180,16 +180,16 @@ tr:hover td{background:#f9fafb}
     <!-- Leave -->
     <div class="page" id="page-leave">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h1 style="margin:0;">请假管理</h1>
-        <button class="btn btn-primary" onclick="showLeaveModal()"><i class="bi bi-plus-lg"></i> 申请请假</button>
+        <h1 style="margin:0;">????</h1>
+        <button class="btn btn-primary" onclick="showLeaveModal()"><i class="bi bi-plus-lg"></i> ????</button>
       </div>
       <div class="table-wrap">
         <div class="filters">
-          <select id="filterLeaveStatus" onchange="loadLeave()"><option value="">全部状态</option><option value="PENDING">待审批</option><option value="APPROVED">已通过</option><option value="REJECTED">已驳回</option></select>
+          <select id="filterLeaveStatus" onchange="loadLeave()"><option value="">????</option><option value="PENDING">???</option><option value="APPROVED">???</option><option value="REJECTED">???</option></select>
         </div>
         <table>
-          <thead><tr><th>申请人</th><th>类型</th><th>天数</th><th>起始日期</th><th>结束日期</th><th>状态</th><th>操作</th></tr></thead>
-          <tbody id="leaveBody"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+          <thead><tr><th>???</th><th>??</th><th>??</th><th>????</th><th>????</th><th>??</th><th>??</th></tr></thead>
+          <tbody id="leaveBody"><tr><td colspan="7" class="empty">???.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -197,29 +197,29 @@ tr:hover td{background:#f9fafb}
     <!-- Doc Modal -->
     <div class="modal-overlay hidden" id="docModal" onclick="if(event.target.id==='docModal')closeDocModal()">
       <div style="background:white;border-radius:12px;padding:24px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-        <h2 style="margin-bottom:16px;color:#1f2937;">新增公文</h2>
-        <div class="field"><label>标题 <span style="color:#dc2626;">*</span></label><input type="text" id="docTitle" placeholder="请输入公文标题" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div>
-        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>类型</label><select id="docType" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option value="NOTICE">通知</option><option value="ANNOUNCEMENT">公告</option><option value="REPORT">报告</option><option value="PROPOSAL">请示</option><option value="APPROVAL">批复</option></select></div><div><label>优先级</label><select id="docPriority" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option value="NORMAL">普通</option><option value="HIGH">紧急</option><option value="LOW">低</option></select></div></div>
-        <div class="field"><label>内容</label><textarea id="docContent" rows="5" placeholder="请输入公文内容" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea></div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="btn" onclick="closeDocModal()" style="padding:10px 18px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;cursor:pointer;">取消</button><button class="btn" onclick="submitDoc()" style="padding:10px 18px;background:#1f2937;color:white;border:none;border-radius:8px;cursor:pointer;">提交到审批</button></div>
+        <h2 style="margin-bottom:16px;color:#1f2937;">????</h2>
+        <div class="field"><label>?? <span style="color:#dc2626;">*</span></label><input type="text" id="docTitle" placeholder="???????" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div>
+        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>??</label><select id="docType" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option value="NOTICE">??</option><option value="ANNOUNCEMENT">??</option><option value="REPORT">??</option><option value="PROPOSAL">??</option><option value="APPROVAL">??</option></select></div><div><label>???</label><select id="docPriority" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option value="NORMAL">??</option><option value="HIGH">??</option><option value="LOW">?</option></select></div></div>
+        <div class="field"><label>??</label><textarea id="docContent" rows="5" placeholder="???????" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="btn" onclick="closeDocModal()" style="padding:10px 18px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;cursor:pointer;">??</button><button class="btn" onclick="submitDoc()" style="padding:10px 18px;background:#1f2937;color:white;border:none;border-radius:8px;cursor:pointer;">?????</button></div>
       </div>
     </div>
 
     <!-- Leave Modal -->
     <div class="modal-overlay hidden" id="leaveModal" onclick="if(event.target.id==='leaveModal')closeLeaveModal()">
       <div style="background:white;border-radius:12px;padding:24px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-        <h2 style="margin-bottom:16px;color:#1f2937;">申请请假</h2>
-        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>类型</label><select id="leaveType" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option>年假</option><option>病假</option><option>事假</option><option>调休</option><option>婚假</option><option>产假</option></select></div><div><label>天数</label><input type="number" id="leaveDays" placeholder="1" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div></div>
-        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>起始日期</label><input type="date" id="leaveStart" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div><div><label>结束日期</label><input type="date" id="leaveEnd" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div></div>
-        <div class="field"><label>请假事由</label><textarea id="leaveReason" rows="3" placeholder="请说明请假事由" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea></div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="btn" onclick="closeLeaveModal()" style="padding:10px 18px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;cursor:pointer;">取消</button><button class="btn" onclick="submitLeave()" style="padding:10px 18px;background:#1f2937;color:white;border:none;border-radius:8px;cursor:pointer;">提交申请</button></div>
+        <h2 style="margin-bottom:16px;color:#1f2937;">????</h2>
+        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>??</label><select id="leaveType" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"><option>??</option><option>??</option><option>??</option><option>??</option><option>??</option><option>??</option></select></div><div><label>??</label><input type="number" id="leaveDays" placeholder="1" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div></div>
+        <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label>????</label><input type="date" id="leaveStart" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div><div><label>????</label><input type="date" id="leaveEnd" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;"></div></div>
+        <div class="field"><label>????</label><textarea id="leaveReason" rows="3" placeholder="???????" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="btn" onclick="closeLeaveModal()" style="padding:10px 18px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;cursor:pointer;">??</button><button class="btn" onclick="submitLeave()" style="padding:10px 18px;background:#1f2937;color:white;border:none;border-radius:8px;cursor:pointer;">????</button></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// API地址自动检测：飞书环境用相对路径，本地开发用localhost
+// API??????:?????????,?????localhost
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 let token='',currentUser=null,isAdmin=false;
 
@@ -231,16 +231,16 @@ async function doLogin(){
   const p=document.getElementById('loginPass').value;
   const err=document.getElementById('loginError');
   err.textContent='';
-  if(!u||!p){err.textContent='请输入用户名和密码';return}
+  if(!u||!p){err.textContent='?????????';return}
   try{
     const res=await fetch(API+'/api/public/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    if(!res.ok){const d=await res.json();err.textContent=d.message||'登录失败';return}
+    if(!res.ok){const d=await res.json();err.textContent=d.message||'????';return}
     const data=await res.json();
     token=data.token;
     localStorage.setItem('token',token);
     if(data.user)localStorage.setItem('currentUser',JSON.stringify(data.user));
     await initApp();
-  }catch(e){err.textContent='网络错误，请检查后端服务'}
+  }catch(e){err.textContent='????,???????'}
 }
 
 async function initApp(){
@@ -251,9 +251,9 @@ async function initApp(){
     currentUser=await res.json();
     localStorage.setItem('currentUser',JSON.stringify(currentUser));
     isAdmin=String(currentUser.role||'').toLowerCase()==='admin'||currentUser.username==='admin';
-    const name=currentUser.name||currentUser.username||'用户';
+    const name=currentUser.name||currentUser.username||'??';
     document.getElementById('sidebarUser').textContent=name;
-    document.getElementById('sidebarRole').textContent=isAdmin?'管理员':'普通用户';
+    document.getElementById('sidebarRole').textContent=isAdmin?'???':'????';
     document.getElementById('avatarLetter').textContent=name.charAt(0).toUpperCase();
     document.getElementById('mobileUser').textContent=name;
   }catch(e){}
@@ -268,7 +268,7 @@ function logout(){
   document.getElementById('loginModal').classList.remove('hidden');
 }
 
-// 页面加载时自动恢复登录状态
+// ?????????????
 (function autoLogin(){
   const saved=localStorage.getItem('token');
   if(saved){token=saved;initApp()}
@@ -300,14 +300,14 @@ function showToast(msg,type='success'){
   setTimeout(()=>t.remove(),2500);
 }
 function statusBadge(s){
-  if(!s)return'—';
+  if(!s)return'-';
   const key=String(s).toLowerCase();
-  const m={pending:['待审批','badge-pending'],approved:['已通过','badge-approved'],rejected:['已驳回','badge-rejected'],draft:['草稿','badge-draft']};
+  const m={pending:['???','badge-pending'],approved:['???','badge-approved'],rejected:['???','badge-rejected'],draft:['??','badge-draft']};
   const d=m[key]||[s,'badge-draft'];
   return '<span class="badge '+d[1]+'">'+d[0]+'</span>';
 }
-function typeDisplay(t){if(!t)return'—';const m={NOTICE:'通知',ANNOUNCEMENT:'公告',PROPOSAL:'请示',REPORT:'报告',APPROVAL:'批复',MEMO:'纪要'};return m[t.toUpperCase()]||t}
-function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return d}}
+function typeDisplay(t){if(!t)return'-';const m={NOTICE:'??',ANNOUNCEMENT:'??',PROPOSAL:'??',REPORT:'??',APPROVAL:'??',MEMO:'??'};return m[t.toUpperCase()]||t}
+function fmtDate(d){if(!d)return'-';try{return new Date(d).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return d}}
 
 // Dashboard
 async function loadDashboard(){
@@ -315,10 +315,10 @@ async function loadDashboard(){
     const res=await fetch(API+'/api/stats',{headers:{'Authorization':'Bearer '+token}});
     if(!res.ok)return;
     const s=await res.json();
-    document.getElementById('statUsers').textContent=s.totalUsers??s.users??'—';
-    document.getElementById('statDocs').textContent=s.totalDocs??s.docs??'—';
-    document.getElementById('statLeave').textContent=s.totalLeave??s.leave??'—';
-    document.getElementById('statPending').textContent=(s.pendingDocs??s.pendingLeave??s.pending)??'—';
+    document.getElementById('statUsers').textContent=s.totalUsers??s.users??'-';
+    document.getElementById('statDocs').textContent=s.totalDocs??s.docs??'-';
+    document.getElementById('statLeave').textContent=s.totalLeave??s.leave??'-';
+    document.getElementById('statPending').textContent=(s.pendingDocs??s.pendingLeave??s.pending)??'-';
   }catch(e){}
   // Load recent docs for activity
   try{
@@ -329,9 +329,9 @@ async function loadDashboard(){
     const html=list.map(d=>{
       const st=String(d.status||'').toLowerCase();
       const colors={pending:'#f59e0b',approved:'#10b981',rejected:'#ef4444',draft:'#6b7280'};
-      return `<div class="activity-item"><div class="dot" style="background:${colors[st]||'#6b7280'}"></div><div style="flex:1">${d.title||'无标题'} <span style="color:var(--text2)">— ${typeDisplay(d.type)}</span></div><div class="time">${fmtDate(d.created_at||d.createdAt)}</div></div>`;
+      return `<div class="activity-item"><div class="dot" style="background:${colors[st]||'#6b7280'}"></div><div style="flex:1">${d.title||'???'} <span style="color:var(--text2)">- ${typeDisplay(d.type)}</span></div><div class="time">${fmtDate(d.created_at||d.createdAt)}</div></div>`;
     }).join('');
-    document.getElementById('activityList').innerHTML=html||'<div class="empty">暂无动态</div>';
+    document.getElementById('activityList').innerHTML=html||'<div class="empty">????</div>';
   }catch(e){}
 }
 
@@ -347,13 +347,13 @@ async function loadDocs(){
     if(!res.ok)return;
     const data=await res.json();
     const list=data.data||data||[];
-    if(!list.length){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">暂无数据</td></tr>';return}
+    if(!list.length){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">????</td></tr>';return}
     document.getElementById('docsBody').innerHTML=list.map(d=>{
       let actions='';
-      if(isAdmin&&String(d.status||'').toLowerCase()==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveDoc('${d.id}')">通过</button><button class="btn-sm btn-reject" onclick="rejectDoc('${d.id}')">驳回</button>`;
-      return `<tr><td>${d.title||'—'}</td><td>${typeDisplay(d.type)}</td><td>${statusBadge(d.status)}</td><td>${d.applicant_name||d.applicant||d.username||'—'}</td><td>${fmtDate(d.created_at||d.createdAt)}</td><td>${actions||'—'}</td></tr>`;
+      if(isAdmin&&String(d.status||'').toLowerCase()==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveDoc('${d.id}')">??</button><button class="btn-sm btn-reject" onclick="rejectDoc('${d.id}')">??</button>`;
+      return `<tr><td>${d.title||'-'}</td><td>${typeDisplay(d.type)}</td><td>${statusBadge(d.status)}</td><td>${d.applicant_name||d.applicant||d.username||'-'}</td><td>${fmtDate(d.created_at||d.createdAt)}</td><td>${actions||'-'}</td></tr>`;
     }).join('');
-  }catch(e){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'}
+  }catch(e){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">????</td></tr>'}
 }
 
 // Leave
@@ -366,52 +366,52 @@ async function loadLeave(){
     if(!res.ok)return;
     const data=await res.json();
     const list=data.data||data||[];
-    if(!list.length){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">暂无数据</td></tr>';return}
+    if(!list.length){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">????</td></tr>';return}
     document.getElementById('leaveBody').innerHTML=list.map(d=>{
       let actions='';
-      if(isAdmin&&String(d.status||'').toLowerCase()==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveLeave('${d.id}')">通过</button><button class="btn-sm btn-reject" onclick="rejectLeave('${d.id}')">驳回</button>`;
-      return `<tr><td>${d.user_name||d.applicant||d.username||'—'}</td><td>${d.type||'—'}</td><td>${d.days??'—'}</td><td>${d.start_date||d.startDate||'—'}</td><td>${d.end_date||d.endDate||'—'}</td><td>${statusBadge(d.status)}</td><td>${actions||'—'}</td></tr>`;
+      if(isAdmin&&String(d.status||'').toLowerCase()==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveLeave('${d.id}')">??</button><button class="btn-sm btn-reject" onclick="rejectLeave('${d.id}')">??</button>`;
+      return `<tr><td>${d.user_name||d.applicant||d.username||'-'}</td><td>${d.type||'-'}</td><td>${d.days??'-'}</td><td>${d.start_date||d.startDate||'-'}</td><td>${d.end_date||d.endDate||'-'}</td><td>${statusBadge(d.status)}</td><td>${actions||'-'}</td></tr>`;
     }).join('');
-  }catch(e){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">加载失败</td></tr>'}
+  }catch(e){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">????</td></tr>'}
 }
 
 async function approveLeave(id){
-  try{await fetch(API+'/api/leave/'+id+'/approve',{method:'POST',headers:getHeaders()});showToast('已通过')}catch(e){showToast('操作失败','error')}
+  try{await fetch(API+'/api/leave/'+id+'/approve',{method:'POST',headers:getHeaders()});showToast('???')}catch(e){showToast('????','error')}
   loadLeave();loadDashboard();
 }
 async function rejectLeave(id){
-  try{await fetch(API+'/api/leave/'+id+'/reject',{method:'POST',headers:getHeaders()});showToast('已驳回')}catch(e){showToast('操作失败','error')}
+  try{await fetch(API+'/api/leave/'+id+'/reject',{method:'POST',headers:getHeaders()});showToast('???')}catch(e){showToast('????','error')}
   loadLeave();loadDashboard();
 }
 
-// 公文操作
+// ????
 async function approveDoc(id){
-  try{await fetch(API+'/api/docs/'+id+'/approve',{method:'POST',headers:getHeaders()});showToast('已通过')}catch(e){showToast('操作失败','error')}
+  try{await fetch(API+'/api/docs/'+id+'/approve',{method:'POST',headers:getHeaders()});showToast('???')}catch(e){showToast('????','error')}
   loadDocs();loadDashboard();
 }
 async function rejectDoc(id){
-  try{await fetch(API+'/api/docs/'+id+'/reject',{method:'POST',headers:getHeaders()});showToast('已驳回')}catch(e){showToast('操作失败','error')}
+  try{await fetch(API+'/api/docs/'+id+'/reject',{method:'POST',headers:getHeaders()});showToast('???')}catch(e){showToast('????','error')}
   loadDocs();loadDashboard();
 }
 
-// 新增公文
+// ????
 function showDocModal(){document.getElementById('docModal').classList.remove('hidden');document.getElementById('docTitle').focus()}
 function closeDocModal(){document.getElementById('docModal').classList.add('hidden')}
 async function submitDoc(){
   const title=document.getElementById('docTitle').value.trim();
-  if(!title){showToast('请输入标题','error');return}
+  if(!title){showToast('?????','error');return}
   const body={title,content:document.getElementById('docContent').value,type:document.getElementById('docType').value,priority:document.getElementById('docPriority').value};
   try{
     const res=await fetch(API+'/api/docs',{method:'POST',headers:getHeaders(),body:JSON.stringify(body)});
-    if(!res.ok){showToast('提交失败','error');return}
-    showToast('公文已提交审批');
+    if(!res.ok){showToast('????','error');return}
+    showToast('???????');
     closeDocModal();
     document.getElementById('docTitle').value='';document.getElementById('docContent').value='';
     loadDocs();loadDashboard();
-  }catch(e){showToast('网络错误','error')}
+  }catch(e){showToast('????','error')}
 }
 
-// 新增请假
+// ????
 function showLeaveModal(){document.getElementById('leaveModal').classList.remove('hidden');const t=new Date();const iso=t.toISOString().slice(0,10);document.getElementById('leaveStart').value=iso;document.getElementById('leaveEnd').value=iso;document.getElementById('leaveDays').value='1'}
 function closeLeaveModal(){document.getElementById('leaveModal').classList.add('hidden')}
 async function submitLeave(){
@@ -419,16 +419,16 @@ async function submitLeave(){
   const startDate=document.getElementById('leaveStart').value;
   const endDate=document.getElementById('leaveEnd').value;
   const days=parseInt(document.getElementById('leaveDays').value)||1;
-  if(!startDate||!endDate){showToast('请选择日期','error');return}
+  if(!startDate||!endDate){showToast('?????','error');return}
   const body={type,startDate,endDate,days,reason:document.getElementById('leaveReason').value};
   try{
     const res=await fetch(API+'/api/leave',{method:'POST',headers:getHeaders(),body:JSON.stringify(body)});
-    if(!res.ok){showToast('提交失败','error');return}
-    showToast('请假申请已提交');
+    if(!res.ok){showToast('????','error');return}
+    showToast('???????');
     closeLeaveModal();
     document.getElementById('leaveReason').value='';
     loadLeave();loadDashboard();
-  }catch(e){showToast('网络错误','error')}
+  }catch(e){showToast('????','error')}
 }
 </script>
 </body>

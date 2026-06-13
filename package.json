@@ -1,7 +1,7 @@
 {
   "name": "document-flow-system",
   "version": "1.2.0",
-  "description": "公文流转与请假管理系统（支持 SQLite 和飞书集成）",
+  "description": "???????????(?? SQLite ?????)",
   "main": "server-sqlite.js",
   "scripts": {
     "start": "node server-sqlite.js",
