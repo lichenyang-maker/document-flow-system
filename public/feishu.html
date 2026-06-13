@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>公文流转系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--primary:#3370ff;--primary-light:#e8f0fe;--primary-dark:#2a5cd4;--success:#00b894;--warning:#ff9f43;--danger:#ff6b6b;--bg:#f5f7fa;--card:#fff;--text:#1f2937;--text2:#6b7280;--border:#e5e7eb;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08)}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Helvetica,"Microsoft YaHei",Arial,sans-serif;font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased}
+.app{padding-bottom:80px}
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+.header{background:var(--primary);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(51,112,255,.15)}
+.header h1{font-size:17px;font-weight:600;text-align:center}
+.header .sub{font-size:12px;opacity:.85;text-align:center;margin-top:2px}
+
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:12px;color:var(--text)}
+.card-title .count{color:var(--primary);margin-left:6px;font-size:13px;font-weight:500}
+
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.stat{background:var(--card);border-radius:var(--radius);padding:16px 12px;text-align:center;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--success))}
+.stat .num{font-size:26px;font-weight:700;color:var(--primary);line-height:1.2}
+.stat.green .num{color:var(--success)}
+.stat.orange .num{color:var(--warning)}
+.stat.red .num{color:var(--danger)}
+.stat .label{font-size:12px;color:var(--text2);margin-top:4px}
+
+.list-item{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.list-item .title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.4}
+.list-item .meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);align-items:center}
+.list-item .meta .badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.badge-pending{background:#fff4e6;color:#ff9f43}
+.badge-approved{background:#e6f7f0;color:#00b894}
+.badge-rejected{background:#fde8e8;color:#ef4444}
+.badge-draft{background:#e5e7eb;color:#6b7280}
+
+.empty{text-align:center;padding:60px 20px;color:var(--text2);font-size:14px}
+.empty .icon{font-size:48px;margin-bottom:12px;opacity:.4}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border:none;border-radius:var(--radius);background:var(--primary);color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;gap:6px}
+.btn:active{transform:scale(.96);background:var(--primary-dark)}
+.btn-success{background:var(--success)}
+.btn-danger{background:var(--danger)}
+.btn-block{display:flex;width:100%}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:6px}
+
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:#fff;outline:none;font-family:inherit;color:var(--text);-webkit-appearance:none;appearance:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(51,112,255,.1)}
+.form-group textarea{min-height:100px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.fab{position:fixed;bottom:90px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 4px 16px rgba(51,112,255,.35);font-size:24px;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.92);background:var(--primary-dark)}
+
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 0 calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);z-index:150;box-shadow:0 -2px 8px rgba(0,0,0,.04)}
+.tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;color:var(--text2);cursor:pointer;font-size:11px;transition:color .15s}
+.tabbar .tab .icon{font-size:20px;line-height:1}
+.tabbar .tab.active{color:var(--primary)}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:300}
+.modal.show{display:flex;animation:fadeIn .2s}
+.modal-body{background:#fff;width:100%;max-width:500px;border-radius:16px 16px 0 0;padding:20px;max-height:85vh;overflow-y:auto;animation:slideUp .25s}
+.modal-body h2{font-size:17px;margin-bottom:16px;font-weight:600}
+.modal-close{position:absolute;top:14px;right:14px;font-size:24px;color:var(--text2);background:none;border:none;cursor:pointer;padding:4px;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+
+.detail-item{margin-bottom:10px;font-size:13px}
+.detail-item .label{color:var(--text2);margin-bottom:2px}
+.detail-item .value{color:var(--text);font-weight:500;line-height:1.5}
+
+.loading{position:fixed;inset:0;background:rgba(255,255,255,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500}
+.loading .spinner{width:40px;height:40px;border:4px solid var(--primary-light);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:16px}
+.loading .text{color:var(--text2);font-size:14px}
+
+.toast{position:fixed;top:30%;left:50%;transform:translateX(-50%);padding:12px 24px;background:rgba(0,0,0,.8);color:#fff;border-radius:8px;font-size:14px;z-index:600;animation:fadeIn .2s}
+
+.login-tip{background:linear-gradient(135deg,#fff4e6,#fff);border-left:3px solid var(--warning);padding:12px 14px;margin-bottom:12px;border-radius:6px;font-size:13px;color:#7c5d12}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.section-title{font-size:13px;color:var(--text2);font-weight:500;margin:16px 4px 10px}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loadingScreen">
+  <div class="spinner"></div>
+  <div class="text" id="loadingText">正在连接飞书...</div>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <div class="header">
+    <h1 id="headerTitle">公文流转系统</h1>
+    <div class="sub" id="headerSub">飞书工作台版</div>
+  </div>
+
+  <div class="page active" id="page-home">
+    <div class="stats">
+      <div class="stat"><div class="num" id="statDocs">—</div><div class="label">公文总数</div></div>
+      <div class="stat green"><div class="num" id="statLeave">—</div><div class="label">请假申请</div></div>
+      <div class="stat orange"><div class="num" id="statPending">—</div><div class="label">待审批</div></div>
+      <div class="stat red"><div class="num" id="statRejected">—</div><div class="label">已驳回</div></div>
+    </div>
+
+    <div class="section-title">📝 最近公文</div>
+    <div id="recentDocs"><div class="empty"><div class="icon">📄</div>暂无数据</div></div>
+
+    <div class="section-title">🏖️ 最近请假</div>
+    <div id="recentLeave"><div class="empty"><div class="icon">📝</div>暂无数据</div></div>
+  </div>
+
+  <div class="page" id="page-docs">
+    <div class="card" style="padding:10px;margin-bottom:12px">
+      <div style="display:flex;gap:8px">
+        <select id="filterDocType" onchange="loadDocs()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff">
+          <option value="">全部类型</option>
+          <option value="NOTICE">通知</option>
+          <option value="PROPOSAL">申请</option>
+          <option value="REPORT">报告</option>
+        </select>
+        <select id="filterDocStatus" onchange="loadDocs()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff">
+          <option value="">全部状态</option>
+          <option value="PENDING">待审批</option>
+          <option value="APPROVED">已通过</option>
+          <option value="REJECTED">已驳回</option>
+        </select>
+      </div>
+    </div>
+    <div id="docsList"></div>
+  </div>
+
+  <div class="page" id="page-leave">
+    <div class="card" style="padding:10px;margin-bottom:12px">
+      <select id="filterLeaveStatus" onchange="loadLeave()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff">
+        <option value="">全部状态</option>
+        <option value="PENDING">待审批</option>
+        <option value="APPROVED">已通过</option>
+        <option value="REJECTED">已驳回</option>
+      </select>
+    </div>
+    <div id="leaveList"></div>
+  </div>
+
+  <div class="page" id="page-user">
+    <div class="card">
+      <div style="text-align:center;padding:16px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);color:#fff;font-size:28px;font-weight:600;display:flex;align-items:center;justify-content:center;margin:0 auto 12px" id="userAvatar">U</div>
+        <div style="font-size:17px;font-weight:600" id="userName">用户</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px" id="userRole">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="detail-item"><div class="label">用户名</div><div class="value" id="userUsername">—</div></div>
+      <div class="detail-item"><div class="label">角色</div><div class="value" id="userRoleText">—</div></div>
+      <div class="detail-item"><div class="label">登录方式</div><div class="value">飞书免登录</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 使用说明</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.8">
+        • 本应用可直接在飞书工作台打开<br>
+        • 自动通过飞书账号登录，无需输入密码<br>
+        • 可以在群内通过消息发起请假申请<br>
+        • 领导可直接在消息中审批，审批结果同步到系统<br>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fab" id="fabBtn" style="display:none" onclick="showCreateMenu()">＋</div>
+
+<div class="modal" id="createModal">
+  <div class="modal-body" style="position:relative">
+    <button class="modal-close" onclick="closeModal('createModal')">×</button>
+    <h2 id="createTitle">新建</h2>
+    <div id="createForm"></div>
+  </div>
+</div>
+
+<div class="modal" id="detailModal">
+  <div class="modal-body" style="position:relative">
+    <button class="modal-close" onclick="closeModal('detailModal')">×</button>
+    <h2 id="detailTitle">详情</h2>
+    <div id="detailContent"></div>
+    <div class="modal-actions" id="detailActions"></div>
+  </div>
+</div>
+
+<div class="tabbar" id="tabbar" style="display:none">
+  <div class="tab active" data-page="home" onclick="switchPage('home')"><div class="icon">🏠</div><div>首页</div></div>
+  <div class="tab" data-page="docs" onclick="switchPage('docs')"><div class="icon">📄</div><div>公文</div></div>
+  <div class="tab" data-page="leave" onclick="switchPage('leave')"><div class="icon">🏖️</div><div>请假</div></div>
+  <div class="tab" data-page="user" onclick="switchPage('user')"><div class="icon">👤</div><div>我的</div></div>
+</div>
+
+<script>
+const API = '';
+let token = '';
+let currentUser = null;
+let isAdmin = false;
+let currentPage = 'home';
+
+function showToast(msg, type) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  if (type === 'error') t.style.background = 'rgba(239,68,68,.95)';
+  if (type === 'success') t.style.background = 'rgba(16,185,129,.95)';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function setLoading(text) {
+  document.getElementById('loadingText').textContent = text;
+}
+function hideLoading() {
+  document.getElementById('loadingScreen').style.display = 'none';
+}
+
+function statusBadge(s) {
+  const map = { PENDING: ['待审批', 'badge-pending'], APPROVED: ['已通过', 'badge-approved'], REJECTED: ['已驳回', 'badge-rejected'], DRAFT: ['草稿', 'badge-draft'] };
+  const d = map[s] || [s, 'badge-draft'];
+  return '<span class="badge ' + d[1] + '">' + d[0] + '</span>';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0') + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+  } catch (e) { return d; }
+}
+
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.tabbar .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === page);
+  });
+  document.getElementById('fabBtn').style.display = (page === 'home' || page === 'docs' || page === 'leave') ? 'flex' : 'none';
+  if (page === 'home') loadHome();
+  if (page === 'docs') loadDocs();
+  if (page === 'leave') loadLeave();
+  if (page === 'user') loadUser();
+}
+
+async function loadHome() {
+  try {
+    const res = await fetch(API + '/api/stats', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const s = await res.json();
+    document.getElementById('statDocs').textContent = s.totalDocs ?? s.docs ?? '0';
+    document.getElementById('statLeave').textContent = s.totalLeave ?? s.leave ?? '0';
+    document.getElementById('statPending').textContent = s.pending ?? '0';
+    document.getElementById('statRejected').textContent = s.rejected ?? '0';
+  } catch (e) {}
+
+  try {
+    const res = await fetch(API + '/api/docs?limit=5', { headers: { Authorization: 'Bearer ' + token } });
+    if (res.ok) {
+      const list = await res.json();
+      renderDocsList('recentDocs', list.slice(0, 3), true);
+    }
+  } catch (e) {}
+
+  try {
+    const res = await fetch(API + '/api/leave?limit=5', { headers: { Authorization: 'Bearer ' + token } });
+    if (res.ok) {
+      const list = await res.json();
+      renderLeaveList('recentLeave', list.slice(0, 3), true);
+    }
+  } catch (e) {}
+}
+
+function renderDocsList(containerId, list, simple) {
+  const el = document.getElementById(containerId);
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📄</div>暂无数据</div>';
+    return;
+  }
+  el.innerHTML = list.map(d => `
+    <div class="list-item" onclick="showDocDetail(${d.id})">
+      <div class="title">${d.title || '无标题'}</div>
+      <div class="meta">
+        ${statusBadge(d.status)}
+        <span>👤 ${d.applicant_name || d.username || '—'}</span>
+        <span>📅 ${fmtDate(d.created_at || d.createdAt)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderLeaveList(containerId, list, simple) {
+  const el = document.getElementById(containerId);
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📝</div>暂无数据</div>';
+    return;
+  }
+  el.innerHTML = list.map(d => `
+    <div class="list-item" onclick="showLeaveDetail(${d.id})">
+      <div class="title">${d.type || '请假'} - ${d.user_name || d.username || '—'}</div>
+      <div class="meta">
+        ${statusBadge(d.status)}
+        <span>📅 ${d.start_date || d.startDate || '—'} 至 ${d.end_date || d.endDate || '—'}</span>
+        <span>⏱️ ${d.days ?? '—'}天</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadDocs() {
+  const type = document.getElementById('filterDocType').value;
+  const status = document.getElementById('filterDocStatus').value;
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  if (status) params.set('status', status);
+  try {
+    const res = await fetch(API + '/api/docs?' + params, { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const list = await res.json();
+    renderDocsList('docsList', list, false);
+  } catch (e) {
+    document.getElementById('docsList').innerHTML = '<div class="empty"><div class="icon">⚠️</div>加载失败</div>';
+  }
+}
+
+async function loadLeave() {
+  const status = document.getElementById('filterLeaveStatus').value;
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  try {
+    const res = await fetch(API + '/api/leave?' + params, { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const list = await res.json();
+    renderLeaveList('leaveList', list, false);
+  } catch (e) {
+    document.getElementById('leaveList').innerHTML = '<div class="empty"><div class="icon">⚠️</div>加载失败</div>';
+  }
+}
+
+function loadUser() {
+  if (!currentUser) return;
+  const name = currentUser.name || currentUser.username || '用户';
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('userUsername').textContent = currentUser.username || '—';
+  document.getElementById('userRole').textContent = (currentUser.role === 'ADMIN' || currentUser.role === 'admin') ? '管理员' : '员工';
+  document.getElementById('userRoleText').textContent = (currentUser.role === 'ADMIN' || currentUser.role === 'admin') ? '管理员（可审批公文和请假）' : '普通员工';
+}
+
+function showCreateMenu() {
+  if (currentPage === 'leave') {
+    showLeaveForm();
+  } else {
+    showDocForm();
+  }
+}
+
+function showDocForm() {
+  document.getElementById('createTitle').textContent = '📝 新建公文';
+  document.getElementById('createForm').innerHTML = `
+    <div class="form-group">
+      <label>公文标题 *</label>
+      <input id="docTitle" placeholder="请输入公文标题">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>类型</label>
+        <select id="docType">
+          <option value="NOTICE">通知</option>
+          <option value="PROPOSAL">申请</option>
+          <option value="REPORT">报告</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>优先级</label>
+        <select id="docPriority">
+          <option value="NORMAL">普通</option>
+          <option value="HIGH">紧急</option>
+          <option value="LOW">低</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>公文内容 *</label>
+      <textarea id="docContent" placeholder="请输入公文详细内容..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-block" onclick="closeModal('createModal')">取消</button>
+      <button class="btn btn-block btn-success" onclick="submitDoc()">提交审批</button>
+    </div>
+  `;
+  document.getElementById('createModal').classList.add('show');
+}
+
+async function submitDoc() {
+  const title = document.getElementById('docTitle').value.trim();
+  const content = document.getElementById('docContent').value.trim();
+  const type = document.getElementById('docType').value;
+  const priority = document.getElementById('docPriority').value;
+  if (!title || !content) { showToast('请填写完整信息', 'error'); return; }
+  try {
+    const res = await fetch(API + '/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ title, content, type, priority })
+    });
+    if (!res.ok) throw new Error();
+    showToast('已提交，等待审批', 'success');
+    closeModal('createModal');
+    setTimeout(() => switchPage('docs'), 500);
+  } catch (e) { showToast('提交失败', 'error'); }
+}
+
+function showLeaveForm() {
+  document.getElementById('createTitle').textContent = '🏖️ 申请请假';
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  const tomorrow = new Date(today.getTime() + 86400000);
+  const tomorrowStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrow.getDate()).padStart(2, '0');
+  document.getElementById('createForm').innerHTML = `
+    <div class="form-row">
+      <div class="form-group">
+        <label>请假类型 *</label>
+        <select id="leaveType">
+          <option value="事假">事假</option>
+          <option value="年假">年假</option>
+          <option value="病假">病假</option>
+          <option value="婚假">婚假</option>
+          <option value="产假">产假</option>
+          <option value="丧假">丧假</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>天数 *</label>
+        <input id="leaveDays" type="number" min="1" value="1" placeholder="天数">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>开始日期 *</label>
+        <input id="leaveStart" type="date" value="${todayStr}">
+      </div>
+      <div class="form-group">
+        <label>结束日期 *</label>
+        <input id="leaveEnd" type="date" value="${tomorrowStr}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>请假事由</label>
+      <textarea id="leaveReason" placeholder="请说明请假原因..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-block" onclick="closeModal('createModal')">取消</button>
+      <button class="btn btn-block btn-success" onclick="submitLeave()">提交申请</button>
+    </div>
+  `;
+  document.getElementById('createModal').classList.add('show');
+}
+
+async function submitLeave() {
+  const type = document.getElementById('leaveType').value;
+  const startDate = document.getElementById('leaveStart').value;
+  const endDate = document.getElementById('leaveEnd').value;
+  const days = parseInt(document.getElementById('leaveDays').value) || 1;
+  const reason = document.getElementById('leaveReason').value.trim();
+  if (!startDate || !endDate || !days) { showToast('请填写完整信息', 'error'); return; }
+  try {
+    const res = await fetch(API + '/api/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ type, startDate, endDate, days, reason })
+    });
+    if (!res.ok) throw new Error();
+    showToast('已提交，等待审批', 'success');
+    closeModal('createModal');
+    setTimeout(() => switchPage('leave'), 500);
+  } catch (e) { showToast('提交失败', 'error'); }
+}
+
+async function showDocDetail(id) {
+  try {
+    const res = await fetch(API + '/api/docs', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const list = await res.json();
+    const doc = list.find(d => d.id === id);
+    if (!doc) return;
+    document.getElementById('detailTitle').textContent = '📄 ' + doc.title;
+    let actions = '';
+    if (isAdmin && (doc.status === 'PENDING')) {
+      actions = `
+        <button class="btn btn-block btn-danger" onclick="rejectDoc(${doc.id})">驳回</button>
+        <button class="btn btn-block btn-success" onclick="approveDoc(${doc.id})">通过</button>
+      `;
+    }
+    document.getElementById('detailContent').innerHTML = `
+      <div class="detail-item"><div class="label">状态</div><div class="value">${statusBadge(doc.status)}</div></div>
+      <div class="detail-item"><div class="label">类型</div><div class="value">${doc.type || '—'}</div></div>
+      <div class="detail-item"><div class="label">申请人</div><div class="value">${doc.applicant_name || '—'}</div></div>
+      <div class="detail-item"><div class="label">优先级</div><div class="value">${doc.priority || '—'}</div></div>
+      <div class="detail-item"><div class="label">创建时间</div><div class="value">${fmtDate(doc.created_at)}</div></div>
+      <div class="detail-item" style="margin-top:12px"><div class="label">公文内容</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${doc.content || '—'}</div></div>
+    `;
+    document.getElementById('detailActions').innerHTML = actions
+      ? `<div class="modal-actions">${actions}</div>`
+      : `<div class="modal-actions" style="grid-template-columns:1fr"><button class="btn btn-block" onclick="closeModal('detailModal')">关闭</button></div>`;
+    document.getElementById('detailModal').classList.add('show');
+  } catch (e) {}
+}
+
+async function approveDoc(id) {
+  try {
+    await fetch(API + '/api/docs/' + id + '/approve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    showToast('已通过', 'success');
+    closeModal('detailModal');
+    setTimeout(() => switchPage('docs'), 500);
+  } catch (e) { showToast('操作失败', 'error'); }
+}
+async function rejectDoc(id) {
+  try {
+    await fetch(API + '/api/docs/' + id + '/reject', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    showToast('已驳回', 'success');
+    closeModal('detailModal');
+    setTimeout(() => switchPage('docs'), 500);
+  } catch (e) { showToast('操作失败', 'error'); }
+}
+
+async function showLeaveDetail(id) {
+  try {
+    const res = await fetch(API + '/api/leave', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const list = await res.json();
+    const leave = list.find(d => d.id === id);
+    if (!leave) return;
+    document.getElementById('detailTitle').textContent = '🏖️ 请假详情';
+    let actions = '';
+    if (isAdmin && leave.status === 'PENDING') {
+      actions = `
+        <button class="btn btn-block btn-danger" onclick="rejectLeave(${leave.id})">驳回</button>
+        <button class="btn btn-block btn-success" onclick="approveLeave(${leave.id})">通过</button>
+      `;
+    }
+    document.getElementById('detailContent').innerHTML = `
+      <div class="detail-item"><div class="label">状态</div><div class="value">${statusBadge(leave.status)}</div></div>
+      <div class="detail-item"><div class="label">申请人</div><div class="value">${leave.user_name || '—'}</div></div>
+      <div class="detail-item"><div class="label">类型</div><div class="value">${leave.type || '—'}</div></div>
+      <div class="detail-item"><div class="label">时间</div><div class="value">${leave.start_date || '—'} 至 ${leave.end_date || '—'}</div></div>
+      <div class="detail-item"><div class="label">天数</div><div class="value">${leave.days ?? '—'} 天</div></div>
+      <div class="detail-item" style="margin-top:12px"><div class="label">请假事由</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${leave.reason || '无'}</div></div>
+      ${leave.approver_comment ? `<div class="detail-item" style="margin-top:12px"><div class="label">审批意见</div><div class="value" style="background:#e8f0fe;padding:12px;border-radius:6px;line-height:1.8">${leave.approver_comment}</div></div>` : ''}
+    `;
+    document.getElementById('detailActions').innerHTML = actions
+      ? `<div class="modal-actions">${actions}</div>`
+      : `<div class="modal-actions" style="grid-template-columns:1fr"><button class="btn btn-block" onclick="closeModal('detailModal')">关闭</button></div>`;
+    document.getElementById('detailModal').classList.add('show');
+  } catch (e) {}
+}
+
+async function approveLeave(id) {
+  try {
+    await fetch(API + '/api/leave/' + id + '/approve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    showToast('已通过', 'success');
+    closeModal('detailModal');
+    setTimeout(() => switchPage('leave'), 500);
+  } catch (e) { showToast('操作失败', 'error'); }
+}
+async function rejectLeave(id) {
+  try {
+    await fetch(API + '/api/leave/' + id + '/reject', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    showToast('已驳回', 'success');
+    closeModal('detailModal');
+    setTimeout(() => switchPage('leave'), 500);
+  } catch (e) { showToast('操作失败', 'error'); }
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+async function initApp(user) {
+  currentUser = user;
+  isAdmin = user.role === 'ADMIN' || user.role === 'admin';
+  const name = user.name || user.username || '用户';
+  document.getElementById('headerSub').textContent = name + ' · 欢迎使用';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('tabbar').style.display = 'grid';
+  hideLoading();
+  switchPage('home');
+}
+
+async function feishuLogin() {
+  setLoading('正在通过飞书登录...');
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const codeFromUrl = urlParams.get('code');
+
+  let feishuOpenId = '';
+  let feishuName = '';
+  let code = codeFromUrl || '';
+
+  try {
+    if (window.tt && typeof window.tt.getUserInfo === 'function') {
+      const info = await new Promise((resolve, reject) => {
+        window.tt.getUserInfo({
+          success: (res) => resolve(res),
+          fail: (err) => reject(err)
+        });
+      });
+      feishuOpenId = info.userInfo?.openId || info.openId || info.userId || '';
+      feishuName = info.userInfo?.nickName || info.nickName || '';
+      console.log('飞书 JS-SDK 获取用户:', feishuOpenId, feishuName);
+    }
+  } catch (e) {
+    console.log('飞书 JS-SDK 不可用:', e);
+  }
+
+  try {
+    const res = await fetch(API + '/api/feishu/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, feishuOpenId, feishuName })
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.message || '登录失败');
+    }
+    const data = await res.json();
+    token = data.token;
+    console.log('飞书登录成功:', data.user);
+    if (data.isNew) showToast('欢迎，已自动创建账号', 'success');
+    await initApp(data.user);
+  } catch (e) {
+    console.error('飞书登录失败:', e);
+    setLoading('飞书登录失败，使用备用登录...');
+    setTimeout(() => fallbackLogin(), 1500);
+  }
+}
+
+async function fallbackLogin() {
+  try {
+    const res = await fetch(API + '/api/public/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'zhangsan', password: '123456' })
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    token = data.token;
+    showToast('使用演示账号登录', 'success');
+    await initApp(data.user);
+  } catch (e) {
+    hideLoading();
+    document.body.innerHTML = '<div style="padding:40px 20px;text-align:center"><div style="font-size:48px;margin-bottom:16px">⚠️</div><div style="font-size:16px;color:#666">服务连接失败，请稍后重试</div></div>';
+  }
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => feishuLogin(), 500);
+});
+</script>
+</body>
+</html>
