@@ -183,43 +183,13 @@ async function initDB() {
     // ------ 初始数据（如果是空数据库） ------
     const userCount = query('SELECT COUNT(*) as c FROM users')[0].c;
     if (userCount === 0) {
-        const now = new Date().toISOString();
         run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
             ['admin', 'admin123', '管理员', 'ADMIN', '管理部']);
-        run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
-            ['zhangsan', 'zs123', '张三', 'EMPLOYEE', '研发部']);
-        run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
-            ['lisi', 'ls123', '李四', 'EMPLOYEE', '市场部']);
-        run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
-            ['wangwu', 'ww123', '王五', 'EMPLOYEE', '财务部']);
-        console.log('[OK] 初始化用户数据');
-
-        // 初始化年假余额
+        // 初始化管理员的年假余额
         const year = new Date().getFullYear();
-        for (let uid = 1; uid <= 4; uid++) {
-            run(`INSERT INTO leave_balance (user_id, year, annual_days, used_days, sick_days, sick_used, personal_days, personal_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [uid, year, 10, 0, 5, 0, 3, 0]);
-        }
-        console.log('[OK] 初始化年假余额数据');
-
-        // 示例数据：添加一些示例请假记录
-        run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [2, '年假', year + '-06-01', year + '-06-03', 2, '家庭旅游', 'APPROVED']);
-        run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [3, '事假', year + '-06-05', year + '-06-05', 1, '处理家事', 'PENDING']);
-        run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [2, '病假', year + '-06-10', year + '-06-11', 2, '感冒休息', 'PENDING']);
-        run(`UPDATE leave_balance SET used_days = 2 WHERE user_id = 2 AND year = ?`, [year]);
-        console.log('[OK] 示例请假数据已添加');
-
-        // 示例公文
-        run(`INSERT INTO documents (title, content, type, priority, status, applicant_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['关于开展2024年度团队建设的通知', '为增强团队凝聚力，各部门请于本月底前提交团建方案...', 'NOTICE', 'NORMAL', 'PENDING', 2]);
-        run(`INSERT INTO documents (title, content, type, priority, status, applicant_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['研发部季度工作汇报', '本季度完成主要项目...', 'REPORT', 'NORMAL', 'APPROVED', 2]);
-        run(`INSERT INTO documents (title, content, type, priority, status, applicant_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['关于新员工入职培训的请示', '为配合新员工顺利入职，建议组织入职培训...', 'PROPOSAL', 'HIGH', 'PENDING', 3]);
-        console.log('[OK] 示例公文数据已添加');
+        run(`INSERT INTO leave_balance (user_id, year, annual_days, used_days, sick_days, sick_used, personal_days, personal_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [1, year, 10, 0, 5, 0, 3, 0]);
+        console.log('[OK] 初始管理员账号已创建');
     }
 }
 
@@ -325,6 +295,13 @@ async function sendFeishuToUser(systemUserId, text) {
         return { success: false, reason: '该用户未绑定飞书' };
     }
     return await _feishuSendRaw(feishuOpenId, 'open_id', text);
+}
+
+// ---------- 发消息到指定群聊（用于定时任务推送到群里）----------
+const FEISHU_GROUP_CHAT_ID = process.env.FEISHU_GROUP_CHAT_ID || 'oc_a30a910385446ce307f8eb5436050ad1';
+async function sendFeishuToGroup(text) {
+    if (!larkClient) return { success: false, reason: '飞书客户端未初始化' };
+    return await _feishuSendRaw(FEISHU_GROUP_CHAT_ID, 'chat_id', text);
 }
 
 // ---------- 给所有审批人（ADMIN 角色）发飞书消息 ----------
@@ -557,6 +534,9 @@ async function handleFeishuMessage(data) {
             content = (parsed.text || '').trim();
         } catch (_e) { content = (msg.content || '').trim(); }
 
+        // 去掉 @机器人 mention（飞书群聊 @ 机器人会带 @_user_1 等格式）
+        content = content.replace(/@_user_\d+\s*/g, '').replace(/@_all\s*/g, '').trim();
+
         // 忽略空消息
         if (!content) return;
 
@@ -784,12 +764,15 @@ async function sendApprovalReminder(pendingDocs, pendingLeaves) {
 
         body += '👉 请及时处理！回复「同意」或「不同意」即可审批\n';
 
+        // 同时发给管理员私聊 + 群聊
         const result = await sendFeishuToApprovers(body);
         if (result.success) {
             console.log(`[定时任务] 待审批提醒已发送给 ${result.sent} 位审批人`);
         } else {
             console.warn(`[定时任务] 待审批提醒发送失败: ${result.reason || ''}`);
         }
+        // 也发到群里
+        try { await sendFeishuToGroup(body); console.log('[定时任务] 待审批提醒已发到群聊'); } catch(e) {}
         return result;
     } catch (err) {
         console.error('[定时任务] 待审批提醒异常:', err.message);
@@ -869,6 +852,8 @@ async function sendDailyBriefing() {
         } else {
             console.warn(`[定时任务] 每日简报发送失败: ${result.reason || ''}`);
         }
+        // 也发到群聊
+        try { await sendFeishuToGroup(body); console.log('[定时任务] 每日简报已发到群聊'); } catch(e) {}
         return result;
     } catch (err) {
         console.error('[定时任务] 每日简报异常:', err.message);
@@ -2291,6 +2276,20 @@ async function start() {
         try { saveDB(); } catch (e) { console.error('[WARN] 保存数据库失败:', e.message); }
         try { await initLark(); } catch (e) { /* initLark 已有处理 */ }
         try { startScheduledTasks(); } catch (e) { console.error('[WARN] 启动定时任务失败:', e.message); }
+
+        // 启动后发一条上线通知到飞书群聊
+        setTimeout(async () => {
+            try {
+                await sendFeishuToGroup('🚀 公文流转助手已上线！\n\n' +
+                    '👋 大家好，我是智能助手"小流"，以后有什么需要可以随时找我：\n\n' +
+                    '📝 请假 → 说「请假3天」\n' +
+                    '📄 写公文 → 说「帮我写一份通知」\n' +
+                    '📊 查数据 → 说「本周请假统计」\n' +
+                    '✅ 审批 → 回复「同意」或「不同意」\n\n' +
+                    '⚠️ 新用户请先发送「我是你的名字」绑定身份哦～');
+                console.log('[飞书] 上线通知已发到群聊');
+            } catch (e) { console.warn('[飞书] 上线通知发送失败:', e.message); }
+        }, 3000);
 
         // 打印初始化统计
         try {

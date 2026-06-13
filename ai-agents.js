@@ -953,8 +953,24 @@ async function routerAgentProcess(message, context = {}) {
     console.log('[Router] 收到消息:', message.slice(0, 80));
     console.log('[Router] 上下文:', JSON.stringify({ userId: context.userId, userName: context.userName, isAdmin: context.isAdmin }));
 
-    // 1. 意图识别
-    const intentResult = await classifyIntent(message);
+    const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
+
+    // 1. 意图识别（飞书场景：高置信度规则优先，其余全部走 AI 闲聊）
+    let intentResult;
+    if (isFeishu) {
+        // 飞书场景：只匹配高置信度业务关键词，其余一律走 feishu_chat 闲聊
+        const rule = classifyByRules(message);
+        if (rule && rule.intent !== 'general') {
+            // 确实是业务操作（请假/审批/统计/公文/通知），走规则
+            intentResult = rule;
+        } else {
+            // 不是明确的业务操作 → 直接走飞书闲聊 AI，不浪费一次 LLM 调用做意图识别
+            intentResult = { intent: 'general', method: 'feishu_direct' };
+        }
+    } else {
+        // Web 场景：正常规则+LLM 双重识别
+        intentResult = await classifyIntent(message);
+    }
     console.log('[Router] 意图:', intentResult.intent, '方法:', intentResult.method);
 
     // 2. 路由到对应 Agent
