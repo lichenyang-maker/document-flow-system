@@ -1,11 +1,11 @@
-// app.js - ????????????
+// app.js - 智能公文流转系统前端逻辑
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 let token = '';
 let currentUser = null;
 let isAdmin = false;
 
-// ===================== ?? =====================
+// ===================== 登录 =====================
 document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
@@ -14,7 +14,7 @@ async function doLogin() {
   const p = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
   err.textContent = '';
-  if (!u || !p) { err.textContent = '?????????'; return; }
+  if (!u || !p) { err.textContent = '请输入用户名和密码'; return; }
   try {
     const res = await fetch(API + '/api/public/login', {
       method: 'POST',
@@ -22,10 +22,10 @@ async function doLogin() {
       body: JSON.stringify({ username: u, password: p })
     });
     const data = await res.json();
-    if (!res.ok) { err.textContent = data.message || '????'; return; }
+    if (!res.ok) { err.textContent = data.message || '登录失败'; return; }
     token = data.token;
     await initApp();
-  } catch (e) { err.textContent = '????,???????'; }
+  } catch (e) { err.textContent = '网络错误，请检查后端服务'; }
 }
 
 async function initApp() {
@@ -35,14 +35,14 @@ async function initApp() {
     if (!res.ok) return doLogout();
     currentUser = await res.json();
     isAdmin = currentUser.role === 'ADMIN' || currentUser.username === 'admin';
-    const name = currentUser.name || currentUser.username || '??';
+    const name = currentUser.name || currentUser.username || '用户';
     document.getElementById('sbName').textContent = name;
-    document.getElementById('sbRole').textContent = isAdmin ? '???' : '????';
+    document.getElementById('sbRole').textContent = isAdmin ? '管理员' : '普通用户';
     document.getElementById('sbAvatar').textContent = name.charAt(0).toUpperCase();
     document.getElementById('topbarAvatar').textContent = name.charAt(0).toUpperCase();
     const h = new Date().getHours();
-    const greet = h < 6 ? '???' : h < 9 ? '???' : h < 12 ? '???' : h < 14 ? '???' : h < 18 ? '???' : '???';
-    document.getElementById('welcomeMsg').textContent = greet + ',' + name;
+    const greet = h < 6 ? '凌晨好' : h < 9 ? '早上好' : h < 12 ? '上午好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+    document.getElementById('welcomeMsg').textContent = greet + '，' + name;
   } catch (e) {}
   startClock();
   switchTab('dashboard');
@@ -55,7 +55,7 @@ function doLogout() {
   document.getElementById('loginOverlay').classList.remove('hidden');
 }
 
-// ===================== ?? =====================
+// ===================== 时钟 =====================
 function startClock() {
   function update() {
     const now = new Date();
@@ -72,7 +72,7 @@ function startClock() {
   setInterval(update, 1000);
 }
 
-// ===================== ??? =====================
+// ===================== 侧边栏 =====================
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   if (sb) sb.classList.toggle('open');
@@ -85,14 +85,14 @@ function switchTab(tab) {
   document.querySelectorAll('.ps').forEach(p => p.classList.add('hidden'));
   const section = document.getElementById(tab + 'Section');
   if (section) section.classList.remove('hidden');
-  const titleMap = { dashboard: '???', docs: '????', leave: '????' };
+  const titleMap = { dashboard: '工作台', docs: '公文管理', leave: '请假管理' };
   const pageTitle = document.getElementById('pageTitle');
-  if (pageTitle) pageTitle.textContent = titleMap[tab] || '???';
+  if (pageTitle) pageTitle.textContent = titleMap[tab] || '工作台';
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'docs') loadDocs();
 }
 
-// ===================== ?? =====================
+// ===================== 统计 =====================
 async function loadDashboard() {
   try {
     const res = await fetch(API + '/api/stats', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -109,7 +109,7 @@ async function loadDashboard() {
   } catch (e) {}
 }
 
-// ===================== ??/?? ???? =====================
+// ===================== 公文/请假 统一列表 =====================
 let currentDocFilter = 'all';
 
 async function loadDocs() {
@@ -121,7 +121,7 @@ async function loadDocs() {
 
     let combined = [];
     docs.forEach(d => combined.push({ ...d, _type: 'doc', _title: d.title, _time: d.created_at }));
-    leaves.forEach(l => combined.push({ ...l, _type: 'leave', _title: (l.user_name || '??') + '???', _time: l.created_at }));
+    leaves.forEach(l => combined.push({ ...l, _type: 'leave', _title: (l.user_name || '未知') + '的请假', _time: l.created_at }));
 
     if (currentDocFilter === 'doc') combined = combined.filter(x => x._type === 'doc');
     if (currentDocFilter === 'leave') combined = combined.filter(x => x._type === 'leave');
@@ -129,26 +129,26 @@ async function loadDocs() {
     combined.sort((a, b) => new Date(b._time) - new Date(a._time));
 
     const tbody = document.getElementById('docTableBody');
-    if (!combined.length) { if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="em">????</td></tr>'; return; }
+    if (!combined.length) { if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="em">暂无数据</td></tr>'; return; }
 
     if (tbody) tbody.innerHTML = combined.map(item => {
       const typeBadge = item._type === 'doc'
-        ? '<span class="typ-b typ-doc">?? ??</span>'
-        : '<span class="typ-b typ-leave">??? ??</span>';
-      const statusBadge = item.status === 'APPROVED' ? '<span class="bdge bdge-a">???</span>'
-        : item.status === 'REJECTED' ? '<span class="bdge bdge-r">???</span>'
-        : '<span class="bdge bdge-p"><span class="d"></span>???</span>';
-      const title = item._type === 'doc' ? (item.title || '???') : (item.user_name || '??') + '?' + (item.type || '??');
-      const detail = item._type === 'doc' ? ((item.content || '').substring(0, 30) + '...') : (item.type || '') + ' ' + (item.days || '?') + '?';
-      const time = item._time ? new Date(item._time).toLocaleString('zh-CN') : '-';
+        ? '<span class="typ-b typ-doc">📄 公文</span>'
+        : '<span class="typ-b typ-leave">🏖️ 请假</span>';
+      const statusBadge = item.status === 'APPROVED' ? '<span class="bdge bdge-a">已通过</span>'
+        : item.status === 'REJECTED' ? '<span class="bdge bdge-r">已驳回</span>'
+        : '<span class="bdge bdge-p"><span class="d"></span>待审批</span>';
+      const title = item._type === 'doc' ? (item.title || '无标题') : (item.user_name || '未知') + '的' + (item.type || '请假');
+      const detail = item._type === 'doc' ? ((item.content || '').substring(0, 30) + '...') : (item.type || '') + ' ' + (item.days || '?') + '天';
+      const time = item._time ? new Date(item._time).toLocaleString('zh-CN') : '—';
       let actions = '';
       if (isAdmin && item.status !== 'APPROVED' && item.status !== 'REJECTED') {
-        actions = '<div class="ac"><button class="btn btn-ok" onclick="approveItem(\'' + item._type + '\',' + item.id + ')">??</button>'
-                + '<button class="btn btn-no" onclick="rejectItem(\'' + item._type + '\',' + item.id + ')">??</button></div>';
+        actions = '<div class="ac"><button class="btn btn-ok" onclick="approveItem(\'' + item._type + '\',' + item.id + ')">通过</button>'
+                + '<button class="btn btn-no" onclick="rejectItem(\'' + item._type + '\',' + item.id + ')">驳回</button></div>';
       }
       return '<tr><td>' + typeBadge + '</td><td>' + title + '</td><td>' + detail + '</td><td>' + time + '</td><td>' + statusBadge + '</td><td>' + actions + '</td></tr>';
     }).join('');
-  } catch (e) { const tbody = document.getElementById('docTableBody'); if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="em">????</td></tr>'; }
+  } catch (e) { const tbody = document.getElementById('docTableBody'); if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="em">加载失败</td></tr>'; }
 }
 
 function filterDocs(filter, btn) {
@@ -158,28 +158,28 @@ function filterDocs(filter, btn) {
   loadDocs();
 }
 
-// ===================== ?? =====================
+// ===================== 审批 =====================
 async function approveItem(type, id) {
   try {
     const endpoint = type === 'doc' ? '/api/docs/' + id + '/approve' : '/api/leave/' + id + '/approve';
     await fetch(API + endpoint, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-    showToast('???');
+    showToast('已通过');
     loadDocs();
     loadDashboard();
-  } catch (e) { showToast('????', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
 }
 
 async function rejectItem(type, id) {
   try {
     const endpoint = type === 'doc' ? '/api/docs/' + id + '/reject' : '/api/leave/' + id + '/reject';
     await fetch(API + endpoint, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-    showToast('???');
+    showToast('已驳回');
     loadDocs();
     loadDashboard();
-  } catch (e) { showToast('????', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
 }
 
-// ===================== ???? =====================
+// ===================== 新增弹窗 =====================
 function openAddModal() {
   const modal = document.getElementById('addModal');
   if (modal) modal.classList.add('show');
@@ -228,24 +228,24 @@ async function loadUsersForLeave() {
   } catch (e) {}
 }
 
-// ===================== ?? =====================
+// ===================== 提交 =====================
 async function submitDoc() {
   const title = document.getElementById('docTitle').value.trim();
   const content = document.getElementById('docContent').value.trim();
   const type = document.getElementById('docType').value;
   const priority = document.getElementById('docPriority').value;
-  if (!title) { showToast('?????', 'error'); return; }
+  if (!title) { showToast('请输入标题', 'error'); return; }
   try {
     await fetch(API + '/api/docs', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, content, type, priority })
     });
-    showToast('????');
+    showToast('提交成功');
     closeAddModal();
     loadDocs();
     loadDashboard();
-  } catch (e) { showToast('????', 'error'); }
+  } catch (e) { showToast('提交失败', 'error'); }
 }
 
 async function submitLeave() {
@@ -255,18 +255,18 @@ async function submitLeave() {
   const startDate = document.getElementById('leaveStart').value;
   const endDate = document.getElementById('leaveEnd').value;
   const reason = document.getElementById('leaveReason').value.trim();
-  if (!days || !startDate || !endDate) { showToast('?????', 'error'); return; }
+  if (!days || !startDate || !endDate) { showToast('请填写完整', 'error'); return; }
   try {
     await fetch(API + '/api/leave', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, type, days: parseFloat(days), start_date: startDate, end_date: endDate, reason })
     });
-    showToast('????');
+    showToast('提交成功');
     closeAddModal();
     loadDocs();
     loadDashboard();
-  } catch (e) { showToast('????', 'error'); }
+  } catch (e) { showToast('提交失败', 'error'); }
 }
 
 // ===================== Toast =====================
