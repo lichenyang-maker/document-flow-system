@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>公文流转系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#1a73e8;--primary-light:#e8f0fe;--primary-dark:#1558b0;--accent:#00bcd4;--sidebar:#f5f7fa;--bg:#eef2f7;--card:#fff;--text:#1f2937;--text2:#6b7280;--border:#e5e7eb;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;overflow-x:hidden}
+/* Login Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
+.modal-overlay.hidden{display:none}
+.login-box{background:var(--card);border-radius:12px;padding:36px 32px 28px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-box h2{text-align:center;font-size:22px;color:var(--primary);margin-bottom:4px;font-weight:700}
+.login-box p{text-align:center;color:var(--text2);font-size:13px;margin-bottom:24px}
+.login-box .field{margin-bottom:16px}
+.login-box label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px}
+.login-box input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;outline:none;transition:border .2s}
+.login-box input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+.login-box .btn{width:100%;padding:11px;border:none;border-radius:var(--radius);background:var(--primary);color:#fff;font-size:15px;cursor:pointer;margin-top:8px;transition:background .2s}
+.login-box .btn:hover{background:var(--primary-dark)}
+.login-box .error{color:var(--danger);font-size:12px;text-align:center;margin-top:8px;min-height:18px}
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+.sidebar .logo{padding:20px 18px;font-size:18px;font-weight:700;color:var(--primary);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sidebar .logo span{font-size:22px}
+.sidebar nav{flex:1;padding:12px 8px}
+.sidebar .user-info{padding:14px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.sidebar .user-info .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:14px;transition:all .15s;margin-bottom:2px;user-select:none}
+.nav-item:hover{background:var(--primary-light);color:var(--primary)}
+.nav-item.active{background:var(--primary);color:#fff;font-weight:500}
+.nav-item .icon{font-size:18px;width:22px;text-align:center}
+/* Main */
+.main{flex:1;padding:24px;max-width:100%;overflow-y:auto}
+.main h1{font-size:20px;margin-bottom:20px;font-weight:600}
+.page{display:none}.page.active{display:block}
+/* Stats Cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
+.stat-card .num{font-size:28px;font-weight:700}
+.stat-card .label{font-size:13px;color:var(--text2);margin-top:2px}
+.stat-card .icon-box{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.c-blue .num{color:var(--primary)}.c-blue .icon-box{background:#e8f0fe}
+.c-cyan .num{color:var(--accent)}.c-cyan .icon-box{background:#e0f7fa}
+.c-green .num{color:var(--success)}.c-green .icon-box{background:#ecfdf5}
+.c-orange .num{color:var(--warning)}.c-orange .icon-box{background:#fffbeb}
+/* Recent Activity */
+.activity{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.activity h3{font-size:15px;margin-bottom:14px}
+.activity-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.activity-item:last-child{border-bottom:none}
+.activity-item .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.activity-item .time{color:var(--text2);margin-left:auto;white-space:nowrap;font-size:12px}
+/* Table */
+.table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.filters{padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.filters select,.filters input{padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;background:#fff}
+.filters select:focus,.filters input:focus{border-color:var(--primary)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--sidebar);text-align:left;padding:12px 16px;font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fafb}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:500}
+.badge-pending{background:#fff7ed;color:#c2410c}
+.badge-approved{background:#ecfdf5;color:#059669}
+.badge-rejected{background:#fef2f2;color:#dc2626}
+.badge-draft{background:#f3f4f6;color:#6b7280}
+.btn-sm{padding:4px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;color:#fff}
+.btn-approve{background:var(--success)}.btn-reject{background:var(--danger)}
+.btn-sm:hover{opacity:.85}
+.empty{text-align:center;padding:40px;color:var(--text2)}
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:var(--radius);color:#fff;font-size:13px;z-index:2000;animation:fadeIn .3s;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.toast-success{background:var(--success)}.toast-error{background:var(--danger)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+/* Mobile */
+.mobile-header{display:none;background:var(--primary);color:#fff;padding:14px 16px;font-size:17px;font-weight:600;position:sticky;top:0;z-index:100}
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-260px;top:0;z-index:200;transition:left .25s;box-shadow:4px 0 20px rgba(0,0,0,.1)}
+  .sidebar.open{left:0}
+  .mobile-header{display:flex;align-items:center;justify-content:space-between}
+  .mobile-header .menu-btn{font-size:22px;cursor:pointer;background:none;border:none;color:#fff}
+  .main{padding:16px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .table-wrap{overflow-x:auto}
+  table{min-width:500px}
+  .filters{flex-direction:column}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:150;display:none}
+  .overlay.show{display:block}
+}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="modal-overlay" id="loginModal">
+  <div class="login-box">
+    <h2>📋 公文流转系统</h2>
+    <p>请登录以继续</p>
+    <div class="field"><label>用户名</label><input id="loginUser" placeholder="请输入用户名" value=""></div>
+    <div class="field"><label>密码</label><input id="loginPass" type="password" placeholder="请输入密码" value=""></div>
+    <button class="btn" onclick="doLogin()">登 录</button>
+    <div class="error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- Mobile overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- Mobile Header -->
+<div class="mobile-header" id="mobileHeader" style="display:none">
+  <span class="menu-btn" onclick="openSidebar()">☰</span>
+  <span>公文流转系统</span>
+  <span id="mobileUser" style="font-size:13px;opacity:.8"></span>
+</div>
+
+<!-- App -->
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="logo"><span>📋</span>公文流转</div>
+    <nav>
+      <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard',this)">
+        <span class="icon">📊</span>工作台
+      </div>
+      <div class="nav-item" data-page="docs" onclick="switchPage('docs',this)">
+        <span class="icon">📄</span>公文管理
+      </div>
+      <div class="nav-item" data-page="leave" onclick="switchPage('leave',this)">
+        <span class="icon">请假</span>请假管理
+      </div>
+    </nav>
+    <div class="user-info">
+      <div class="avatar" id="avatarLetter">U</div>
+      <div><div id="sidebarUser" style="font-weight:500;color:var(--text)">—</div><div id="sidebarRole" style="font-size:12px">—</div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <h1>工作台</h1>
+      <div class="stats">
+        <div class="stat-card c-blue"><div class="icon-box">👥</div><div><div class="num" id="statUsers">—</div><div class="label">总用户数</div></div></div>
+        <div class="stat-card c-cyan"><div class="icon-box">📄</div><div><div class="num" id="statDocs">—</div><div class="label">公文总数</div></div></div>
+        <div class="stat-card c-green"><div class="icon-box">🏖️</div><div><div class="num" id="statLeave">—</div><div class="label">请假申请</div></div></div>
+        <div class="stat-card c-orange"><div class="icon-box">⏳</div><div><div class="num" id="statPending">—</div><div class="label">待审批</div></div></div>
+      </div>
+      <div class="activity">
+        <h3>最近动态</h3>
+        <div id="activityList"><div class="empty">暂无动态</div></div>
+      </div>
+    </div>
+
+    <!-- Docs -->
+    <div class="page" id="page-docs">
+      <h1>公文管理</h1>
+      <div class="table-wrap">
+        <div class="filters">
+          <select id="filterDocType" onchange="loadDocs()"><option value="">全部类型</option><option value="通知">通知</option><option value="公告">公告</option><option value="报告">报告</option><option value="请示">请示</option><option value="批复">批复</option></select>
+          <select id="filterDocStatus" onchange="loadDocs()"><option value="">全部状态</option><option value="draft">草稿</option><option value="pending">待审批</option><option value="approved">已通过</option><option value="rejected">已驳回</option></select>
+        </div>
+        <table>
+          <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>申请人</th><th>创建时间</th></tr></thead>
+          <tbody id="docsBody"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Leave -->
+    <div class="page" id="page-leave">
+      <h1>请假管理</h1>
+      <div class="table-wrap">
+        <div class="filters">
+          <select id="filterLeaveStatus" onchange="loadLeave()"><option value="">全部状态</option><option value="pending">待审批</option><option value="approved">已通过</option><option value="rejected">已驳回</option></select>
+        </div>
+        <table>
+          <thead><tr><th>申请人</th><th>类型</th><th>天数</th><th>起始日期</th><th>结束日期</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="leaveBody"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// API地址自动检测：飞书环境用相对路径，本地开发用localhost
+const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+let token='',currentUser=null,isAdmin=false;
+
+// Enter key login
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim();
+  const p=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginError');
+  err.textContent='';
+  if(!u||!p){err.textContent='请输入用户名和密码';return}
+  try{
+    const res=await fetch(API+'/api/public/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    if(!res.ok){const d=await res.json();err.textContent=d.message||'登录失败';return}
+    const data=await res.json();
+    token=data.token;
+    await initApp();
+  }catch(e){err.textContent='网络错误，请检查后端服务'}
+}
+
+async function initApp(){
+  document.getElementById('loginModal').classList.add('hidden');
+  try{
+    const res=await fetch(API+'/api/auth/me',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) return logout();
+    currentUser=await res.json();
+    isAdmin=currentUser.role==='admin'||currentUser.username==='admin';
+    const name=currentUser.username||currentUser.name||'用户';
+    document.getElementById('sidebarUser').textContent=name;
+    document.getElementById('sidebarRole').textContent=isAdmin?'管理员':'普通用户';
+    document.getElementById('avatarLetter').textContent=name.charAt(0).toUpperCase();
+    document.getElementById('mobileUser').textContent=name;
+  }catch(e){}
+  checkMobile();
+  loadDashboard();
+}
+
+function logout(){
+  token='';currentUser=null;isAdmin=false;
+  document.getElementById('loginModal').classList.remove('hidden');
+}
+
+function switchPage(page,el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-'+page).classList.add('active');
+  if(page==='dashboard') loadDashboard();
+  else if(page==='docs') loadDocs();
+  else if(page==='leave') loadLeave();
+  closeSidebar();
+}
+
+function checkMobile(){
+  const m=window.innerWidth<=768;
+  document.getElementById('mobileHeader').style.display=m?'flex':'none';
+  if(!m) document.getElementById('sidebar').classList.remove('open');
+}
+window.addEventListener('resize',checkMobile);
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
+
+const headers=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+function showToast(msg,type='success'){
+  const t=document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+function statusBadge(s){
+  const m={pending:['待审批','badge-pending'],approved:['已通过','badge-approved'],rejected:['已驳回','badge-rejected'],draft:['草稿','badge-draft']};
+  const d=m[s]||[s,''];
+  return '<span class="badge '+d[1]+'">'+d[0]+'</span>';
+}
+function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return d}}
+
+// Dashboard
+async function loadDashboard(){
+  try{
+    const res=await fetch(API+'/api/stats',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok)return;
+    const s=await res.json();
+    document.getElementById('statUsers').textContent=s.totalUsers??s.users??'—';
+    document.getElementById('statDocs').textContent=s.totalDocs??s.docs??'—';
+    document.getElementById('statLeave').textContent=s.totalLeave??s.leave??'—';
+    document.getElementById('statPending').textContent=s.pending??'—';
+  }catch(e){}
+  // Load recent docs for activity
+  try{
+    const res=await fetch(API+'/api/docs?limit=5',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok)return;
+    const docs=await res.json();
+    const list=docs.data||docs||[];
+    const html=list.map(d=>{
+      const colors={pending:'#f59e0b',approved:'#10b981',rejected:'#ef4444',draft:'#6b7280'};
+      return `<div class="activity-item"><div class="dot" style="background:${colors[d.status]||'#6b7280'}"></div><div style="flex:1">${d.title||'无标题'} <span style="color:var(--text2)">— ${d.type||''}</span></div><div class="time">${fmtDate(d.createdAt)}</div></div>`;
+    }).join('');
+    document.getElementById('activityList').innerHTML=html||'<div class="empty">暂无动态</div>';
+  }catch(e){}
+}
+
+// Docs
+async function loadDocs(){
+  const type=document.getElementById('filterDocType').value;
+  const status=document.getElementById('filterDocStatus').value;
+  const params=new URLSearchParams();
+  if(type)params.set('type',type);
+  if(status)params.set('status',status);
+  try{
+    const res=await fetch(API+'/api/docs?'+params,{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok)return;
+    const data=await res.json();
+    const list=data.data||data||[];
+    if(!list.length){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">暂无数据</td></tr>';return}
+    document.getElementById('docsBody').innerHTML=list.map(d=>`<tr><td>${d.title||'—'}</td><td>${d.type||'—'}</td><td>${statusBadge(d.status)}</td><td>${d.applicant||d.username||'—'}</td><td>${fmtDate(d.createdAt||d.created_at)}</td></tr>`).join('');
+  }catch(e){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'}
+}
+
+// Leave
+async function loadLeave(){
+  const status=document.getElementById('filterLeaveStatus').value;
+  const params=new URLSearchParams();
+  if(status)params.set('status',status);
+  try{
+    const res=await fetch(API+'/api/leave?'+params,{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok)return;
+    const data=await res.json();
+    const list=data.data||data||[];
+    if(!list.length){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">暂无数据</td></tr>';return}
+    document.getElementById('leaveBody').innerHTML=list.map(d=>{
+      let actions='';
+      if(isAdmin&&d.status==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveLeave('${d.id}')">通过</button><button class="btn-sm btn-reject" onclick="rejectLeave('${d.id}')">驳回</button>`;
+      return `<tr><td>${d.applicant||d.username||'—'}</td><td>${d.type||'—'}</td><td>${d.days??'—'}</td><td>${d.startDate||d.start_date||'—'}</td><td>${d.endDate||d.end_date||'—'}</td><td>${statusBadge(d.status)}</td><td>${actions||'—'}</td></tr>`;
+    }).join('');
+  }catch(e){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">加载失败</td></tr>'}
+}
+
+async function approveLeave(id){
+  try{await fetch(API+'/api/leave/'+id+'/approve',{method:'POST',headers});showToast('已通过')}catch(e){showToast('操作失败','error')}
+  loadLeave();loadDashboard();
+}
+async function rejectLeave(id){
+  try{await fetch(API+'/api/leave/'+id+'/reject',{method:'POST',headers});showToast('已驳回')}catch(e){showToast('操作失败','error')}
+  loadLeave();loadDashboard();
+}
+</script>
+</body>
+</html>

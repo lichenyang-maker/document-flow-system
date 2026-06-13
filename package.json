@@ -1,6 +1,6 @@
 {
   "name": "document-flow-system",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "公文流转与请假管理系统（支持 SQLite 和飞书集成）",
   "main": "server-sqlite.js",
   "scripts": {
@@ -9,10 +9,11 @@
     "dev": "nodemon server-sqlite.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "sqlite3": "^5.1.7",
+    "@larksuiteoapi/node-sdk": "^1.35.0",
     "axios": "^1.6.0",
-    "@larksuiteoapi/node-sdk": "^1.35.0"
+    "express": "^4.18.2",
+    "localtunnel": "^2.0.2",
+    "sql.js": "^1.10.3"
   },
   "engines": {
     "node": ">=18.0.0"
