@@ -203,3 +203,8 @@ MIT License
 - ✅ 基于角色的权限控制
 - ✅ AI 智能解析消息
 - ✅ Server酱微信推送
+
+
+## 部署状态
+- Sealos: https://dmtrgpkjqvjw.cloud.sealos.io
+- 最新构建: 2026-06-13 19:21
