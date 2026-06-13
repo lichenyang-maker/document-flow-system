@@ -11,8 +11,8 @@ const fs = require('fs');
 // ---------- 环境配置 ----------
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'document_flow.db');
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || 'cli_aaa152828fb95bda';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || 'CSyWDYc75HnNz7k0MLn6EciZ5ajjwNvZ';
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || process.env.LARK_APP_ID || 'cli-a69e1c1e9fbe8695';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || process.env.LARK_APP_SECRET || 'BOD9QysONrq8kYGYht4zQnPzUq6fsOp2';
 
 // ---------- Express ----------
 const app = express();
