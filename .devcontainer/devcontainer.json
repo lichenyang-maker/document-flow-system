@@ -1,0 +1,3 @@
+{
+  "postCreateCommand": "nohup bash auto-push.sh > auto-push.log 2>&1 &"
+}
