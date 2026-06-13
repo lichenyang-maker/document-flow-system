@@ -2,336 +2,836 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>公文流转系统</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能公文流转系统</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#1a73e8;--primary-light:#e8f0fe;--primary-dark:#1558b0;--accent:#00bcd4;--sidebar:#f5f7fa;--bg:#eef2f7;--card:#fff;--text:#1f2937;--text2:#6b7280;--border:#e5e7eb;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1)}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;overflow-x:hidden}
-/* Login Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
-.modal-overlay.hidden{display:none}
-.login-box{background:var(--card);border-radius:12px;padding:36px 32px 28px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.login-box h2{text-align:center;font-size:22px;color:var(--primary);margin-bottom:4px;font-weight:700}
-.login-box p{text-align:center;color:var(--text2);font-size:13px;margin-bottom:24px}
-.login-box .field{margin-bottom:16px}
-.login-box label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px}
-.login-box input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;outline:none;transition:border .2s}
-.login-box input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
-.login-box .btn{width:100%;padding:11px;border:none;border-radius:var(--radius);background:var(--primary);color:#fff;font-size:15px;cursor:pointer;margin-top:8px;transition:background .2s}
-.login-box .btn:hover{background:var(--primary-dark)}
-.login-box .error{color:var(--danger);font-size:12px;text-align:center;margin-top:8px;min-height:18px}
-/* Layout */
-.app{display:flex;min-height:100vh}
-.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
-.sidebar .logo{padding:20px 18px;font-size:18px;font-weight:700;color:var(--primary);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
-.sidebar .logo span{font-size:22px}
-.sidebar nav{flex:1;padding:12px 8px}
-.sidebar .user-info{padding:14px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);display:flex;align-items:center;gap:8px}
-.sidebar .user-info .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600}
-.nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:14px;transition:all .15s;margin-bottom:2px;user-select:none}
-.nav-item:hover{background:var(--primary-light);color:var(--primary)}
-.nav-item.active{background:var(--primary);color:#fff;font-weight:500}
-.nav-item .icon{font-size:18px;width:22px;text-align:center}
-/* Main */
-.main{flex:1;padding:24px;max-width:100%;overflow-y:auto}
-.main h1{font-size:20px;margin-bottom:20px;font-weight:600}
-.page{display:none}.page.active{display:block}
-/* Stats Cards */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
-.stat-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
-.stat-card .num{font-size:28px;font-weight:700}
-.stat-card .label{font-size:13px;color:var(--text2);margin-top:2px}
-.stat-card .icon-box{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px}
-.c-blue .num{color:var(--primary)}.c-blue .icon-box{background:#e8f0fe}
-.c-cyan .num{color:var(--accent)}.c-cyan .icon-box{background:#e0f7fa}
-.c-green .num{color:var(--success)}.c-green .icon-box{background:#ecfdf5}
-.c-orange .num{color:var(--warning)}.c-orange .icon-box{background:#fffbeb}
-/* Recent Activity */
-.activity{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.activity h3{font-size:15px;margin-bottom:14px}
-.activity-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
-.activity-item:last-child{border-bottom:none}
-.activity-item .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.activity-item .time{color:var(--text2);margin-left:auto;white-space:nowrap;font-size:12px}
-/* Table */
-.table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-.filters{padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
-.filters select,.filters input{padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;background:#fff}
-.filters select:focus,.filters input:focus{border-color:var(--primary)}
-table{width:100%;border-collapse:collapse}
-th{background:var(--sidebar);text-align:left;padding:12px 16px;font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap}
-td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#f9fafb}
-.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:500}
-.badge-pending{background:#fff7ed;color:#c2410c}
-.badge-approved{background:#ecfdf5;color:#059669}
-.badge-rejected{background:#fef2f2;color:#dc2626}
-.badge-draft{background:#f3f4f6;color:#6b7280}
-.btn-sm{padding:4px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;color:#fff}
-.btn-approve{background:var(--success)}.btn-reject{background:var(--danger)}
-.btn-sm:hover{opacity:.85}
-.empty{text-align:center;padding:40px;color:var(--text2)}
-/* Toast */
-.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:var(--radius);color:#fff;font-size:13px;z-index:2000;animation:fadeIn .3s;box-shadow:0 4px 12px rgba(0,0,0,.15)}
-.toast-success{background:var(--success)}.toast-error{background:var(--danger)}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-/* Mobile */
-.mobile-header{display:none;background:var(--primary);color:#fff;padding:14px 16px;font-size:17px;font-weight:600;position:sticky;top:0;z-index:100}
-@media(max-width:768px){
-  .sidebar{position:fixed;left:-260px;top:0;z-index:200;transition:left .25s;box-shadow:4px 0 20px rgba(0,0,0,.1)}
-  .sidebar.open{left:0}
-  .mobile-header{display:flex;align-items:center;justify-content:space-between}
-  .mobile-header .menu-btn{font-size:22px;cursor:pointer;background:none;border:none;color:#fff}
-  .main{padding:16px}
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .table-wrap{overflow-x:auto}
-  table{min-width:500px}
-  .filters{flex-direction:column}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:150;display:none}
-  .overlay.show{display:block}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #090d17;
+  --bg-surface: #101827;
+  --bg-surface-2: #131d2d;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.12);
+  --text-main: #edf2ff;
+  --text-alt: #94a3b8;
+  --text-muted: #6b7280;
+  --accent: #38bdf8;
+  --accent-soft: rgba(56,189,248,0.12);
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --shadow: 0 24px 80px rgba(0,0,0,0.25);
+  --radius: 22px;
+  --radius-sm: 14px;
+  --transition: 0.25s ease;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  color: var(--text-main);
+  background: radial-gradient(circle at top left, rgba(56,189,248,0.12), transparent 20%),
+              radial-gradient(circle at bottom right, rgba(59,130,246,0.10), transparent 24%),
+              linear-gradient(180deg, #070b15 0%, #10172d 100%);
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 20% 10%, rgba(56,189,248,0.08), transparent 22%),
+              radial-gradient(circle at 85% 90%, rgba(14,165,233,0.05), transparent 25%);
+  pointer-events: none;
+}
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7,11,21,0.88);
+  backdrop-filter: blur(18px);
+  z-index: 1000;
+}
+.login-overlay.hidden { display: none; }
+
+.login-card {
+  width: min(460px, 92vw);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  padding: 54px 44px 38px;
+  background: rgba(12,18,34,0.92);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.login-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, rgba(56,189,248,0.10), transparent 32%, rgba(14,165,233,0.04));
+  pointer-events: none;
+}
+.login-logo {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 22px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  box-shadow: 0 20px 50px rgba(14,165,233,0.28);
+}
+.login-card h2 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: #f8fbff;
+  margin-bottom: 8px;
+}
+.login-card .sub {
+  text-align: center;
+  color: var(--text-alt);
+  font-size: 0.95rem;
+  margin-bottom: 34px;
+}
+.lf { margin-bottom: 18px; }
+.ll {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-alt);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+.li {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+.li:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.12);
+  background: rgba(255,255,255,0.06);
+}
+.li::placeholder { color: rgba(255,255,255,0.36); }
+.lbtn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 14px 32px rgba(14,165,233,0.25);
+  transition: var(--transition);
+}
+.lbtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 40px rgba(14,165,233,0.30);
+}
+.lerr {
+  min-height: 22px;
+  margin-top: 16px;
+  color: #fb7185;
+  font-size: 0.95rem;
+  text-align: center;
+}
+.lhint {
+  margin-top: 24px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-alt);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 20px;
+  gap: 24px;
+  background: rgba(10,15,27,0.94);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 4px 0 40px rgba(0,0,0,0.16);
+  z-index: 90;
+  transition: transform 0.35s ease;
+}
+.sidebar.collapsed { transform: translateX(-100%); }
+.sb-brand { display: flex; align-items: center; gap: 14px; }
+.sb-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  box-shadow: 0 14px 30px rgba(14,165,233,0.24);
+}
+.sb-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #fff, #cbeafe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.sb-nav { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-right: 4px; }
+.ni {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: var(--text-alt);
+  font-size: 0.96rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--transition);
+  text-align: left;
+}
+.ni:hover { background: rgba(56,189,248,0.10); color: #fff; }
+.ni.active {
+  background: rgba(56,189,248,0.16);
+  color: #fff;
+  border-color: rgba(56,189,248,0.20);
+  box-shadow: inset 0 0 0 1px rgba(56,189,248,0.08);
+}
+.ni .ico { font-size: 1rem; width: 28px; text-align: center; }
+.sb-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+}
+.sb-av {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: linear-gradient(135deg, #38bdf8, #22c55e);
+  color: white;
+}
+.sb-ui { min-width: 0; overflow: hidden; }
+.sb-un { font-size: 0.95rem; font-weight: 700; color: #f8fbff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-ur { font-size: 0.82rem; color: var(--text-alt); margin-top: 4px; }
+.sb-lo {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(251,113,133,0.15);
+  color: #fb7185;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.sb-lo:hover { background: rgba(251,113,133,0.24); transform: translateY(-1px); }
+
+.wrap { margin-left: 280px; min-height: 100vh; }
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 32px;
+  background: rgba(10,15,27,0.82);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tb-l { display: flex; align-items: center; gap: 16px; }
+.tb-ham {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-main);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.tb-ham:hover { background: rgba(255,255,255,0.1); }
+.tb-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.3px; }
+.tb-r { display: flex; align-items: center; gap: 14px; }
+.tb-time { color: var(--text-alt); font-size: 0.95rem; }
+.tb-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: white;
+}
+
+.main { padding: 40px 36px 64px; max-width: 1300px; margin: 0 auto; }
+
+.hi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 36px 36px 34px;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.20);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 36px;
+}
+.hi::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.16), transparent 60%);
+  pointer-events: none;
+}
+.hi > div:first-child { max-width: 62%; }
+.hi h1 { font-size: 2.25rem; font-weight: 800; line-height: 1.05; margin-bottom: 12px; }
+.hi p { color: var(--text-alt); font-size: 1rem; line-height: 1.75; max-width: 520px; }
+.hi-time { text-align: right; min-width: 180px; }
+.hi-time .tb {
+  font-size: 3.4rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #fff, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hi-time .td { font-size: 0.95rem; color: var(--text-alt); margin-top: 4px; }
+
+.sg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-bottom: 36px; }
+.sc {
+  position: relative;
+  padding: 24px 26px 22px;
+  border-radius: 26px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  transition: var(--transition);
+  box-shadow: 0 22px 50px rgba(0,0,0,0.18);
+}
+.sc:hover { transform: translateY(-4px); border-color: rgba(56,189,248,0.18); box-shadow: 0 32px 80px rgba(0,0,0,0.22); }
+.sc::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 26px 26px 0 0;
+  background: linear-gradient(90deg, rgba(56,189,248,0.9), rgba(14,165,233,0.65));
+}
+.sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
+.sc-label { color: var(--text-alt); font-size: 0.9rem; font-weight: 600; }
+.sc-ico {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: rgba(255,255,255,0.04);
+}
+.sc-num {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 10px;
+  color: #fff;
+}
+.sc-desc { font-size: 0.92rem; color: var(--text-alt); }
+
+.cc {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.18);
+}
+.cc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 26px 30px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cc-title { display: flex; align-items: center; gap: 12px; font-size: 1rem; font-weight: 700; }
+.cc-title .dot { width: 10px; height: 10px; border-radius: 999px; background: #38bdf8; box-shadow: 0 0 18px rgba(56,189,248,0.32); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.ft {
+  border: none;
+  border-radius: 14px;
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.03);
+  color: var(--text-alt);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.ft:hover { background: rgba(56,189,248,0.10); color: #fff; }
+.ft.active { background: rgba(56,189,248,0.18); color: #fff; box-shadow: inset 0 0 0 1px rgba(56,189,248,0.12); }
+
+.tw { overflow-x: auto; padding: 24px 30px 30px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 720px; }
+thead th {
+  padding: 14px 18px;
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-alt);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+tbody td {
+  padding: 18px 18px;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+}
+tbody tr:hover { background: rgba(56,189,248,0.08); }
+tbody tr:last-child td { border-bottom: none; }
+
+.typ-b { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.typ-doc { background: rgba(56,189,248,0.12); color: #7dd3fc; }
+.typ-leave { background: rgba(139,92,246,0.12); color: #c4b5fd; }
+.bdge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.bdge-p { background: rgba(251,191,36,0.14); color: #fbbf24; }
+.bdge-a { background: rgba(52,211,153,0.14); color: #34d399; }
+.bdge-r { background: rgba(251,113,133,0.14); color: #fb7185; }
+.bd { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.8s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.ac { display: inline-flex; gap: 8px; align-items: center; }
+.btn {
+  border: none;
+  border-radius: 14px;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-ok { background: rgba(52,211,153,0.14); color: #34d399; }
+.btn-ok:hover { background: rgba(52,211,153,0.22); }
+.btn-no { background: rgba(251,113,133,0.14); color: #fb7185; }
+.btn-no:hover { background: rgba(251,113,133,0.22); }
+.btn-pri {
+  background: linear-gradient(135deg, #38bdf8, #22d3ee);
+  color: #0f172a;
+  box-shadow: 0 12px 28px rgba(56,189,248,0.28);
+}
+.btn-pri:hover { transform: translateY(-1px); }
+.btn-out { background: rgba(255,255,255,0.04); color: var(--text-alt); border: 1px solid rgba(255,255,255,0.08); }
+.btn-out:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.mo {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7,11,21,0.88);
+  backdrop-filter: blur(16px);
+  z-index: 1000;
+}
+.mo.show { display: flex; }
+.mb {
+  width: min(560px, 92vw);
+  max-height: 92vh;
+  overflow: auto;
+  border-radius: 28px;
+  background: rgba(11,17,31,0.98);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: var(--shadow);
+  animation: popIn 0.35s ease;
+}
+@keyframes popIn { from { opacity:0; transform: translateY(12px) scale(0.98); } to { opacity:1; transform:none; } }
+.mt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 26px 30px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.mt h3 { font-size: 1.15rem; font-weight: 800; }
+.mc {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-alt);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.mc:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+.mbody { padding: 30px; }
+.mfoot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; padding: 20px 30px; border-top: 1px solid rgba(255,255,255,0.08); }
+
+.fr {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-bottom: 20px;
+}
+.fg { margin-bottom: 20px; }
+.fl {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-alt);
+  margin-bottom: 10px;
+}
+.fi, .fs, .fa {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+.fi:focus, .fs:focus, .fa:focus {
+  outline: none;
+  border-color: rgba(56,189,248,0.45);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.12);
+}
+.fs {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 42px;
+}
+.fa { min-height: 120px; resize: vertical; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+.type-select { display: flex; gap: 16px; margin-bottom: 24px; }
+.type-card {
+  flex: 1;
+  padding: 22px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 22px;
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+.type-card:hover { background: rgba(56,189,248,0.10); border-color: rgba(56,189,248,0.20); }
+.type-card.selected { background: rgba(56,189,248,0.16); border-color: rgba(56,189,248,0.28); }
+.tc-ico { font-size: 1.7rem; margin-bottom: 10px; }
+.tc-lab { font-size: 0.98rem; font-weight: 700; color: #f8fbff; }
+
+.em { text-align: center; padding: 64px 18px; color: var(--text-alt); }
+.em-ico { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+.em-txt { font-size: 1rem; }
+
+.hidden { display: none !important; }
+.ps { animation: fadeUp 0.5s ease both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 1200px) {
+  .sg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fr { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .wrap { margin-left: 0; }
+  .sidebar { position: fixed; transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .tb-ham { display: flex; }
+  .topbar { padding: 18px 22px; }
+  .main { padding: 24px 20px 56px; }
+  .hi { flex-direction: column; align-items: flex-start; text-align: left; }
+  .hi-time { width: 100%; text-align: left; margin-top: 18px; }
+  .type-select { flex-direction: column; }
+}
+@media (max-width: 640px) {
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .tb-r { width: 100%; justify-content: space-between; }
+  .cc-head, .filters, .tw { padding-left: 20px; padding-right: 20px; }
+  .main { padding: 20px 16px 48px; }
+  .login-card { padding: 42px 28px 32px; }
+  .sb-nav { padding-right: 0; }
 }
 </style>
 </head>
 <body>
 
-<!-- Login -->
-<div class="modal-overlay" id="loginModal">
-  <div class="login-box">
-    <h2>📋 公文流转系统</h2>
-    <p>请登录以继续</p>
-    <div class="field"><label>用户名</label><input id="loginUser" placeholder="请输入用户名" value=""></div>
-    <div class="field"><label>密码</label><input id="loginPass" type="password" placeholder="请输入密码" value=""></div>
-    <button class="btn" onclick="doLogin()">登 录</button>
-    <div class="error" id="loginError"></div>
+<!-- ===== 登录 ===== -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">📄</div>
+    <h2>智能公文流转系统</h2>
+    <p class="sub">Sign in to continue</p>
+    <div class="lf">
+      <label class="ll">用户名</label>
+      <input type="text" class="li" id="loginUser" placeholder="admin / zhangsan / lisi" autocomplete="username">
+    </div>
+    <div class="lf">
+      <label class="ll">密码</label>
+      <input type="password" class="li" id="loginPass" placeholder="请输入密码" autocomplete="current-password">
+    </div>
+    <button type="button" class="lbtn" id="loginBtn">登 录</button>
+    <div class="lerr" id="loginErr"></div>
+    <div class="lhint">
+      💡 测试账号<br>
+      &nbsp;•&nbsp;admin / admin123 — 管理员（全部权限）<br>
+      &nbsp;•&nbsp;zhangsan / 123456 — 员工（本人申请）
+    </div>
   </div>
 </div>
 
-<!-- Mobile overlay -->
-<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-<!-- Mobile Header -->
-<div class="mobile-header" id="mobileHeader" style="display:none">
-  <span class="menu-btn" onclick="openSidebar()">☰</span>
-  <span>公文流转系统</span>
-  <span id="mobileUser" style="font-size:13px;opacity:.8"></span>
-</div>
-
-<!-- App -->
-<div class="app">
-  <aside class="sidebar" id="sidebar">
-    <div class="logo"><span>📋</span>公文流转</div>
-    <nav>
-      <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard',this)">
-        <span class="icon">📊</span>工作台
-      </div>
-      <div class="nav-item" data-page="docs" onclick="switchPage('docs',this)">
-        <span class="icon">📄</span>公文管理
-      </div>
-      <div class="nav-item" data-page="leave" onclick="switchPage('leave',this)">
-        <span class="icon">请假</span>请假管理
-      </div>
-    </nav>
-    <div class="user-info">
-      <div class="avatar" id="avatarLetter">U</div>
-      <div><div id="sidebarUser" style="font-weight:500;color:var(--text)">—</div><div id="sidebarRole" style="font-size:12px">—</div></div>
+<!-- ===== 侧边栏 ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">📄</div>
+    <div class="sb-name">公文流转</div>
+  </div>
+  <nav class="sb-nav">
+    <button class="ni active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="ico">📊</span> 工作台
+    </button>
+    <button class="ni" data-tab="docs" onclick="switchTab('docs')">
+      <span class="ico">📋</span> 公文管理
+    </button>
+  </nav>
+  <div class="sb-user">
+    <div class="sb-av" id="sbAvatar">A</div>
+    <div class="sb-ui">
+      <div class="sb-un" id="sbName">-</div>
+      <div class="sb-ur" id="sbRole">-</div>
     </div>
-  </aside>
+    <button class="sb-lo" onclick="doLogout()" title="退出登录">⎋</button>
+  </div>
+</aside>
+
+<!-- ===== 主区域 ===== -->
+<div class="wrap">
+  <header class="topbar">
+    <div class="tb-l">
+      <button class="tb-ham" onclick="toggleSidebar()">☰</button>
+      <span class="tb-title" id="pageTitle">工作台</span>
+    </div>
+    <div class="tb-r">
+      <span class="tb-time" id="topbarTime">--:--</span>
+      <div class="tb-av" id="topbarAvatar">A</div>
+    </div>
+  </header>
 
   <div class="main">
-    <!-- Dashboard -->
-    <div class="page active" id="page-dashboard">
-      <h1>工作台</h1>
-      <div class="stats">
-        <div class="stat-card c-blue"><div class="icon-box">👥</div><div><div class="num" id="statUsers">—</div><div class="label">总用户数</div></div></div>
-        <div class="stat-card c-cyan"><div class="icon-box">📄</div><div><div class="num" id="statDocs">—</div><div class="label">公文总数</div></div></div>
-        <div class="stat-card c-green"><div class="icon-box">🏖️</div><div><div class="num" id="statLeave">—</div><div class="label">请假申请</div></div></div>
-        <div class="stat-card c-orange"><div class="icon-box">⏳</div><div><div class="num" id="statPending">—</div><div class="label">待审批</div></div></div>
+    <!-- 工作台 -->
+    <div id="dashboardSection" class="ps">
+      <div class="hi">
+        <div>
+          <h1 id="welcomeMsg">下午好，</h1>
+          <p id="welcomeSub">正在加载数据…</p>
+        </div>
+        <div class="hi-time">
+          <div class="tb" id="clockBig">--:--</div>
+          <div class="td" id="clockDate">----年--月--日</div>
+        </div>
       </div>
-      <div class="activity">
-        <h3>最近动态</h3>
-        <div id="activityList"><div class="empty">暂无动态</div></div>
+      <div class="sg" id="statsGrid">
+        <div class="sc" onclick="switchTab('docs')" style="cursor:pointer">
+          <div class="sc-top"><span class="sc-label">全部公文</span><div class="sc-ico">📋</div></div>
+          <div class="sc-num" id="statTotal">0</div>
+          <div class="sc-desc">文档 + 请假申请</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><span class="sc-label">待审批</span><div class="sc-ico">⏳</div></div>
+          <div class="sc-num" id="statPending">0</div>
+          <div class="sc-desc">等待处理</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><span class="sc-label">已通过</span><div class="sc-ico">✅</div></div>
+          <div class="sc-num" id="statApproved">0</div>
+          <div class="sc-desc">审批通过</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><span class="sc-label">已拒绝</span><div class="sc-ico">❌</div></div>
+          <div class="sc-num" id="statRejected">0</div>
+          <div class="sc-desc">未予批准</div>
+        </div>
       </div>
     </div>
 
-    <!-- Docs -->
-    <div class="page" id="page-docs">
-      <h1>公文管理</h1>
-      <div class="table-wrap">
-        <div class="filters">
-          <select id="filterDocType" onchange="loadDocs()"><option value="">全部类型</option><option value="通知">通知</option><option value="公告">公告</option><option value="报告">报告</option><option value="请示">请示</option><option value="批复">批复</option></select>
-          <select id="filterDocStatus" onchange="loadDocs()"><option value="">全部状态</option><option value="draft">草稿</option><option value="pending">待审批</option><option value="approved">已通过</option><option value="rejected">已驳回</option></select>
+    <!-- 公文管理（统一列表） -->
+    <div id="docsSection" class="ps hidden">
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title"><span class="dot"></span>公文列表</div>
+          <button class="btn-pri" onclick="openAddModal()">＋ 新增</button>
         </div>
-        <table>
-          <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>申请人</th><th>创建时间</th></tr></thead>
-          <tbody id="docsBody"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Leave -->
-    <div class="page" id="page-leave">
-      <h1>请假管理</h1>
-      <div class="table-wrap">
         <div class="filters">
-          <select id="filterLeaveStatus" onchange="loadLeave()"><option value="">全部状态</option><option value="pending">待审批</option><option value="approved">已通过</option><option value="rejected">已驳回</option></select>
+          <button class="ft active" data-filter="all" onclick="filterDocs('all',this)">全部</button>
+          <button class="ft" data-filter="doc" onclick="filterDocs('doc',this)">📄 公文</button>
+          <button class="ft" data-filter="leave" onclick="filterDocs('leave',this)">🏖️ 请假</button>
         </div>
-        <table>
-          <thead><tr><th>申请人</th><th>类型</th><th>天数</th><th>起始日期</th><th>结束日期</th><th>状态</th><th>操作</th></tr></thead>
-          <tbody id="leaveBody"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
-        </table>
+        <div class="tw">
+          <table>
+            <thead><tr><th>类型</th><th>标题/申请人</th><th>详情</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="docTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<script>
-// API地址自动检测：飞书环境用相对路径，本地开发用localhost
-const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-let token='',currentUser=null,isAdmin=false;
+<!-- ===== 新增弹窗（选择类型） ===== -->
+<div class="mo" id="addModal">
+  <div class="mb">
+    <div class="mt"><h3>新增申请</h3><button class="mc" onclick="closeAddModal()">✕</button></div>
+    <div class="mbody">
+      <div class="type-select">
+        <button class="type-card" id="typeDoc" onclick="selectType('doc')">
+          <div class="tc-ico">📄</div>
+          <div class="tc-lab">提交公文</div>
+        </button>
+        <button class="type-card" id="typeLeave" onclick="selectType('leave')">
+          <div class="tc-ico">🏖️</div>
+          <div class="tc-lab">请假申请</div>
+        </button>
+      </div>
+      <!-- 公文表单 -->
+      <div id="docForm" class="hidden">
+        <div class="fg">
+          <label class="fl">公文标题</label>
+          <input type="text" class="fi" id="docTitle" placeholder="请输入公文标题">
+        </div>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">公文类型</label>
+            <select class="fs" id="docType">
+              <option value="通知">通知</option>
+              <option value="请示">请示</option>
+              <option value="报告">报告</option>
+              <option value="决定">决定</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">优先级</label>
+            <select class="fs" id="docPriority">
+              <option value="普通">普通</option>
+              <option value="紧急">紧急</option>
+              <option value="特急">特急</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">正文内容</label>
+          <textarea class="fa" id="docContent" placeholder="请输入公文正文…"></textarea>
+        </div>
+      </div>
+      <!-- 请假表单 -->
+      <div id="leaveForm" class="hidden">
+        <div class="fg">
+          <label class="fl">申请人</label>
+          <select class="fs" id="leaveUser"></select>
+        </div>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">请假类型</label>
+            <select class="fs" id="leaveType">
+              <option value="年假">年假</option>
+              <option value="事假">事假</option>
+              <option value="病假">病假</option>
+              <option value="婚假">婚假</option>
+              <option value="产假">产假</option>
+              <option value="丧假">丧假</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">请假天数</label>
+            <input type="number" class="fi" id="leaveDays" step="0.5" min="0.5" placeholder="例如：3">
+          </div>
+        </div>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">开始日期</label>
+            <input type="date" class="fi" id="leaveStart">
+          </div>
+          <div class="fg">
+            <label class="fl">结束日期</label>
+            <input type="date" class="fi" id="leaveEnd">
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">请假事由</label>
+          <textarea class="fa" id="leaveReason" placeholder="请简要说明请假原因…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot" id="addModalFoot">
+      <button class="btn-out" onclick="closeAddModal()">取消</button>
+      <button class="btn-pri hidden" id="submitDocBtn" onclick="submitDoc()">提交公文</button>
+      <button class="btn-pri hidden" id="submitLeaveBtn" onclick="submitLeave()">提交请假申请</button>
+    </div>
+  </div>
+</div>
 
-// Enter key login
-document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-
-async function doLogin(){
-  const u=document.getElementById('loginUser').value.trim();
-  const p=document.getElementById('loginPass').value;
-  const err=document.getElementById('loginError');
-  err.textContent='';
-  if(!u||!p){err.textContent='请输入用户名和密码';return}
-  try{
-    const res=await fetch(API+'/api/public/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    if(!res.ok){const d=await res.json();err.textContent=d.message||'登录失败';return}
-    const data=await res.json();
-    token=data.token;
-    await initApp();
-  }catch(e){err.textContent='网络错误，请检查后端服务'}
-}
-
-async function initApp(){
-  document.getElementById('loginModal').classList.add('hidden');
-  try{
-    const res=await fetch(API+'/api/auth/me',{headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok) return logout();
-    currentUser=await res.json();
-    isAdmin=currentUser.role==='admin'||currentUser.username==='admin';
-    const name=currentUser.username||currentUser.name||'用户';
-    document.getElementById('sidebarUser').textContent=name;
-    document.getElementById('sidebarRole').textContent=isAdmin?'管理员':'普通用户';
-    document.getElementById('avatarLetter').textContent=name.charAt(0).toUpperCase();
-    document.getElementById('mobileUser').textContent=name;
-  }catch(e){}
-  checkMobile();
-  loadDashboard();
-}
-
-function logout(){
-  token='';currentUser=null;isAdmin=false;
-  document.getElementById('loginModal').classList.remove('hidden');
-}
-
-function switchPage(page,el){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('page-'+page).classList.add('active');
-  if(page==='dashboard') loadDashboard();
-  else if(page==='docs') loadDocs();
-  else if(page==='leave') loadLeave();
-  closeSidebar();
-}
-
-function checkMobile(){
-  const m=window.innerWidth<=768;
-  document.getElementById('mobileHeader').style.display=m?'flex':'none';
-  if(!m) document.getElementById('sidebar').classList.remove('open');
-}
-window.addEventListener('resize',checkMobile);
-function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
-
-const headers=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
-function showToast(msg,type='success'){
-  const t=document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;document.body.appendChild(t);
-  setTimeout(()=>t.remove(),2500);
-}
-function statusBadge(s){
-  const m={pending:['待审批','badge-pending'],approved:['已通过','badge-approved'],rejected:['已驳回','badge-rejected'],draft:['草稿','badge-draft']};
-  const d=m[s]||[s,''];
-  return '<span class="badge '+d[1]+'">'+d[0]+'</span>';
-}
-function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return d}}
-
-// Dashboard
-async function loadDashboard(){
-  try{
-    const res=await fetch(API+'/api/stats',{headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok)return;
-    const s=await res.json();
-    document.getElementById('statUsers').textContent=s.totalUsers??s.users??'—';
-    document.getElementById('statDocs').textContent=s.totalDocs??s.docs??'—';
-    document.getElementById('statLeave').textContent=s.totalLeave??s.leave??'—';
-    document.getElementById('statPending').textContent=s.pending??'—';
-  }catch(e){}
-  // Load recent docs for activity
-  try{
-    const res=await fetch(API+'/api/docs?limit=5',{headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok)return;
-    const docs=await res.json();
-    const list=docs.data||docs||[];
-    const html=list.map(d=>{
-      const colors={pending:'#f59e0b',approved:'#10b981',rejected:'#ef4444',draft:'#6b7280'};
-      return `<div class="activity-item"><div class="dot" style="background:${colors[d.status]||'#6b7280'}"></div><div style="flex:1">${d.title||'无标题'} <span style="color:var(--text2)">— ${d.type||''}</span></div><div class="time">${fmtDate(d.createdAt)}</div></div>`;
-    }).join('');
-    document.getElementById('activityList').innerHTML=html||'<div class="empty">暂无动态</div>';
-  }catch(e){}
-}
-
-// Docs
-async function loadDocs(){
-  const type=document.getElementById('filterDocType').value;
-  const status=document.getElementById('filterDocStatus').value;
-  const params=new URLSearchParams();
-  if(type)params.set('type',type);
-  if(status)params.set('status',status);
-  try{
-    const res=await fetch(API+'/api/docs?'+params,{headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok)return;
-    const data=await res.json();
-    const list=data.data||data||[];
-    if(!list.length){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">暂无数据</td></tr>';return}
-    document.getElementById('docsBody').innerHTML=list.map(d=>`<tr><td>${d.title||'—'}</td><td>${d.type||'—'}</td><td>${statusBadge(d.status)}</td><td>${d.applicant||d.username||'—'}</td><td>${fmtDate(d.createdAt||d.created_at)}</td></tr>`).join('');
-  }catch(e){document.getElementById('docsBody').innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'}
-}
-
-// Leave
-async function loadLeave(){
-  const status=document.getElementById('filterLeaveStatus').value;
-  const params=new URLSearchParams();
-  if(status)params.set('status',status);
-  try{
-    const res=await fetch(API+'/api/leave?'+params,{headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok)return;
-    const data=await res.json();
-    const list=data.data||data||[];
-    if(!list.length){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">暂无数据</td></tr>';return}
-    document.getElementById('leaveBody').innerHTML=list.map(d=>{
-      let actions='';
-      if(isAdmin&&d.status==='pending') actions=`<button class="btn-sm btn-approve" onclick="approveLeave('${d.id}')">通过</button><button class="btn-sm btn-reject" onclick="rejectLeave('${d.id}')">驳回</button>`;
-      return `<tr><td>${d.applicant||d.username||'—'}</td><td>${d.type||'—'}</td><td>${d.days??'—'}</td><td>${d.startDate||d.start_date||'—'}</td><td>${d.endDate||d.end_date||'—'}</td><td>${statusBadge(d.status)}</td><td>${actions||'—'}</td></tr>`;
-    }).join('');
-  }catch(e){document.getElementById('leaveBody').innerHTML='<tr><td colspan="7" class="empty">加载失败</td></tr>'}
-}
-
-async function approveLeave(id){
-  try{await fetch(API+'/api/leave/'+id+'/approve',{method:'POST',headers});showToast('已通过')}catch(e){showToast('操作失败','error')}
-  loadLeave();loadDashboard();
-}
-async function rejectLeave(id){
-  try{await fetch(API+'/api/leave/'+id+'/reject',{method:'POST',headers});showToast('已驳回')}catch(e){showToast('操作失败','error')}
-  loadLeave();loadDashboard();
-}
-</script>
+<script src="app.js"></script>
 </body>
 </html>
