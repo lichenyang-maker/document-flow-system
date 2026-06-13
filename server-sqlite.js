@@ -8,11 +8,20 @@ const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
 
+let aiAgents = null;
+try {
+    aiAgents = require('./ai-agents');
+    console.log('[OK] 多智能体系统已加载');
+} catch (err) {
+    console.error('[WARN] 智能体模块加载失败:', err.message);
+}
+
 // ---------- 环境配置 ----------
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'document_flow.db');
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || process.env.LARK_APP_ID || 'cli-a69e1c1e9fbe8695';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || process.env.LARK_APP_SECRET || 'BOD9QysONrq8kYGYht4zQnPzUq6fsOp2';
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || 'cli_aaa152828fb95bda';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || 'CSyWDYc75HnNz7k0MLn6EciZ5ajjwNvZ';
+const SILICONFLOW_KEY = process.env.SILICONFLOW_API_KEY || 'sk-ananqfsipxweyiejefqltsbladjogmgnwfvxnihtjtnxwjem';
 
 // ---------- Express ----------
 const app = express();
@@ -29,8 +38,24 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/health', (req, res) => {
+    try {
+        const userCount = query('SELECT COUNT(*) as c FROM users')[0]?.c || 0;
+        const docCount = query('SELECT COUNT(*) as c FROM documents')[0]?.c || 0;
+        const leaveCount = query('SELECT COUNT(*) as c FROM leave_requests')[0]?.c || 0;
+        res.json({
+            status: 'ok',
+            time: new Date().toISOString(),
+            database: DB_PATH,
+            stats: { users: userCount, documents: docCount, leave_requests: leaveCount },
+            aiEnabled: !!aiAgents
+        });
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/feishu', (req, res) => res.sendFile(path.join(__dirname, 'public', 'feishu.html')));
 
 // ---------- 数据库 ----------
 let db;
@@ -70,9 +95,24 @@ function query(sql, params = []) {
 }
 
 function run(sql, params = []) {
-    db.run(sql, params);
+    // sql.js 需要用 prepare + bind + step 来安全执行带参数的 SQL
+    if (params && params.length > 0) {
+        const stmt = db.prepare(sql);
+        stmt.bind(params);
+        stmt.step();
+        stmt.free();
+    } else {
+        db.run(sql);
+    }
+    // 注意: 必须在 saveDB() (内部调用 db.export()) 之前获取 last_insert_rowid()
+    // db.export() 会重置 last_insert_rowid() 为 0
+    let lastId = 0;
+    try {
+        const lr = db.exec('SELECT last_insert_rowid() as id')[0];
+        if (lr && lr.values && lr.values[0]) lastId = lr.values[0][0];
+    } catch (e) { lastId = 0; }
     saveDB();
-    return { lastID: db.exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] || 0, changes: db.getRowsModified() };
+    return { lastID: lastId, changes: db.getRowsModified() };
 }
 
 // ---------- 飞书客户端（全局） ----------
@@ -628,11 +668,12 @@ app.get('/api/leave/stats', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
         const uid = user?.role === 'ADMIN' ? null : req.userId;
-        const w = uid ? `WHERE user_id = ${uid}` : '';
-        const total = query(`SELECT COUNT(*) as c FROM leave_requests ${w}`)[0].c;
-        const pending = query(`SELECT COUNT(*) as c FROM leave_requests ${w} AND status = 'PENDING'`)[0].c;
-        const approved = query(`SELECT COUNT(*) as c FROM leave_requests ${w} AND status = 'APPROVED'`)[0].c;
-        const rejected = query(`SELECT COUNT(*) as c FROM leave_requests ${w} AND status = 'REJECTED'`)[0].c;
+        const w = uid ? ' WHERE user_id = ?' : '';
+        const p = uid ? [uid] : [];
+        const total = query('SELECT COUNT(*) as c FROM leave_requests' + w, p)[0].c;
+        const pending = query('SELECT COUNT(*) as c FROM leave_requests' + w + (uid ? ' AND' : ' WHERE') + " status = 'PENDING'", p)[0].c;
+        const approved = query('SELECT COUNT(*) as c FROM leave_requests' + w + (uid ? ' AND' : ' WHERE') + " status = 'APPROVED'", p)[0].c;
+        const rejected = query('SELECT COUNT(*) as c FROM leave_requests' + w + (uid ? ' AND' : ' WHERE') + " status = 'REJECTED'", p)[0].c;
         res.json({ total, pending, approved, rejected });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
@@ -662,112 +703,213 @@ app.post('/api/feishu/webhook', async (req, res) => {
 });
 
 // ============================================================
+//  AI 多智能体系统 API
+// ============================================================
+
+// 获取可用智能体列表
+app.get('/api/agents', (req, res) => {
+    if (!aiAgents) {
+        return res.json({ success: false, agents: [] });
+    }
+    res.json({ success: true, agents: aiAgents.getAgentsList() });
+});
+
+// 与智能体聊天（支持上下文）
+app.post('/api/agents/chat', auth, async (req, res) => {
+    const { agentId, message, conversationId } = req.body;
+    if (!aiAgents) {
+        return res.status(500).json({ success: false, error: '智能体系统未启用' });
+    }
+    if (!agentId || !message) {
+        return res.status(400).json({ success: false, error: '缺少 agentId 或 message' });
+    }
+
+    const convId = conversationId || ('user_' + req.userId + '_' + agentId);
+    const result = await aiAgents.chatWithAgent(agentId, message, convId);
+    if (result.success) {
+        res.json(result);
+    } else {
+        res.status(500).json(result);
+    }
+});
+
+// 智能分析（单轮，无上下文，用于审批/数据/文档分析场景）
+app.post('/api/agents/analyze', auth, async (req, res) => {
+    const { agentId, prompt, context } = req.body;
+    if (!aiAgents) {
+        return res.status(500).json({ success: false, error: '智能体系统未启用' });
+    }
+    if (!agentId || !prompt) {
+        return res.status(400).json({ success: false, error: '缺少 agentId 或 prompt' });
+    }
+
+    const result = await aiAgents.analyzeWithAgent(agentId, prompt, context);
+    if (result.success) {
+        res.json(result);
+    } else {
+        res.status(500).json(result);
+    }
+});
+
+// 自动识别意图
+app.post('/api/agents/classify', auth, async (req, res) => {
+    const { message } = req.body;
+    if (!aiAgents) {
+        return res.json({ agent: 'general' });
+    }
+    const agent = await aiAgents.classifyIntent(message || '');
+    res.json({ agent });
+});
+
+// ---------- 多智能体协作系统 API ----------
+
+// 获取协作模式列表
+app.get('/api/agents/collaboration/modes', (req, res) => {
+    if (!aiAgents) {
+        return res.json({ success: false, modes: [] });
+    }
+    res.json({
+        success: true,
+        modes: Object.entries(aiAgents.COLLABORATION_STYLES).map(([key, val]) => ({
+            id: key,
+            name: val.name,
+            description: val.desc
+        }))
+    });
+});
+
+// 智能生成协作计划（只规划不执行）
+app.post('/api/agents/collaboration/plan', auth, async (req, res) => {
+    const { message, context } = req.body;
+    if (!aiAgents) {
+        return res.status(500).json({ success: false, error: '智能体系统未启用' });
+    }
+    if (!message) {
+        return res.status(400).json({ success: false, error: '缺少 message 参数' });
+    }
+    try {
+        const result = await aiAgents.getCollaborationPlanOnly(message, context);
+        res.json(result);
+    } catch (err) {
+        console.error('[Collaboration Plan Error]', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 执行多智能体协作（完整流程）
+app.post('/api/agents/collaboration/execute', auth, async (req, res) => {
+    const { message, mode, agents, context, sessionId } = req.body;
+    if (!aiAgents) {
+        return res.status(500).json({ success: false, error: '智能体系统未启用' });
+    }
+    if (!message) {
+        return res.status(400).json({ success: false, error: '缺少 message 参数' });
+    }
+    try {
+        const result = await aiAgents.collaborateWithAgents(message, {
+            mode: mode || 'auto',
+            agents: agents || null,
+            context: context || '',
+            sessionId: sessionId || ('user_' + req.userId + '_collab_' + Date.now())
+        });
+        res.json(result);
+    } catch (err) {
+        console.error('[Collaboration Error]', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// AI 智能体聊天页面
+app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
+
+// 飞书 AI 聊天页面
+app.get('/feishu-chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'feishu-chat.html')));
+
+// ============================================================
 //  启动
 // ============================================================
 
 async function start() {
+    const startTime = Date.now();
+    console.log('\n========================================');
+    console.log('📋 公文流转 + AI 智能体系统');
+    console.log('========================================');
+    console.log('[启动] 正在初始化数据库...');
+
     try {
         await initDB();
-        
-        // 建表
-        db.run(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                name TEXT NOT NULL,
-                role TEXT DEFAULT 'EMPLOYEE',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        db.run(`
-            CREATE TABLE IF NOT EXISTS documents (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT,
-                type TEXT DEFAULT 'NORMAL',
-                priority TEXT DEFAULT 'NORMAL',
-                status TEXT DEFAULT 'PENDING',
-                applicant_id INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME
-            )
-        `);
-        db.run(`
-            CREATE TABLE IF NOT EXISTS leave_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                type TEXT,
-                start_date TEXT,
-                end_date TEXT,
-                days INTEGER,
-                reason TEXT,
-                status TEXT DEFAULT 'PENDING',
-                approver_id INTEGER,
-                approver_comment TEXT,
-                feishu_chat_id TEXT,
-                feishu_msg_id TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME
-            )
-        `);
-        db.run(`
-            CREATE TABLE IF NOT EXISTS approvals (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                doc_id INTEGER,
-                approver_id INTEGER,
-                action TEXT,
-                comment TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        db.run(`
-            CREATE TABLE IF NOT EXISTS wechat_config (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                provider TEXT,
-                api_key TEXT,
-                enabled INTEGER DEFAULT 1
-            )
-        `);
-        db.run(`
-            CREATE TABLE IF NOT EXISTS feishu_user_map (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                feishu_open_id TEXT UNIQUE NOT NULL,
-                system_user_id INTEGER NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        
-        // 初始化默认数据
-        if (query('SELECT COUNT(*) as c FROM users')[0].c === 0) {
-            console.log('[初始化] 正在创建默认数据...');
-            run(`INSERT INTO users (username, password, name, role) VALUES ('admin', 'admin123', '管理员', 'ADMIN')`);
-            run(`INSERT INTO users (username, password, name, role) VALUES ('zhangsan', '123456', '张三', 'EMPLOYEE')`);
-            run(`INSERT INTO users (username, password, name, role) VALUES ('lisi', '123456', '李四', 'EMPLOYEE')`);
-            run(`INSERT INTO users (username, password, name, role) VALUES ('wangwu', '123456', '王五', 'EMPLOYEE')`);
-            run(`INSERT INTO users (username, password, name, role) VALUES ('zhaoliu', '123456', '赵六', 'EMPLOYEE')`);
-            run(`INSERT INTO users (username, password, name, role) VALUES ('sunqi', '123456', '孙七', 'EMPLOYEE')`);
-            run(`INSERT INTO wechat_config (provider, api_key, enabled) VALUES ('serverchan', 'SCT359275Tkk3wftrQnVAwazPBPOAWaMIR', 1)`);
-            run(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于2024年度工作计划的通知', '请各部门于本周五前提交年度工作计划草案。', 'NOTICE', 'APPROVED', 'HIGH', 1)`);
-            run(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于员工福利调整的申请', '建议提高员工餐补标准至每日50元。', 'PROPOSAL', 'PENDING', 'NORMAL', 2)`);
-            run(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于办公室搬迁的通知', '市场部将于下周一搬迁至新办公区。', 'NOTICE', 'PENDING', 'LOW', 1)`);
-            run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (2, '年假', '2024-06-10', '2024-06-12', 3, '计划带家人去旅游', 'APPROVED', 1)`);
-            run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (3, '病假', '2024-06-05', '2024-06-05', 1, '发烧感冒', 'APPROVED', 1)`);
-            run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (4, '事假', '2024-06-15', '2024-06-16', 2, '家中装修需要监工', 'PENDING')`);
-            console.log('[初始化] 默认数据创建完成');
+
+        // 安全执行 SQL：单条 SQL 失败不影响其他表
+        function safeRun(sql, label) {
+            try {
+                db.run(sql);
+                return true;
+            } catch (e) {
+                console.error(`[WARN] ${label} 失败:`, e.message);
+                return false;
+            }
         }
-        
-        saveDB();
-        await initLark();
-        
+
+        // 建表
+        console.log('[启动] 检查数据表结构...');
+        const tables = [
+            { name: 'users', sql: `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT NOT NULL, role TEXT DEFAULT 'EMPLOYEE', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'documents', sql: `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, type TEXT DEFAULT 'NORMAL', priority TEXT DEFAULT 'NORMAL', status TEXT DEFAULT 'PENDING', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
+            { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
+            { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'wechat_config', sql: `CREATE TABLE IF NOT EXISTS wechat_config (id INTEGER PRIMARY KEY AUTOINCREMENT, provider TEXT, api_key TEXT, enabled INTEGER DEFAULT 1)` },
+            { name: 'feishu_user_map', sql: `CREATE TABLE IF NOT EXISTS feishu_user_map (id INTEGER PRIMARY KEY AUTOINCREMENT, feishu_open_id TEXT UNIQUE NOT NULL, system_user_id INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
+        ];
+
+        let createdCount = 0;
+        tables.forEach(t => { if (safeRun(t.sql, t.name)) createdCount++; });
+        console.log(`[OK] 数据表检查完成 (${createdCount}/${tables.length})`);
+
+        // 初始化默认数据（仅当 users 表为空时）
+        try {
+            if (query('SELECT COUNT(*) as c FROM users')[0].c === 0) {
+                console.log('[初始化] 正在创建默认数据...');
+                function insert(sql, params = []) { try { run(sql, params); } catch (e) {} }
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('admin', 'admin123', '管理员', 'ADMIN')`);
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('zhangsan', '123456', '张三', 'EMPLOYEE')`);
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('lisi', '123456', '李四', 'EMPLOYEE')`);
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('wangwu', '123456', '王五', 'EMPLOYEE')`);
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('zhaoliu', '123456', '赵六', 'EMPLOYEE')`);
+                insert(`INSERT INTO users (username, password, name, role) VALUES ('sunqi', '123456', '孙七', 'EMPLOYEE')`);
+                insert(`INSERT INTO wechat_config (provider, api_key, enabled) VALUES ('serverchan', 'SCT359275Tkk3wftrQnVAwazPBPOAWaMIR', 1)`);
+                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于2024年度工作计划的通知', '请各部门于本周五前提交年度工作计划草案。', 'NOTICE', 'APPROVED', 'HIGH', 1)`);
+                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于员工福利调整的申请', '建议提高员工餐补标准至每日50元。', 'PROPOSAL', 'PENDING', 'NORMAL', 2)`);
+                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于办公室搬迁的通知', '市场部将于下周一搬迁至新办公区。', 'NOTICE', 'PENDING', 'LOW', 1)`);
+                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (2, '年假', '2024-06-10', '2024-06-12', 3, '计划带家人去旅游', 'APPROVED', 1)`);
+                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (3, '病假', '2024-06-05', '2024-06-05', 1, '发烧感冒', 'APPROVED', 1)`);
+                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (4, '事假', '2024-06-15', '2024-06-16', 2, '家中装修需要监工', 'PENDING')`);
+                console.log('[初始化] 默认数据创建完成');
+            }
+        } catch (e) {
+            console.error('[WARN] 初始化数据失败:', e.message);
+        }
+
+        try { saveDB(); } catch (e) { console.error('[WARN] 保存数据库失败:', e.message); }
+        try { await initLark(); } catch (e) { /* initLark 已有处理 */ }
+
+        // 打印初始化统计
+        try {
+            const userCount = query('SELECT COUNT(*) as c FROM users')[0].c;
+            const docCount = query('SELECT COUNT(*) as c FROM documents')[0].c;
+            const leaveCount = query('SELECT COUNT(*) as c FROM leave_requests')[0].c;
+            console.log(`[OK] 数据统计: 用户 ${userCount} 人 | 公文 ${docCount} 份 | 请假 ${leaveCount} 条`);
+        } catch (e) {}
+
         app.listen(PORT, '0.0.0.0', () => {
-            console.log(`\n🚀 服务已启动: http://localhost:${PORT}`);
-            console.log(`🤖 飞书应用: ${FEISHU_APP_ID}`);
-            console.log(`\n📋 飞书群聊使用方式：`);
-            console.log(`   1. 绑定身份 → 回复「我是张三」`);
-            console.log(`   2. 请假 → 回复「请假3天 年假 6月15到17号 事由团建」`);
-            console.log(`   3. 审批 → 领导回复「同意」或「不同意」`);
-            console.log(`   4. 查询 → 回复「我的请假记录」`);
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`\n========================================================`);
+            console.log(`🚀 服务已启动 (耗时 ${elapsed}s)`);
+            console.log(`📄 主页面:    http://localhost:${PORT}/`);
+            console.log(`🤖 AI助手:    http://localhost:${PORT}/chat`);
+            console.log(`💊 健康检查:  http://localhost:${PORT}/health`);
+            console.log(`🔐 登录账号:  admin / admin123`);
+            console.log(`              zhangsan / 123456`);
+            console.log(`========================================================\n`);
         });
     } catch (err) {
         console.error('[ERROR] 启动失败:', err);
