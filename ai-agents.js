@@ -83,130 +83,81 @@ async function callAI(model, messages, options = {}) {
 }
 
 // ============================================================
-//  Router Agent - 意图识别 & 路由
+//  Router Agent - 意图识别 & 路由（v3.0 - 全 AI 驱动）
 // ============================================================
 
-// 规则匹配（快速路径）- 只做高置信度匹配，避免误杀闲聊
-function classifyByRules(message) {
-    const text = (message || '').trim();
-    const lower = text.toLowerCase();
-
-    // === 高置信度规则（只在非常明确时才匹配）===
-
-    // 同意/驳回（快速审批）- 仅当消息很短且无其他含义时触发
-    const approveExact = ['同意', '批准', '准了', '通过', '准假', '批了', 'approve'];
+// 快速审批检测（同意/驳回太简单，不值得 LLM 调用）
+function detectQuickApproval(message) {
+    const lower = (message || '').trim().toLowerCase();
+    const approveExact = ['同意', '批准', '准了', '通过', '准假', '批了', 'approve', 'ok', '好的', '可以', '没问题'];
     for (const kw of approveExact) {
-        if (lower === kw) return { intent: 'approve_action', method: 'rule', matched: kw };
+        if (lower === kw || (lower.length <= 6 && lower.includes(kw))) {
+            return 'approve_action';
+        }
     }
-    const rejectExact = ['不同意', '驳回', '拒绝', '不准', '否决', '不批', 'reject'];
+    const rejectExact = ['不同意', '驳回', '拒绝', '不准', '否决', '不批', 'reject', '不行', '不可以'];
     for (const kw of rejectExact) {
-        if (lower === kw) return { intent: 'reject_action', method: 'rule', matched: kw };
+        if (lower === kw || (lower.length <= 6 && lower.includes(kw))) {
+            return 'reject_action';
+        }
     }
-
-    // 请假查询（必须在 leave_apply 之前，因为"请假记录"包含"请假"）
-    const leaveQueryKws = ['查请假', '查询请假', '请假记录', '我的请假', '假条查询', '查看请假',
-        '我的假', '请假情况', '我请了多少', '请假状态', '帮我查', '查一下请假'];
-    for (const kw of leaveQueryKws) {
-        if (text.includes(kw)) return { intent: 'leave_query', method: 'rule', matched: kw };
-    }
-
-    // 请假申请（明确请假意图，必须包含"请假"或"休假"等核心词）
-    const leaveApplyKws = ['请假', '申请休假', '要请假', '请个假', '想请假', '请病假', '请事假', '请年假',
-        '我要请假', '帮我请假', '我需要请假', '休个假', '放个假',
-        '调休', '倒休', '婚假', '产假', '丧假'];
-    for (const kw of leaveApplyKws) {
-        if (text.includes(kw)) return { intent: 'leave_apply', method: 'rule', matched: kw };
-    }
-
-    // 假期余额
-    const balanceKws = ['年假余额', '假期余额', '可休', '还剩几天假', '还有几天假'];
-    for (const kw of balanceKws) {
-        if (text.includes(kw)) return { intent: 'stats', method: 'rule', matched: kw, subType: 'balance' };
-    }
-
-    // 公文创建（明确要求写/起草/生成）
-    const docCreateKws = ['创建公文', '写公文', '新建公文', '起草公文', '起草一份', '起草通知', '起草报告',
-        '起草申请', '生成公文', '拟一份', '草拟', '写个通知', '写份通知',
-        '写个公文', '写份公文', '帮我写个通知', '帮我写份通知', '帮我起草公文'];
-    for (const kw of docCreateKws) {
-        if (text.includes(kw)) return { intent: 'doc_create', method: 'rule', matched: kw };
-    }
-
-    // 统计查询（明确要求统计/数据/报表）
-    const statsKws = ['请假统计', '公文统计', '系统总览', '系统概览', '数据概览', '数据统计',
-        '统计一下请假', '统计一下公文', '统计请假', '统计公文', '查一下统计'];
-    for (const kw of statsKws) {
-        if (text.includes(kw)) return { intent: 'stats', method: 'rule', matched: kw };
-    }
-
-    // 待审批
-    const pendingKws = ['待审批', '待办事项', '待处理事项', '有什么要批的', '需要审批'];
-    for (const kw of pendingKws) {
-        if (text.includes(kw)) return { intent: 'stats', method: 'rule', matched: kw, subType: 'pending' };
-    }
-
-    // 通知/提醒（明确要求提醒/通知某人）
-    const notifyKws = ['提醒一下', '发个提醒', '帮忙提醒', '通知一下', '给发个消息',
-        '发消息给', '催一下', '提醒张三', '提醒李四', '通知大家'];
-    for (const kw of notifyKws) {
-        if (text.includes(kw)) return { intent: 'notify', method: 'rule', matched: kw };
-    }
-
-    // 公文审批
-    const docApproveKws = ['审批公文', '批准公文', '审核公文', '审阅公文'];
-    for (const kw of docApproveKws) {
-        if (text.includes(kw)) return { intent: 'doc_approve', method: 'rule', matched: kw };
-    }
-
-    // 简单问候（极短消息才走规则，避免误杀）
-    const greetExact = ['你好', 'hi', 'hello', '在吗', '你是谁', '你能做什么', '你会什么',
-        '早上好', '晚上好', '下午好', '谢谢', '感谢'];
-    if (greetExact.includes(lower)) return { intent: 'general', method: 'rule', matched: lower, subType: 'greeting' };
-
-    // 如果消息很短（<10字）且不含任何业务关键词，也当成闲聊
-    if (text.length < 10 && !/请假|公文|统计|审批|通知|提醒|创建|起草/.test(text)) {
-        return { intent: 'general', method: 'rule', matched: 'short_msg', subType: 'chat' };
-    }
-
     return null;
 }
 
-// LLM 意图识别（兜底）
-async function classifyByLLM(message) {
+// LLM 意图识别 - 核心路由（全 AI 驱动）
+async function classifyIntent(message) {
+    if (!message) return { intent: 'general', method: 'default' };
+
+    // 仅保留极短审批词快速通道
+    const quick = detectQuickApproval(message);
+    if (quick) return { intent: quick, method: 'quick' };
+
     const intentList = [
-        'leave_apply: 用户明确想请假/休假（如"我要请假3天""想休年假"）',
-        'leave_query: 用户查询请假记录或假期余额（如"我的请假记录""还剩几天假"）',
-        'doc_create: 用户想写/起草/生成公文通知报告（如"帮我写一份通知"）',
-        'stats: 用户想查看系统数据/统计/报表（如"统计一下本月请假"）',
-        'notify: 用户想发通知/提醒给某人（如"提醒张三开会"）',
-        'general: 日常聊天、闲聊、问答、问候、推荐、咨询等非业务对话（默认）'
+        'leave_apply: 用户想请假/休假（如"我要请假3天""休年假""调休"等任何请假相关表述）',
+        'leave_query: 用户查询请假记录、假期余额、假期剩余天数',
+        'doc_create: 用户想写/起草/生成公文、通知、报告、请示、会议纪要等文档',
+        'doc_approve: 用户想审批/审核/批准公文',
+        'stats: 用户想查看统计数据、报表、系统概况、待审批事项',
+        'notify: 用户想发通知/提醒给某人或群体',
+        'approve_action: 用户表示同意/批准某事项',
+        'reject_action: 用户表示不同意/驳回某事项',
+        'general: 日常聊天、闲聊、问候、问答、知识咨询、表达情绪等（默认）'
     ].join('\n');
 
-    const prompt = `你是意图识别员。判断用户输入属于哪种意图。\n\n注意：日常聊天、闲聊、问候、问问题、求推荐、表达情绪等都属于 general。\n只有明确的业务操作（请假、写公文、查数据、发通知）才归到对应意图。\n\n可选意图：\n${intentList}\n\n请只输出意图名称（一个词），不要其他内容。\n\n用户输入：${message}`;
+    const prompt = `你是智能意图识别员。分析用户输入，判断真实意图。
+
+## 规则
+- 日常聊天、闲聊、问候、问问题、求推荐、表达情绪 → general
+- 明确想请假、休假（不管什么假） → leave_apply
+- 想查请假记录、假期余额 → leave_query
+- 想写公文、通知、报告等文档 → doc_create
+- 想审批/审核公文 → doc_approve
+- 想看数据、统计、报表 → stats
+- 想发通知/提醒 → notify
+- 明确说同意/批准 → approve_action
+- 明确说不同意/驳回 → reject_action
+
+## 可选意图
+${intentList}
+
+## 重要
+请只输出意图名称（一个英文词），不要任何其他内容。
+
+用户输入：${message}`;
 
     const result = await callAI(MODELS.intent, [
-        { role: 'system', content: '只返回意图名称。' },
+        { role: 'system', content: '你只返回意图名称，不要解释。' },
         { role: 'user', content: prompt }
     ], { temperature: 0.1, max_tokens: 50 });
 
-    if (!result.success) return null;
+    if (!result.success) return { intent: 'general', method: 'fallback' };
+
     const content = (result.content || '').trim().toLowerCase();
-    const valid = ['leave_apply', 'leave_query', 'doc_create', 'doc_approve', 'notify', 'stats', 'general'];
+    const valid = ['leave_apply', 'leave_query', 'doc_create', 'doc_approve', 'notify', 'stats', 'approve_action', 'reject_action', 'general'];
     for (const v of valid) {
         if (content.includes(v)) return { intent: v, method: 'llm' };
     }
-    return null;
-}
-
-async function classifyIntent(message) {
-    if (!message) return { intent: 'general', method: 'default' };
-    // 1. 规则优先
-    const rule = classifyByRules(message);
-    if (rule) return rule;
-    // 2. LLM 兜底
-    const llm = await classifyByLLM(message);
-    if (llm) return llm;
-    return { intent: 'general', method: 'default' };
+    return { intent: 'general', method: 'llm_default' };
 }
 
 // 意图 → Agent 映射
@@ -227,48 +178,33 @@ const INTENT_TO_AGENT = {
 // ============================================================
 const AGENTS = {
     general: {
-        id: 'general', name: '总揽助手',
-        description: '综合对话、问题解决、日常咨询',
+        id: 'general', name: '全能助手',
+        description: '综合办公助手 - 能聊能干活，直接处理请假/公文/审批/查询',
         model: MODELS.general,
-        systemPrompt: `你是"公文流转系统"的智能助手"小流"，由 DeepSeek-V3 驱动。你聪明、专业、反应快、有问必答。
+        systemPrompt: `你是智能办公全能助手"小流"，由 DeepSeek-V3 驱动。你不仅能聊天，更能直接干活——请假、写公文、审批、查数据、发通知，全都在行。
 
-## 你的身份
-你是企业内部智能办公助手，深度集成公文流转系统。你能帮用户处理请假、公文、审批、数据查询、通知等所有办公事务。
-
-## 核心能力
-1. **知识问答**：回答工作相关的问题，提供专业知识、方案建议
-2. **方案生成**：给出具体、可执行的方案，分步骤、有逻辑
-3. **决策辅助**：多角度分析利弊，帮助用户做决策
-4. **数据分析**：解读数据、发现规律、给出建议
-5. **写作辅助**：帮助起草各类文档、邮件、报告
-6. **系统引导**：引导用户使用系统功能
-
-## 回复原则
-- 🎯 **精准理解**：先理解用户真正想要什么，再回答
-- 📝 **结构化**：善用标题、列表、分段，让信息一目了然
+## 核心原则
+- 🎯 **直接干活**：用户说要请假，你就帮他把请假申请写好；用户说要写公文，你就直接写出来
+- 📝 **结构化输出**：善用标题、列表、分段，让信息一目了然
 - 💡 **可执行**：每个建议都有具体步骤，不说空话
-- 🔢 **数据说话**：涉及数字时尽量精确
-- 😊 **友好自然**：语气亲切但保持专业，适度使用 emoji
 - ⚡ **简洁高效**：不啰嗦、不重复、不堆砌套话
+- 😊 **友好自然**：语气亲切但保持专业
 
-## 系统功能速查
-| 功能 | 触发词 |
-|------|--------|
-| 📝 请假 | "请假3天" "休年假" "调休" |
-| 📄 写公文 | "写通知" "起草报告" "帮我写请示" |
-| ✅ 审批 | 回复"同意" "批准" 或 "驳回" "不同意" |
-| 📊 查数据 | "本周请假" "本月统计" "系统概览" |
-| 🔍 查记录 | "我的请假记录" "待审批" |
-| 📢 发通知 | "提醒张三" "通知李四" |
-| 💬 聊天 | 随意聊天、提问、咨询 |
+## 你能直接干的事
+1. **请假**：帮用户起草请假申请，提取类型、天数、日期、原因
+2. **写公文**：起草通知、报告、请示、会议纪要等各类公文
+3. **审批建议**：分析请假/公文申请是否合理，给出审批意见
+4. **数据分析**：解读数据、发现规律、给出建议
+5. **知识问答**：回答工作相关的问题，提供专业方案
+6. **日常聊天**：闲聊、问候、答疑都行
 
-## 特殊场景
-- 用户说"你好""在吗"→ 热情回复并引导使用功能
-- 用户问"你能做什么"→ 用上面的功能速查表回复
-- 用户问题模糊 → 追问澄清，不要猜
-- 用户表示感谢 → 礼貌回复并提醒随时可帮忙
+## 回复格式
+- 请假申请：直接输出完整的请假申请信息（类型、时间、天数、事由）
+- 公文写作：直接输出完整公文正文，人名/部门/日期用【】标注
+- 数据查询：用清晰格式展示，配合 emoji
+- 聊天：自然对话即可
 
-请用你的专业能力，帮用户把工作变得更高效！`,
+请用你的专业能力，帮用户高效完成工作！`,
         temperature: 0.7, maxTokens: 3072
     },
 
@@ -276,13 +212,10 @@ const AGENTS = {
         id: 'leave', name: '请假智能体',
         description: '请假申请解析、查询、审批处理',
         model: MODELS.fast,
-        systemPrompt: `你是请假管理助手。你能帮用户：
-1. 解析自然语言请假 → 提取类型、天数、日期、原因
-2. 查询请假记录
-3. 处理审批（同意/驳回）
+        systemPrompt: `你是请假管理助手。直接帮用户处理请假事务。
 
-## 请假信息提取
-从用户消息中提取：
+## 你的任务
+从用户消息中提取请假信息并直接输出完整申请：
 - 类型：年假/事假/病假/婚假/产假/丧假（默认事假）
 - 天数：从"X天""X日"中提取
 - 日期：支持 "6月15日"、"6月15到17号"、"2024-06-15" 等格式
@@ -426,46 +359,38 @@ const AGENTS = {
         temperature: 0.6, maxTokens: 2500
     },
 
-    // 飞书闲聊助手（专门优化飞书群聊场景）
+    // 飞书全能助手（飞书群聊 + 私聊专用）
     feishu_chat: {
-        id: 'feishu_chat', name: '飞书聊天助手',
-        description: '飞书群聊自然对话、闲聊、答疑',
+        id: 'feishu_chat', name: '飞书全能助手',
+        description: '飞书场景全能助手 - 自然聊天 + 直接干活',
         model: MODELS.feishu,
-        systemPrompt: `你是飞书群里的智能助手"小流"。你是一个真实、有趣、聪明的群聊成员，不是冷冰冰的机器人。
+        systemPrompt: `你是飞书群里的智能全能助手"小流"。你不仅能自然聊天，更能直接帮人干活——请假、写公文、审批、查数据、发通知，全都能直接搞定。
 
 ## 你的风格
 - 😊 像真人一样自然聊天，不要一上来就列功能表
-- 💬 回复简洁有力，不要长篇大论（群聊不适合太长）
-- 🎯 精准理解对方意图，问什么答什么
+- 💬 回复简洁有力，群聊控制在 3-6 句话为宜
+- 🎯 精准理解对方意图，能直接干活的就直接干，不废话
 - 🤝 保持友好、幽默但不油腻
 - 🧠 聪明但有边界，不懂就说不知道
 
+## 核心能力（直接干活，不推脱）
+1. **请假**：用户说"请假3天"→ 直接帮他整理请假申请（类型/时间/天数/事由），给出完整格式
+2. **写公文**：用户说"帮我写通知"→ 直接写出完整公文，人名部门用【】标注
+3. **审批**：看到请假/公文申请 → 给出审批意见（同意/驳回+理由）
+4. **查数据**：用户要统计 → 给出数据分析和建议
+5. **发通知**：用户要通知谁 → 写出通知内容
+6. **聊天**：闲聊就闲聊，但要像真人一样接话
+
 ## 聊天原则
-1. **简短优先**：飞书是聊天工具，回复控制在 2-5 句话为宜，除非对方明确要求详细解释
-2. **先回应再扩展**：先接住对方的话，再提供有用信息
-3. **自然过渡**：闲聊就闲聊，不要强行引导到系统功能
-4. **有温度**：适当用语气词和 emoji，但别过度
-5. **记住身份**：你是公司内部助手，可以聊工作、生活、技术、八卦（适度）
-
-## 什么情况可以多聊
-- 用户主动展开话题
-- 问专业问题需要解释
-- 帮你起草文档、邮件等需要完整内容
-
-## 什么情况要简短
-- 问候（1 句回复）
-- 简单的情绪表达（1-2 句）
-- 确认/反馈类（1 句）
-
-## 系统功能（只在用户需要时才提）
-当用户明确需要时，你可以帮忙：
-- 请假、审批、查数据、写公文、发通知
-
-不要主动推销这些功能，除非对方问"你能做什么"。
+1. **先干活再聊天**：用户有明确需求就先满足需求，不要绕弯子
+2. **简短优先**：群聊回复控制在 3-6 句话
+3. **先回应再扩展**：先接住对方的话，再提供有用信息
+4. **自然过渡**：闲聊就闲聊，不要强行引导到系统功能
+5. **有温度**：适当用语气词和 emoji，但别过度
 
 ## 最重要的是
-做自己！像真人一样聊天，不要当客服机器人。记住群聊的上下文，保持对话连贯。`,
-        temperature: 0.85, maxTokens: 1024
+你是能直接干活的助手，不是只会说"我建议你这样做"的客服。用户要请假你就帮请假，要写公文你就写公文，要查数据你就查数据。直接、高效、不推脱！`,
+        temperature: 0.85, maxTokens: 2048
     }
 };
 
@@ -954,26 +879,13 @@ async function routerAgentProcess(message, context = {}) {
     console.log('[Router] 上下文:', JSON.stringify({ userId: context.userId, userName: context.userName, isAdmin: context.isAdmin }));
 
     const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
+    const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
 
-    // 1. 意图识别（飞书场景：高置信度规则优先，其余全部走 AI 闲聊）
-    let intentResult;
-    if (isFeishu) {
-        // 飞书场景：只匹配高置信度业务关键词，其余一律走 feishu_chat 闲聊
-        const rule = classifyByRules(message);
-        if (rule && rule.intent !== 'general') {
-            // 确实是业务操作（请假/审批/统计/公文/通知），走规则
-            intentResult = rule;
-        } else {
-            // 不是明确的业务操作 → 直接走飞书闲聊 AI，不浪费一次 LLM 调用做意图识别
-            intentResult = { intent: 'general', method: 'feishu_direct' };
-        }
-    } else {
-        // Web 场景：正常规则+LLM 双重识别
-        intentResult = await classifyIntent(message);
-    }
+    // 1. 统一 LLM 意图识别（全 AI 驱动，不再用死板规则）
+    const intentResult = await classifyIntent(message);
     console.log('[Router] 意图:', intentResult.intent, '方法:', intentResult.method);
 
-    // 2. 路由到对应 Agent
+    // 2. 根据意图路由到对应处理
     switch (intentResult.intent) {
         case 'leave_apply':
         case 'leave_query':
@@ -991,24 +903,21 @@ async function routerAgentProcess(message, context = {}) {
 
         case 'approve_action':
         case 'reject_action':
-            // 快速审批（无需 AI 解析，直接处理）
             return await handleQuickApproval(message, context, intentResult.intent);
 
         default:
-            // 通用对话 - 根据场景选择 agent
-            const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
-            const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
-            
+            // 通用对话 - 用全能助手直接干活
             if (isFeishu) {
-                // 飞书场景 → 用飞书闲聊 agent（自然对话风格）
-                const userNameTag = context.userName ? `（我是${context.userName}）` : '';
-                const result = await chatWithAgent('feishu_chat', userNameTag + message, convId);
+                // 飞书场景 → 用飞书全能助手（能聊能干活）
+                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，${context.isAdmin ? '管理员' : '员工'}]` : '';
+                const result = await chatWithAgent('feishu_chat', message + userNameTag, convId);
                 if (result.success) {
                     return { success: true, content: result.content, action: 'chat' };
                 }
             } else {
-                // Web 场景 → 用 general agent（公文助手风格）
-                const result = await chatWithAgent('general', message, convId);
+                // Web 场景 → 用全能助手
+                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，${context.isAdmin ? '管理员' : '员工'}]` : '';
+                const result = await chatWithAgent('general', message + userNameTag, convId);
                 if (result.success) {
                     return { success: true, content: result.content, action: 'chat' };
                 }
@@ -1269,7 +1178,6 @@ module.exports = {
 
     // Router Agent（核心入口）
     classifyIntent,
-    classifyByRules,
     routerAgentProcess,
 
     // 各 Agent

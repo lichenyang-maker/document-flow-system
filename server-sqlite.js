@@ -439,85 +439,7 @@ async function initLark() {
 }
 
 // ============================================================
-//  AI 意图识别
-// ============================================================
-function aiDetectIntent(text) {
-    const t = text.trim();
-    
-    // 审批拒绝（优先检测，因为包含否定词）
-    const rejectWords = ['不同意', '驳回', '拒绝', '不准', '不行', '否决', '不批'];
-    if (rejectWords.some(w => t.includes(w))) {
-        const comment = t.replace(/不同意|驳回|拒绝|不准|不行|否决|不批/g, '').trim();
-        return { type: 'REJECT', comment: comment || '不予批准' };
-    }
-    
-    // 审批同意
-    const approveWords = ['同意', '批准', 'ok', 'okay', '好的', '可以', '准了', '通过', '没问题', '准假', '批了'];
-    if (approveWords.some(w => t.toLowerCase().includes(w))) {
-        const comment = t.replace(/同意|批准|ok|okay|好的|可以|准了|通过|没问题|准假|批了/gi, '').trim();
-        return { type: 'APPROVE', comment: comment || '已批准' };
-    }
-    
-    // 请假意图（扩展匹配）
-    const leaveWords = ['请假', '年假', '事假', '病假', '婚假', '产假', '丧假', '休假', '想请假', '请个假', '要请假', '休个假', '放个假', '调休', '倒休']; 
-    const leavePatterns = [/我想请/, /我要请/, /我打算请/, /我需要请/, /帮我请假/];
-    if (leaveWords.some(w => t.includes(w)) || leavePatterns.some(p => p.test(t))) {
-        return { type: 'LEAVE_REQUEST' };
-    }
-    
-    // 查询意图
-    const queryWords = ['我的请假', '请假记录', '请假情况', '我的假', '查看请假', '请假状态', '我请了多少'];
-    if (queryWords.some(w => t.includes(w))) {
-        return { type: 'QUERY' };
-    }
-    
-    // 绑定意图
-    if (t.match(/我是[^\s，,。!！?？]+/) && !leaveWords.some(w => t.includes(w))) {
-        return { type: 'BIND' };
-    }
-    
-    return { type: 'UNKNOWN' };
-}
-
-// ---------- AI 请假信息解析 ----------
-function aiParseLeaveMessage(text) {
-    const today = new Date();
-    const result = { isLeaveRequest: true, userName: null, type: null, startDate: null, endDate: null, days: null, reason: '' };
-    
-    // 姓名提取
-    const nm = text.match(/我是([^\s，,。!！?？]+)/);
-    if (nm) result.userName = nm[1];
-    
-    // 假期类型
-    const typeMap = { '年假': '年假', '事假': '事假', '病假': '病假', '婚假': '婚假', '产假': '产假', '丧假': '丧假' };
-    for (const [k, v] of Object.entries(typeMap)) { if (text.includes(k)) { result.type = v; break; } }
-    if (!result.type) result.type = '事假'; // 默认事假
-    
-    // 日期提取
-    const dp2 = [...text.matchAll(/(\d{4})-(\d{1,2})-(\d{1,2})/g)].map(m => `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`);
-    const dp1 = [...text.matchAll(/(\d{1,2})月(\d{1,2})[号日]/g)].map(m => `${today.getFullYear()}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`);
-    const dates = [...dp2, ...dp1];
-    if (dates.length >= 2) { result.startDate = dates[0]; result.endDate = dates[1]; }
-    else if (dates.length === 1) { result.startDate = result.endDate = dates[0]; }
-    
-    // 天数
-    const dm = text.match(/(\d+)[天日周]/);
-    if (dm) result.days = parseInt(dm[1]);
-    if (!result.days && result.startDate && result.endDate) {
-        const diff = (new Date(result.endDate) - new Date(result.startDate)) / 86400000 + 1;
-        result.days = Math.max(1, diff);
-    }
-    if (!result.days) result.days = 1;
-    
-    // 事由
-    const reasonMatch = text.match(/(?:事由|原因|因为|原因是)([^\s，,。!！?？]+)/);
-    if (reasonMatch) result.reason = reasonMatch[1];
-    
-    return result;
-}
-
-// ============================================================
-//  飞书全流程消息处理（v2.1 - Router Agent 智能路由优先）
+//  飞书全流程消息处理（v3.0 - 全 AI 驱动）
 // ============================================================
 async function handleFeishuMessage(data) {
     try {
@@ -611,7 +533,7 @@ async function handleFeishuMessage(data) {
 
         console.log('[飞书] 当前身份: ' + user.name + ' (' + user.role + ')');
 
-        // ========== 优先走 Router Agent 智能路由（AI 解析） ==========
+        // ========== Router Agent 智能路由（全 AI 驱动）==========
         if (aiAgents && dbHelper) {
             try {
                 const context = {
@@ -632,104 +554,10 @@ async function handleFeishuMessage(data) {
                     return;
                 }
             } catch (err) {
-                console.error('[Router] 路由处理失败，降级到旧版意图识别:', err.message);
+                console.error('[Router] 路由处理失败:', err.message);
+                await sendFeishuMsg(chatId, '😅 抱歉，处理你的消息时出了点问题，请稍后再试。');
             }
-        }
-
-        // ========== 降级：使用旧版意图识别 ==========
-        const intent = aiDetectIntent(content);
-        console.log('[飞书] 降级意图: ' + intent.type);
-
-        if (intent.type === 'LEAVE_REQUEST') {
-            const result = aiParseLeaveMessage(content);
-            let applicant = user;
-            if (!applicant && result.userName) {
-                if (dbHelper) applicant = dbHelper.getUserByName(result.userName);
-                else applicant = query('SELECT id, username, name, role FROM users WHERE name = ?', [result.userName])[0];
-            }
-            if (!applicant) {
-                await sendFeishuMsg(chatId, '❌ 无法确认你的身份，请先回复「我是你的名字」绑定，例如「我是张三」');
-                return;
-            }
-
-            let leaveId;
-            if (dbHelper) {
-                const r = dbHelper.createLeaveRequest(applicant.id, result.type, result.startDate || '', result.endDate || '', result.days, result.reason || '', chatId, msgId);
-                leaveId = r.lastID;
-            } else {
-                leaveId = run(
-                    'INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, feishu_chat_id, feishu_msg_id) VALUES (?, ?, ?, ?, ?, ?, \'PENDING\', ?, ?)',
-                    [applicant.id, result.type, result.startDate || '', result.endDate || '', result.days, result.reason || '', chatId, msgId]
-                ).lastID;
-            }
-
-            const admins = dbHelper ? dbHelper.getAdmins() : query('SELECT name FROM users WHERE role = \'ADMIN\'');
-            const adminNames = admins.map(a => a.name).join('、');
-
-            await sendFeishuMsg(chatId,
-                '📝 请假申请已提交（# ' + leaveId + '）\n\n' +
-                '👤 申请人：' + applicant.name + '\n' +
-                '📋 类型：' + result.type + '\n' +
-                '📅 时间：' + (result.startDate || '待确认') + ' 至 ' + (result.endDate || '待确认') + '\n' +
-                '📊 天数：' + result.days + '天\n' +
-                '💬 事由：' + (result.reason || '无') + '\n\n' +
-                '⏳ 等待 ' + adminNames + ' 审批\n\n' +
-                '👉 领导请回复「同意」或「不同意」');
-
-            await sendFeishuToApprovers(
-                '📝 新的请假申请\n\n👤 ' + applicant.name + '\n📋 ' + result.type + ' · ' + result.days + '天\n📅 ' + (result.startDate || '') + ' ~ ' + (result.endDate || '') + '\n💬 ' + (result.reason || '无') + '\n\n👉 请及时审批！回复「同意」或「不同意」');
-
-        } else if (intent.type === 'APPROVE' || intent.type === 'REJECT') {
-            if (!user || user.role !== 'ADMIN') {
-                await sendFeishuMsg(chatId, '⚠️ 只有管理员可以审批');
-                return;
-            }
-            let pendingLeave = null;
-            if (dbHelper && dbHelper.getPendingLeaveInChat) {
-                pendingLeave = dbHelper.getPendingLeaveInChat(chatId);
-            }
-            if (!pendingLeave) {
-                pendingLeave = query('SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.feishu_chat_id = ? AND l.status = \'PENDING\' ORDER BY l.created_at DESC LIMIT 1', [chatId])[0];
-            }
-            if (!pendingLeave) {
-                await sendFeishuMsg(chatId, '📋 当前没有待审批的请假申请');
-                return;
-            }
-            const comment = intent.comment || (intent.type === 'APPROVE' ? '已批准' : '不予批准');
-
-            if (intent.type === 'APPROVE') {
-                if (dbHelper) dbHelper.approveLeave(pendingLeave.id, user.id, comment);
-                else run('UPDATE leave_requests SET status = \'APPROVED\', approver_id = ?, approver_comment = ?, updated_at = datetime(\'now\') WHERE id = ?', [user.id, comment, pendingLeave.id]);
-                await sendFeishuMsg(chatId, '✅ 请假已批准！\n👤 ' + pendingLeave.user_name + ' · ' + pendingLeave.type + ' ' + pendingLeave.days + '天\n📅 ' + pendingLeave.start_date + ' ~ ' + pendingLeave.end_date + '\n🎉 假期愉快！');
-            } else {
-                if (dbHelper) dbHelper.rejectLeave(pendingLeave.id, user.id, comment);
-                else run('UPDATE leave_requests SET status = \'REJECTED\', approver_id = ?, approver_comment = ?, updated_at = datetime(\'now\') WHERE id = ?', [user.id, comment, pendingLeave.id]);
-                await sendFeishuMsg(chatId, '❌ 请假已驳回\n👤 ' + pendingLeave.user_name + ' · ' + pendingLeave.type + ' ' + pendingLeave.days + '天\n💬 ' + comment);
-            }
-
-        } else if (intent.type === 'QUERY') {
-            const leaves = dbHelper ? dbHelper.getMyLeaves(user.id, 5) :
-                query('SELECT type, start_date, end_date, days, status, reason FROM leave_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 5', [user.id]);
-            if (leaves.length === 0) {
-                await sendFeishuMsg(chatId, user.name + '，你目前没有请假记录');
-            } else {
-                const emoji = { PENDING: '⏳', APPROVED: '✅', REJECTED: '❌' };
-                let text = user.name + '的请假记录：\n\n';
-                for (const l of leaves) {
-                    text += (emoji[l.status] || '❓') + ' ' + l.type + ' ' + l.start_date + '~' + l.end_date + '（' + l.days + '天）' + (l.status === 'PENDING' ? '待审批' : l.status === 'APPROVED' ? '已批准' : '已驳回') + '\n   事由：' + (l.reason || '无') + '\n\n';
-                }
-                await sendFeishuMsg(chatId, text);
-            }
-        } else {
-            await sendFeishuMsg(chatId,
-                '你好！我是公文流转助手 📋\n\n' +
-                '当前身份：' + user.name + '（' + (user.role === 'ADMIN' ? '管理员' : '员工') + '）\n\n' +
-                '我可以帮你：\n' +
-                '📝 请假 → 说「请假3天 年假 6月15到17号 事由团建」\n' +
-                '📄 写公文 → 说「帮我写一份采购申请」\n' +
-                '📊 查数据 → 说「本周有多少请假」或「我还剩几天年假」\n' +
-                '✅ 审批 → 领导回复「同意」或「不同意」\n' +
-                '🔗 换身份 → 说「我是张三」');
+            return;
         }
     } catch (err) {
         console.error('[飞书] 处理失败:', err.message, err.stack);
