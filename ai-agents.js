@@ -1634,7 +1634,242 @@ async function collaborateWithAgents(message, options = {}) {
 // ============================================================
 //  导出
 // ============================================================
+
+
+// ============================================================
+//  Multi-Agent Team System (v5.0)
+//  Coordinator + Chat + Leave + Notify + Doc + Stats
+// ============================================================
+var taskCounter = 0;
+var activeTasks = new Map();
+
+function genTaskId() {
+  taskCounter++;
+  var d = new Date();
+  return "task_" + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + "_" + pad4(taskCounter);
+}
+function pad(n) { return n < 10 ? "0" + n : "" + n; }
+function pad4(n) { return n < 10 ? "000" + n : n < 100 ? "00" + n : n < 1000 ? "0" + n : "" + n; }
+
+function makeTask(type, msg, ctx) {
+  return {
+    id: genTaskId(), type: type, status: "pending",
+    createdBy: { userId: ctx.userId, userName: ctx.userName, userRole: ctx.userRole },
+    userMessage: msg,
+    data: { raw: {}, structured: {}, notifications: [], documents: [] },
+    timeline: [{ time: new Date().toISOString(), agent: "coordinator", action: "created", type: type }],
+    approval: { required: [], approved: [], rejected: null, expiresAt: null },
+    createdAt: new Date().toISOString(),
+    context: ctx
+  };
+}
+
+function saveT(task, svc) {
+  if (!svc || !svc.run) return;
+  try {
+    var e = svc.query("SELECT id FROM agent_tasks WHERE id=?", [task.id]);
+    if (e.length > 0) {
+      svc.run("UPDATE agent_tasks SET status=?, data=?, timeline=?, result=?, updated_at=datetime('now') WHERE id=?",
+        [task.status, JSON.stringify(task.data), JSON.stringify(task.timeline), task.result || "", task.id]);
+    } else {
+      svc.run("INSERT INTO agent_tasks (id,type,status,data,timeline,created_by,user_message) VALUES (?,?,?,?,?,?,?)",
+        [task.id, task.type, task.status, JSON.stringify(task.data), JSON.stringify(task.timeline), JSON.stringify(task.createdBy), task.userMessage || ""]);
+    }
+  } catch(e) { console.error("[Task] save error:", e.message); }
+}
+
+function logAgent(aid, tid, act, inp, out, model, tok, lat, ok, err, svc) {
+  if (!svc || !svc.run) return;
+  try {
+    svc.run("INSERT INTO agent_logs (agent_id,task_id,action,input,output,model,tokens,latency_ms,success,error) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      [aid, tid||"", act, JSON.stringify(inp||{}), JSON.stringify(out||{}), model||"", tok||0, lat||0, ok!==false?1:0, err||null]);
+  } catch(e) { console.error("[Log] error:", e.message); }
+}
+
+// ===== Chat Agent =====
+var CHAT = {
+  id: "chat", name: "对话服务台",
+  async exec(msg, task, svc) {
+    var start = Date.now();
+    try {
+      task.status = "processing";
+      task.timeline.push({ time: new Date().toISOString(), agent: "chat", action: "processing" });
+      saveT(task, svc);
+
+      var sys = "你是学工系统的对话服务台。输出JSON：{\"action\":\"complete\"/\"ask_more\",\"fields\":{\"type\":\"\",\"reason\":\"\",\"startDate\":\"\",\"endDate\":\"\",\"days\":\"\",\"course\":\"\"},\"reply\":\"\"}\n" +
+        "必填：type(年假/事假/病假), reason, startDate, endDate, days。信息不足用ask_more，充足用complete。";
+
+      var r = await callAI(MODELS.fast, [{role:"system",content:sys},{role:"user",content:msg}], {temperature:0.2,max_tokens:500});
+      var lat = Date.now() - start;
+
+      if (!r || !r.success || !r.content) {
+        logAgent("chat", task.id, "ai_err", {msg}, {err:r?.error}, MODELS.fast, 0, lat, false, r?.error, svc);
+        return {content:"对不起，没听清，能再说一次吗？", action:"retry"};
+      }
+
+      try {
+        var p = JSON.parse(r.content.replace(/```[\s\S]*?```/g,"").trim());
+        var act = p.action || "ask_more";
+        var f = p.fields || {};
+        for (var k in f) { if (f[k] && String(f[k]).trim()) task.data.raw[k] = String(f[k]).trim(); }
+        logAgent("chat", task.id, act, {msg,f}, {reply:p.reply,fields:task.data.raw}, MODELS.fast, r.tokens||0, lat, true, null, svc);
+        task.timeline.push({ time: new Date().toISOString(), agent: "chat", action: act });
+        saveT(task, svc);
+
+        if (act === "complete") {
+          if (!task.data.raw.endDate && task.data.raw.startDate && task.data.raw.days) {
+            var dd = new Date(task.data.raw.startDate);
+            dd.setDate(dd.getDate() + parseInt(task.data.raw.days) - 1);
+            task.data.raw.endDate = dd.toISOString().slice(0,10);
+          }
+          return {content: p.reply, action: "complete", fields: task.data.raw};
+        }
+        return {content: p.reply, action: "ask_more", fields: task.data.raw};
+      } catch(e) {
+        logAgent("chat", task.id, "parse_err", {msg,raw:r.content}, {err:e.message}, MODELS.fast, r.tokens||0, lat, false, e.message, svc);
+        return {content: r.content, action: "reply"};
+      }
+    } catch(err) { return {content:"处理失败", action:"error"}; }
+  }
+};
+
+// ===== Leave Agent =====
+var LEAVE = {
+  id: "leave", name: "请假专员",
+  async exec(msg, task, svc) {
+    var start = Date.now();
+    try {
+      var f = task.data.raw || {};
+      var ctx = task.context || {};
+      var db = svc.dbHelper;
+      if (!db) return {error:"数据库未连接"};
+
+      var t = f.type||"事假", d = parseInt(f.days)||1, s = f.startDate||new Date().toISOString().slice(0,10), e = f.endDate||s, r = f.reason||"", c = f.course||"";
+      var uid = ctx.userId;
+
+      var dup = svc.query("SELECT id FROM leave_requests WHERE user_id=? AND start_date=? AND status IN ('PENDING','APPROVED')", [uid, s]);
+      if (dup.length > 0) return {error:"该日期已有请假记录", duplicate:true};
+
+      var rr = db.createLeaveRequest(uid, t, s, e, d, r, ctx.feishuChatId||"", ctx.feishuMsgId||"", c);
+      task.data.structured = {leaveId:rr.lastID, type:t, days:d, startDate:s, endDate:e, reason:r, course:c};
+      task.status = "waiting_approval";
+      task.timeline.push({ time: new Date().toISOString(), agent: "leave", action: "submitted", leaveId: rr.lastID });
+      saveT(task, svc);
+      logAgent("leave", task.id, "submitted", {uid,t,d,s,e}, {leaveId:rr.lastID}, null, 0, Date.now()-start, true, null, svc);
+      return {leaveId: rr.lastID};
+    } catch(err) { return {error:err.message}; }
+  }
+};
+
+// ===== Notify Agent =====
+var NOTIFY = {
+  id: "notify", name: "通知专员",
+  async exec(msg, task, svc) {
+    var start = Date.now();
+    var s = task.data.structured || {};
+    var ctx = task.context || {};
+    if (!s.leaveId) return {};
+    var txt = "📝 **新请假申请**\n\n👤 " + (ctx.userName||"") + "\n📋 " + (s.type||"") + " · " + (s.days||"") + "天\n📅 " + (s.startDate||"") + " ~ " + (s.endDate||"") + "\n💬 " + (s.reason||"") + "\n🆔 #" + s.leaveId + "\n\n👉 回复\"同意 #" + s.leaveId + "\"审批";
+    var admins = svc.query("SELECT id FROM users WHERE role IN ('COUNSELOR','ADMIN')");
+    for (var i = 0; i < admins.length; i++) {
+      if (svc.sendFeishuToUser) await svc.sendFeishuToUser(admins[i].id, txt);
+    }
+    logAgent("notify", task.id, "notified", {admins:admins.length}, {}, null, 0, Date.now()-start, true, null, svc);
+    task.timeline.push({ time: new Date().toISOString(), agent: "notify", action: "notified" });
+    saveT(task, svc);
+    return {};
+  }
+};
+
+// ===== Doc Agent =====
+var DOC = {
+  id: "doc", name: "公文专员",
+  async exec(msg, task, svc) {
+    var s = task.data.structured || {};
+    var ctx = task.context || {};
+    if (!s.leaveId) return {};
+    var title = (ctx.userName||"用户") + "的" + (s.type||"请假") + "记录";
+    var content = "# " + title + "\n\n申请人：" + ctx.userName + "\n类别：" + (s.type||"") + "\n时间：" + (s.startDate||"") + " ~ " + (s.endDate||"") + "\n天数：" + (s.days||"") + "天\n原因：" + (s.reason||"") + "\n课程：" + (s.course||"无");
+    var r = svc.run("INSERT INTO documents (title,content,type,status,applicant_id,created_at) VALUES (?,?,'LEAVE','APPROVED',?,datetime('now'))", [title, content, ctx.userId||1]);
+    task.data.documents.push({docId:r.lastID, title:title});
+    task.timeline.push({ time: new Date().toISOString(), agent: "doc", action: "created", docId: r.lastID });
+    saveT(task, svc);
+    return {docId: r.lastID};
+  }
+};
+
+// ===== Stats Agent =====
+var STATS = {
+  id: "stats", name: "统计专员",
+  async exec(msg, task, svc) {
+    var db = svc.dbHelper;
+    if (!db) return {};
+    return {overview: db.getSystemOverview()};
+  }
+};
+
+// ===== Workflows =====
+var WORKFLOWS = {
+  leave_request: ["chat", "leave", "notify", "doc", "stats"],
+  leave_query: ["chat", "leave"],
+  general: ["chat"]
+};
+
+// ===== Coordinator =====
+function buildFinalReply(task, svc) {
+  var s = task.data.structured || {};
+  var ctx = task.context || {};
+  if (task.status === "waiting_approval" && s.leaveId) {
+    return "✅ **请假申请已提交！**\n\n👤 " + (ctx.userName||"") + "\n📋 " + (s.type||"") + " · " + (s.days||"") + "天\n📅 " + (s.startDate||"") + " ~ " + (s.endDate||"") + "\n💬 " + (s.reason||"") + "\n🆔 #" + s.leaveId + "\n\n⏳ 等待审批...";
+  }
+  return "处理完成！任务编号：" + task.id;
+}
+
+async function processTask(msg, ctx, svc) {
+  var start = Date.now();
+  try {
+    var intent = "leave_request";
+    if (/查询|记录|剩余/i.test(msg) && !/申请/i.test(msg)) intent = "leave_query";
+    else if (!/请假|假|病|休/i.test(msg)) intent = "general";
+
+    var task = makeTask(intent, msg, ctx);
+    activeTasks.set(task.id, task);
+    saveT(task, svc);
+    console.log("[Coordinator] intent=" + intent + " task=" + task.id);
+    logAgent("coordinator", task.id, "classified", {msg}, {intent}, null, 0, Date.now()-start, true, null, svc);
+
+    var wf = WORKFLOWS[intent] || WORKFLOWS.general;
+    var agents = {chat:CHAT, leave:LEAVE, notify:NOTIFY, doc:DOC, stats:STATS};
+    var asked = false;
+
+    for (var i = 0; i < wf.length; i++) {
+      var agent = agents[wf[i]];
+      if (!agent) continue;
+      console.log("[Coordinator] -> " + agent.name);
+      var result = await agent.exec(msg, task, svc);
+      if (result && result.action === "ask_more" && !asked) {
+        task.status = "waiting_input";
+        saveT(task, svc);
+        return { success: true, taskId: task.id, content: result.content, action: "ask_more", fields: task.data.raw };
+      }
+    }
+
+    var finalMsg = buildFinalReply(task, svc);
+    task.status = task.status === "waiting_approval" ? "waiting_approval" : "completed";
+    task.result = finalMsg;
+    task.timeline.push({ time: new Date().toISOString(), agent: "coordinator", action: "done" });
+    saveT(task, svc);
+    logAgent("coordinator", task.id, "completed", {intent,wf:wf.join("->")}, {taskId:task.id}, null, 0, Date.now()-start, true, null, svc);
+    return { success: true, taskId: task.id, content: finalMsg, action: task.status === "waiting_approval" ? "waiting_approval" : "completed", data: task.data };
+  } catch(err) {
+    console.error("[Coordinator] error:", err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
+    processTask,
+    
     // 依赖注入
     injectDB,
     injectFeishu,

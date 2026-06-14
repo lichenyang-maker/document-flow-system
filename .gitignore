@@ -19,3 +19,7 @@ server_*.txt
 # 系统生成
 node_modules/
 .env
+
+# 日志文件
+server_err.txt
+server_out.txt
