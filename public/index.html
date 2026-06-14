@@ -342,35 +342,73 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 .mobile-header{display:none;background:var(--slate-900);color:#fff;padding:12px 16px;font-size:14px;font-weight:600;position:sticky;top:0;z-index:100;align-items:center;justify-content:space-between}
 .mobile-header .m-btn{color:#fff;padding:6px;background:rgba(255,255,255,0.08);border-radius:5px;display:flex;align-items:center;justify-content:center}
 .mobile-header .m-btn svg{width:18px;height:18px}
+
+/* ===== Mobile Responsive ===== */
 @media(max-width:768px){
-  .sidebar{position:fixed;left:-260px;top:0;bottom:0;z-index:200;transition:left .2s;box-shadow:4px 0 20px rgba(0,0,0,0.15)}
+  .sidebar{position:fixed;left:-280px;top:0;bottom:0;z-index:200;width:260px;transition:left .22s;box-shadow:4px 0 24px rgba(0,0,0,0.18)}
   .sidebar.open{left:0}
-  .mobile-header{display:flex}
-  .main{padding-bottom:20px}
-  .page{padding:16px}
-  .topbar{padding:10px 16px}
-  .tb-search input{width:140px}
-  .hero-bar{padding:18px;flex-direction:column;align-items:flex-start}
-  .hero-bar h2{font-size:16px}
-  .stats{grid-template-columns:1fr 1fr;gap:12px}
-  .stat-card{padding:16px}
-  .stat-card .sc-num{font-size:22px}
-  .filters{padding:12px 16px}
-  .table thead th,.table tbody td{padding:10px 14px;font-size:12.5px;white-space:nowrap}
-  .table-wrap{overflow-x:auto}
-  .overlay{position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:150;display:none;backdrop-filter:blur(2px)}
-  .overlay.show{display:block}
+  .mobile-header{display:flex!important}
+  .main{padding-bottom:0;width:100%;overflow-x:hidden}
+  .page{padding:14px!important}
+  .topbar{padding:8px 12px!important;flex-wrap:wrap;gap:6px}
+  .tb-search input{width:120px;font-size:12px}
+  .hero-bar{padding:14px 16px!important;flex-direction:column;align-items:flex-start;gap:8px}
+  .hero-bar h1{font-size:16px!important}
+  .stats{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+  .stats-card{padding:12px!important}
+  .stats-card .num{font-size:20px!important}
+  .two-col{grid-template-columns:1fr!important;gap:12px}
+  .quick-grid{grid-template-columns:repeat(2,1fr)!important}
+  /* Tables */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+  .data-table{font-size:11px!important;min-width:600px}
+  .data-table th,.data-table td{padding:5px 6px!important;white-space:nowrap}
+  .data-table .table-btn{padding:2px 6px!important;font-size:10px!important}
+  /* Modals */
+  .modal{width:92%!important;max-width:92%!important;margin:10px auto!important;max-height:90vh!important;overflow-y:auto}
+  .modal-body{padding:12px!important}
+  .modal-header{padding:10px 12px!important}
+  .modal-footer{padding:10px 12px!important;flex-wrap:wrap;gap:6px}
+  .modal-footer button{flex:1;min-width:0;font-size:12px}
+  .field{margin-bottom:10px!important}
+  .field input,.field select{font-size:14px!important;padding:8px 10px!important}
+  /* Login */
+  .login-wrap{grid-template-columns:1fr!important}
+  .login-hero{display:none!important}
+  .login-box-wrap{padding:20px 16px!important}
+  .login-card{padding:24px 20px!important;max-width:100%!important}
+  .login-card h2{font-size:18px!important}
+  .login-tip table{font-size:11px}
+  .login-tip code{font-size:10px}
+  /* Filter bars */
+  .filter-bar{flex-wrap:wrap;gap:6px}
+  .filter-bar select{font-size:12px;padding:4px 8px}
+  .filter-bar button{font-size:11px;padding:4px 10px}
+  /* Toast on mobile */
+  .toast-notice{top:10px!important;right:10px!important;left:10px!important;max-width:none!important;font-size:12px;text-align:center}
+  /* Mobile drawer */
+  #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:150}
+  #overlay.show{display:block}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr 1fr!important;gap:6px}
+  .stats-card{padding:10px!important}
+  .quick-grid{grid-template-columns:1fr 1fr!important}
+  .page{padding:10px!important}
+  .modal{width:96%!important}
+  .login-box-wrap{padding:12px!important}
+  .login-card{padding:16px!important;box-shadow:none!important;border:none!important}
+  .hero-bar{padding:12px!important}
+  .hero-bar h1{font-size:15px!important}
+  .hero-bar p{font-size:12px}
+  .account-table{font-size:10px}
+  .account-table td{padding:2px 3px!important}
+  .account-table code{font-size:9px!important;padding:1px 3px!important}
+  .topbar{flex-direction:column;align-items:flex-start}
+  .tb-left{width:100%}
+  .tb-right{width:100%;justify-content:flex-start}
 }
 
-.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:9999;align-items:center;justify-content:center}
-.loading-overlay.show{display:flex}
-.loading-spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#4f46e5;border-radius:50%;animation:spin .6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.toast-notice{position:fixed;top:20px;right:20px;z-index:10000;padding:10px 16px;border-radius:6px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:360px;animation:slideIn .3s}
-.toast-notice.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
-.toast-notice.success{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0}
-.toast-notice.info{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 
 </style>
 <script src=" /js/app-utils.js></script>
