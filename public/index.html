@@ -361,7 +361,19 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
   .overlay{position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:150;display:none;backdrop-filter:blur(2px)}
   .overlay.show{display:block}
 }
+
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:9999;align-items:center;justify-content:center}
+.loading-overlay.show{display:flex}
+.loading-spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#4f46e5;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast-notice{position:fixed;top:20px;right:20px;z-index:10000;padding:10px 16px;border-radius:6px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:360px;animation:slideIn .3s}
+.toast-notice.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.toast-notice.success{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0}
+.toast-notice.info{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
 </style>
+<script src=" /js/app-utils.js></script>
 </head>
 <body>
 
@@ -1021,5 +1033,5 @@ async function deleteUser(id,name){
 }
 
 </script>
-</body>
+<!-- custom role modal --><div class=modal-overlay id=customRoleModal style=display:none><div class=modal style=max-width:380px><div class=modal-header><h3>自定义角色</h3><span class=modal-close onclick=closeCustomRoleModal()>&times;</span></div><div class=modal-body><p style=margin-bottom:12px;font-size:13px;color:#475569>为 <strong id=customRoleName></strong> 设置自定义角色:</p><input type=hidden id=customRoleUserId><div class=field><label>自定义角色</label><input id=customRoleInput placeholder=例如:A级员工 placeholder=实习生 style=width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:4px;font-size:13px><div style=margin-top:6px;font-size:11px;color:#909399>留空则显示基础角色，权限由基础角色控制</div></div></div><div class=modal-footer style=display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #e5e7eb><button onclick=closeCustomRoleModal() style=padding:6px 12px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer>取消</button><button onclick=saveCustomRole() style=padding:6px 12px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer>保存</button></div></div></div></body>
 </html>

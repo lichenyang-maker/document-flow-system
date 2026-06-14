@@ -197,6 +197,7 @@ async function initDB() {
 
     // ------ 数据库迁移 ------
     try { db.run("ALTER TABLE leave_requests ADD COLUMN course TEXT DEFAULT ''"); } catch (e) { /* 已存在 */ }
+    try { db.run("ALTER TABLE users ADD COLUMN custom_role TEXT DEFAULT ''"); } catch (e) { /* 已存在 */ }
 
     // ------ 初始数据（如果是空数据库）------
     const userCount = query('SELECT COUNT(*) as c FROM users')[0].c;
@@ -1087,9 +1088,10 @@ app.put('/api/users/:id', auth, (req, res) => {
     try {
         const cur = query('SELECT * FROM users WHERE id = ?', [req.userId])[0];
         if (!cur || cur.role !== 'ADMIN') return res.status(403).json({ message: '需要管理员权限' });
-        const { role, name } = req.body;
+        const { role, name, custom_role } = req.body;
         if (role) run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
         if (name) run('UPDATE users SET name = ? WHERE id = ?', [name, req.params.id]);
+        if (custom_role !== undefined) run('UPDATE users SET custom_role = ? WHERE id = ?', [custom_role, req.params.id]);
         res.json({ success: true });
 // 创建用户（管理员）
 app.post('/api/users', auth, (req, res) => {
