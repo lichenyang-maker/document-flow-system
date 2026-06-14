@@ -1,11 +1,6 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
-# 修复中文编码乱码：安装 locale 支持
-RUN apk add --no-cache glibc-locales && \
-    export LANG=zh_CN.UTF-8 && \
-    export LC_ALL=zh_CN.UTF-8
-ENV LANG=zh_CN.UTF-8
-ENV LC_ALL=zh_CN.UTF-8
+# 中文编码：Express 层已设置 charset=utf-8，Alpine 不需要额外 locale 包
 
 WORKDIR /app
 
