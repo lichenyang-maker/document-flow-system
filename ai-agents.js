@@ -1016,10 +1016,11 @@ async function documentAgentProcess(message, context = {}) {
             `⏳ 状态：待审批\n\n` +
             `📋 正文：\n${docInfo.content.slice(0, 500)}${docInfo.content.length > 500 ? '\n...(内容较长，已截断)' : ''}`;
 
-        // 给审批人发飞书通知
+        // 给审批人发飞书通知 + 群通知
         if (feishuSender) {
-            const notifyText = `📄 新公文待审批\n\n📌 ${docInfo.title}\n📝 ${typeNames[docInfo.type] || docInfo.type}\n👤 ${userName || '用户#' + userId}\n🔥 ${docInfo.priority === 'HIGH' ? '紧急' : '一般'}\n\n👉 请及时审批！`;
+            const notifyText = `📄 新公文待审批\n\n📌 ${docInfo.title}\n📝 ${typeNames[docInfo.type] || docInfo.type}\n👤 ${userName || '用户#' + userId}\n🔥 ${docInfo.priority === 'HIGH' ? '紧急' : '一般'}\n🆔 #${r.lastID}\n\n👉 请及时审批！`;
             try { await feishuSender.sendToApprovers(notifyText); } catch (e) {}
+            try { await feishuSender.sendToGroup(notifyText); } catch (e) {}
         }
 
         return {
