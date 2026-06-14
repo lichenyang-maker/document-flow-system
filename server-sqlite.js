@@ -1014,25 +1014,7 @@ function startScheduledTasks() {
     }
 }
 
-// ---------- Server酱推送 ----------
-async function sendWechatNotify(title, content) {
-    try {
-        var cfg = query('SELECT * FROM wechat_config LIMIT 1');
-        if (!cfg[0] || !cfg[0].enabled) return;
-        var c = cfg[0];
-        if (c.provider === 'wecom' && c.webhook_url) {
-            // \u4f01\u4e1a\u5fae\u4fe1\u673a\u5668\u4eba: \u53d1\u6d88\u606f\u5230\u7fa4\u804a
-            await axios.post(c.webhook_url, {
-                msgtype: 'markdown',
-                markdown: { content: '## ' + title + '\n' + (content || '') }
-            }, { timeout: 8000 });
-        } else if (c.provider === 'pushplus' && c.api_key) {
-            await axios.get('http://www.pushplus.plus/send?token=' + c.api_key + '&title=' + encodeURIComponent(title) + '&content=' + encodeURIComponent(content), { timeout: 8000 });
-        } else if (c.api_key) {
-            await axios.get('https://sc.ftqq.com/' + c.api_key + '.send?text=' + encodeURIComponent(title) + '&desp=' + encodeURIComponent(content), { timeout: 8000 });
-        }
-    } catch (err) { console.error('[\u5fae\u4fe1] \u63a8\u9001\u5931\u8d25:', err.message); }
-}
+// ---------- 通知推送（已移除微信 - 仅保留飞书） ----------
 
 
 // ---------- 认证 ----------
@@ -1089,6 +1071,25 @@ app.get('/api/auth/me', auth, (req, res) => {
         const users = query('SELECT id, username, name, role, email, phone, avatar, verified, oauth_provider FROM users WHERE id = ?', [req.userId]);
         res.json(users[0] || { message: 'Not found' });
     } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+app.post('/api/auth/change-password', auth, (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        if (!oldPassword || !newPassword) return res.json({ success: false, message: '参数不完整' });
+        if (newPassword.length < 6) return res.json({ success: false, message: '新密码至少6位' });
+        const user = query('SELECT * FROM users WHERE id = ?', [req.userId])[0];
+        if (!user) return res.json({ success: false, message: '用户不存在' });
+        // Support both MD5 and plaintext
+        const crypto = require('crypto');
+        const oldMd5 = crypto.createHash('md5').update(oldPassword).digest('hex');
+        if (user.password !== oldPassword && user.password !== oldMd5) {
+            return res.json({ success: false, message: '当前密码不正确' });
+        }
+        const newMd5 = crypto.createHash('md5').update(newPassword).digest('hex');
+        run('UPDATE users SET password = ? WHERE id = ?', [newMd5, req.userId]);
+        res.json({ success: true, message: '密码修改成功' });
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 app.get('/api/users', auth, (req, res) => {
@@ -1181,38 +1182,7 @@ app.get('/api/feishu/config', (req, res) => {
             appId: FEISHU_APP_ID,
             appEnabled: FEISHU_APP_ID.length > 5
         });
-    } catch (e) { res.status(500).json({ message: e.message });
-
-// ===== \u4f01\u4e1a\u5fae\u4fe1\u914d\u7f6e =====
-app.get('/api/wechat/config', auth, (req, res) => {
-    try {
-        var cfg = query('SELECT * FROM wechat_config LIMIT 1');
-        if (cfg.length > 0) { delete cfg[0].api_key; res.json({ success: true, config: cfg[0] }); }
-        else res.json({ success: true, config: null });
-    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-app.post('/api/wechat/config', auth, (req, res) => {
-    try {
-        var cur = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        if (!cur || cur.role !== 'ADMIN') return res.status(403).json({ message: '\u9700\u8981\u7ba1\u7406\u5458\u6743\u9650' });
-        var body = req.body;
-        if (body.test) {
-            // \u6d4b\u8bd5\u63a8\u9001
-            sendWechatNotify('DocFlow \u63a8\u9001\u6d4b\u8bd5', '您\u7684\u4f01\u4e1a\u5fae\u4fe1\u63a5\u5165\u5df2\u751f\u6548\uff01\n\u65f6\u95f4\uff1a' + new Date().toLocaleString());
-            return res.json({ success: true, message: '\u6d4b\u8bd5\u6d88\u606f\u5df2\u53d1\u9001' });
-        }
-        var existing = query('SELECT id FROM wechat_config LIMIT 1');
-        if (existing.length > 0) {
-            run("UPDATE wechat_config SET provider=?, api_key=?, webhook_url=?, enabled=? WHERE id=?", [body.provider||'serverchan', body.api_key||'', body.webhook_url||'', body.enabled!==false ? 1 : 0, existing[0].id]);
-        } else {
-            run("INSERT INTO wechat_config (provider, api_key, webhook_url, enabled) VALUES (?,?,?,?)", [body.provider||'serverchan', body.api_key||'', body.webhook_url||'', body.enabled!==false ? 1 : 0]);
-        }
-        console.log('[\u5fae\u4fe1] \u914d\u7f6e\u5df2\u66f4\u65b0:', body.provider);
-        res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
-});
- }
 });
 
 app.post('/api/feishu/login', async (req, res) => {
@@ -2668,7 +2638,6 @@ async function start() {
             { name: 'documents', sql: `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, type TEXT DEFAULT 'NORMAL', priority TEXT DEFAULT 'NORMAL', status TEXT DEFAULT 'PENDING', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
-            { name: 'wechat_config', sql: `CREATE TABLE IF NOT EXISTS wechat_config (id INTEGER PRIMARY KEY AUTOINCREMENT, provider TEXT, api_key TEXT, webhook_url TEXT, enabled INTEGER DEFAULT 1)` },
             { name: 'feishu_user_map', sql: `CREATE TABLE IF NOT EXISTS feishu_user_map (id INTEGER PRIMARY KEY AUTOINCREMENT, feishu_open_id TEXT UNIQUE NOT NULL, system_user_id INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
         ];
 

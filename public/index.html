@@ -191,7 +191,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
   background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;
   transition:all .15s;position:relative;overflow:hidden;
 }
-.stat-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
+.stat-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md);transform:translateY(-2px)}.stat-card{cursor:pointer}
 .stat-card .sc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
 .stat-card .sc-label{font-size:12.5px;color:var(--slate-500);font-weight:500}
 .stat-card .sc-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center}
@@ -410,8 +410,56 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 }
 
 
-</style>
-<script src="/js/app-utils.js"></script>
+
+.settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center}.settings-overlay.show{display:flex}.settings-modal{background:#fff;border-radius:var(--radius-lg);width:420px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;animation:slideUp .2s ease}@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.settings-modal .sm-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border)}.settings-modal .sm-header h3{font-size:16px;font-weight:600;margin:0;color:var(--text)}.settings-modal .sm-close{width:32px;height:32px;border:none;background:var(--slate-100);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--slate-500);transition:all .15s}.settings-modal .sm-close:hover{background:var(--slate-200);color:var(--text)}.settings-modal .sm-body{padding:20px}.settings-modal .sm-section{margin-bottom:20px}.settings-modal .sm-section:last-child{margin-bottom:0}.settings-modal .sm-label{font-size:12px;font-weight:600;color:var(--slate-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}.settings-modal .sm-info{display:flex;align-items:center;gap:12px;padding:12px;background:var(--slate-50);border-radius:var(--radius);border:1px solid var(--border)}.settings-modal .sm-avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-600);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}.settings-modal .sm-info-text{flex:1}.settings-modal .sm-info-text .sm-name{font-weight:600;font-size:14px;color:var(--text)}.settings-modal .sm-info-text .sm-role{font-size:12px;color:var(--slate-500)}.settings-modal .sm-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}.settings-modal .sm-field:last-child{margin-bottom:0}.settings-modal .sm-field label{font-size:13px;font-weight:500;color:var(--slate-600)}.settings-modal .sm-field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--slate-50);transition:border-color .15s;box-sizing:border-box}.settings-modal .sm-field input:focus{outline:none;border-color:var(--brand-600);background:#fff}.settings-modal .sm-error{color:var(--danger);font-size:12px;margin-top:4px;display:none}.settings-modal .sm-success{color:var(--success);font-size:12px;margin-top:4px;display:none}.settings-modal .sm-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:4px}.settings-modal .sm-actions button{padding:8px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}.settings-modal .btn-save{background:var(--brand-600);color:#fff}.settings-modal .btn-save:hover{background:var(--brand-700)}.settings-modal .btn-cancel{background:var(--slate-100);color:var(--slate-600)}.settings-modal .btn-cancel:hover{background:var(--slate-200)}</style>
+<script src="/js/app-utils.js">
+
+async function showSettings() {
+  document.getElementById('settingsOverlay').classList.add('show');
+  if (currentUser) {
+    document.getElementById('smAvatar').textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
+    document.getElementById('smName').textContent = currentUser.name || currentUser.username || '—';
+    const roleNames = { ADMIN:'管理员', COUNSELOR:'辅导员', TEACHER:'老师', STUDENT:'学生', EMPLOYEE:'职工', MANAGER:'部门经理', HR:'人事' };
+    document.getElementById('smRole').textContent = roleNames[currentUser.role] || currentUser.role || '—';
+  }
+  document.getElementById('smOldPass').value = '';
+  document.getElementById('smNewPass').value = '';
+  document.getElementById('smConfirmPass').value = '';
+  document.getElementById('smError').style.display = 'none';
+  document.getElementById('smSuccess').style.display = 'none';
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('show');
+}
+async function changePassword() {
+  const oldP = document.getElementById('smOldPass').value;
+  const newP = document.getElementById('smNewPass').value;
+  const confirmP = document.getElementById('smConfirmPass').value;
+  const err = document.getElementById('smError');
+  const succ = document.getElementById('smSuccess');
+  err.style.display = 'none';
+  succ.style.display = 'none';
+  if (!oldP || !newP) { err.textContent = '请填写所有密码字段'; err.style.display = 'block'; return; }
+  if (newP.length < 6) { err.textContent = '新密码至少6位'; err.style.display = 'block'; return; }
+  if (newP !== confirmP) { err.textContent = '两次输入的新密码不一致'; err.style.display = 'block'; return; }
+  try {
+    const res = await fetch(API + '/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
+    });
+    const data = await res.json();
+    if (data.success) {
+      succ.textContent = '密码修改成功！';
+      succ.style.display = 'block';
+      setTimeout(() => { closeSettings(); logout(); }, 1500);
+    } else {
+      err.textContent = data.message || '修改失败';
+      err.style.display = 'block';
+    }
+  } catch(e) { err.textContent = '网络错误，请重试'; err.style.display = 'block'; }
+}
+</script>
 </head>
 <body>
 
@@ -562,7 +610,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
       </div>
 
       <div class="stats">
-        <div class="stat-card c-primary">
+        <div onclick="switchPage('docs',document.querySelector('[data-page=docs]'))" class="stat-card c-primary">
           <div class="sc-top">
             <div class="sc-label">公文总数</div>
             <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
@@ -571,7 +619,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
           <div class="sc-trend"><span class="tr-flat">累计发布</span></div>
           <div class="sc-bar"><span style="width:75%"></span></div>
         </div>
-        <div class="stat-card c-info">
+        <div onclick="switchPage('users',document.querySelector('[data-page=users]'))" class="stat-card c-info">
           <div class="sc-top">
             <div class="sc-label">用户总数</div>
             <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -580,7 +628,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
           <div class="sc-trend"><span class="tr-flat">注册用户</span></div>
           <div class="sc-bar"><span style="width:60%"></span></div>
         </div>
-        <div class="stat-card c-success">
+        <div onclick="switchPage('leave',document.querySelector('[data-page=leave]'))" class="stat-card c-success">
           <div class="sc-top">
             <div class="sc-label">请假申请</div>
             <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
@@ -589,7 +637,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
           <div class="sc-trend"><span class="tr-flat">累计申请</span></div>
           <div class="sc-bar"><span style="width:50%"></span></div>
         </div>
-        <div class="stat-card c-warning">
+        <div onclick="switchPage('docs',document.querySelector('[data-page=docs]'))" class="stat-card c-warning">
           <div class="sc-top">
             <div class="sc-label">待审批</div>
             <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
@@ -1059,5 +1107,46 @@ async function deleteUser(id,name){
 }
 
 </script>
-<!-- custom role modal --><div class=modal-overlay id=customRoleModal style=display:none><div class=modal style=max-width:380px><div class=modal-header><h3>自定义角色</h3><span class=modal-close onclick=closeCustomRoleModal()>&times;</span></div><div class=modal-body><p style=margin-bottom:12px;font-size:13px;color:#475569>为 <strong id=customRoleName></strong> 设置自定义角色:</p><input type=hidden id=customRoleUserId><div class=field><label>自定义角色</label><input id=customRoleInput placeholder=例如:A级员工 placeholder=实习生 style=width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:4px;font-size:13px><div style=margin-top:6px;font-size:11px;color:#909399>留空则显示基础角色，权限由基础角色控制</div></div></div><div class=modal-footer style=display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #e5e7eb><button onclick=closeCustomRoleModal() style=padding:6px 12px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer>取消</button><button onclick=saveCustomRole() style=padding:6px 12px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer>保存</button></div></div></div></body>
+<!-- custom role modal --><div class=modal-overlay id=customRoleModal style=display:none><div class=modal style=max-width:380px><div class=modal-header><h3>自定义角色</h3><span class=modal-close onclick=closeCustomRoleModal()>&times;</span></div><div class=modal-body><p style=margin-bottom:12px;font-size:13px;color:#475569>为 <strong id=customRoleName></strong> 设置自定义角色:</p><input type=hidden id=customRoleUserId><div class=field><label>自定义角色</label><input id=customRoleInput placeholder=例如:A级员工 placeholder=实习生 style=width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:4px;font-size:13px><div style=margin-top:6px;font-size:11px;color:#909399>留空则显示基础角色，权限由基础角色控制</div></div></div><div class=modal-footer style=display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #e5e7eb><button onclick=closeCustomRoleModal() style=padding:6px 12px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer>取消</button><button onclick=saveCustomRole() style=padding:6px 12px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer>保存</button></div></div></div>
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-modal" onclick="event.stopPropagation()">
+    <div class="sm-header">
+      <h3>⚙️ 系统设置</h3>
+      <button class="sm-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="sm-body">
+      <div class="sm-section">
+        <div class="sm-label">当前账号</div>
+        <div class="sm-info">
+          <div class="sm-avatar" id="smAvatar">U</div>
+          <div class="sm-info-text">
+            <div class="sm-name" id="smName">—</div>
+            <div class="sm-role" id="smRole">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="sm-section">
+        <div class="sm-label">修改密码</div>
+        <div class="sm-field">
+          <label>当前密码</label>
+          <input type="password" id="smOldPass" placeholder="请输入当前密码">
+        </div>
+        <div class="sm-field">
+          <label>新密码</label>
+          <input type="password" id="smNewPass" placeholder="6-20位新密码">
+        </div>
+        <div class="sm-field">
+          <label>确认新密码</label>
+          <input type="password" id="smConfirmPass" placeholder="再次输入新密码">
+        </div>
+        <div class="sm-error" id="smError"></div>
+        <div class="sm-success" id="smSuccess"></div>
+      </div>
+      <div class="sm-actions">
+        <button class="btn-cancel" onclick="closeSettings()">取消</button>
+        <button class="btn-save" onclick="changePassword()">修改密码</button>
+      </div>
+    </div>
+  </div>
+</div></body>
 </html>
