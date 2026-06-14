@@ -1329,7 +1329,19 @@ async function routerAgentProcess(message, context = {}) {
     const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
     const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
 
-    // 0a. 请假关键词快速匹配
+    // 0a. 多轮请假表单状态检查（必须先于其他路由，否则"事假"等答复会走丢）
+    if (context.userId) {
+        var leaveConvId = "leave_" + context.userId;
+        var leaveState = leaveFormStates.get(leaveConvId);
+        if (leaveState && (leaveState.state === "COLLECTING" || leaveState.state === "CONFIRMING")) {
+            console.log('[Router] 多轮请假表单进行中 -> leaveAgent');
+            var leaveFormResult = await leaveAgentProcess(message, context);
+            if (leaveFormResult && leaveFormResult.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', leaveFormResult.content); }
+            if (leaveFormResult) return leaveFormResult;
+        }
+    }
+
+    // 0b. 请假关键词快速匹配（首次请假消息）
     if (/\u6211\u8981\u8bf7\u5047|\u60f3\u8bf7\u5047|\u7533\u8bf7\u8bf7\u5047|\u8bf7\u5047\u7533\u8bf7/i.test(message) && !/\u67e5\u8be2|\u8bb0\u5f55|\u5ba1\u6279|\u540c\u610f|\u62d2\u7edd|\u7edf\u8ba1|\u901a\u77e5|\u516c\u6587|\u521b\u5efa|\u6279\u51c6/.test(message)) {
         console.log('[Router] \u8bf7\u5047\u8bf7\u6c42 -> leaveAgent');
         var leaveResult = await leaveAgentProcess(message, context);
@@ -1337,7 +1349,7 @@ async function routerAgentProcess(message, context = {}) {
         if (leaveResult) return leaveResult;
     }
 
-    // 0b. 图表关键词快速匹配（跳过LLM）
+    // 0c. 图表关键词快速匹配（跳过LLM）
     if (/图表|趋势图|柱状图|饼图|折线图|统计图|统计图表|生成.*图|chart/i.test(message)) {
         console.log('[Router] \u56fe\u8868\u8bf7\u6c42 -> statsAgent');
         var chartResult = await statsAgentProcess(message, context);
@@ -1345,7 +1357,7 @@ async function routerAgentProcess(message, context = {}) {
         if (chartResult) return chartResult;
     }
 
-    // 0c. 群发通知关键词快速匹配（发群消息/群通知）
+    // 0d. 群发通知关键词快速匹配（发群消息/群通知）
     if (/群里|群聊|群发|在群|告诉大家|通知大家|发个通知|群通知|发到群|在飞书群/.test(message)) {
         console.log('[Router] 群发请求 -> notifyAgent');
         var notifyResult = await notifyAgentProcess(message, context);
