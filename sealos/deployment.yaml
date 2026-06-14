@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-flow-system
+  namespace: document-flow
+  labels:
+    app: document-flow-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: document-flow-system
+  template:
+    metadata:
+      labels:
+        app: document-flow-system
+    spec:
+      containers:
+        - name: document-flow-system
+          image: ghcr.io/lichenyang-maker/document-flow-system:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: DATABASE_PATH
+              value: "/app/data/document_flow.db"
+            - name: FEISHU_APP_ID
+              value: "cli_aaa152828fb95bda"
+            - name: FEISHU_APP_SECRET
+              value: "61tkmvxLdXZ2Tx0m4AgZFez4CC0xvzjx"
+            - name: SILICONFLOW_API_KEY
+              value: "sk-ananqfsipxweyiejefqltsbladjogmgnwfvxnihtjtnxwjem"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: document-flow-data

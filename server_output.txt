@@ -1,0 +1,49 @@
+[OK] Auth 模块已加载
+[OK] db-helper 模块已加载
+[OK] 多智能体系统已加载
+
+========================================
+📋 公文流转 + AI 多智能体系统 v2.0
+========================================
+[启动] 正在初始化数据库...
+[OK] 数据库已加载: D:\document-flow-system\document_flow.db
+[OK] db-helper 已初始化
+[OK] AI 智能体依赖已注入
+[启动] 检查数据表结构...
+[OK] 数据表检查完成 (6/6)
+[info]: [ 'client ready' ]
+[info]: [ 'event-dispatch is ready' ]
+[info]: [
+  '[ws]',
+  'receive events or callbacks through persistent connection only available in self-build & Feishu app, Configured in:\n' +
+    '        Developer Console(开发者后台)\n' +
+    '          ->\n' +
+    '        Events and Callbacks(事件与回调)\n' +
+    '          ->\n' +
+    '        Mode of event/callback subscription(订阅方式)\n' +
+    '          ->\n' +
+    '        Receive events/callbacks through persistent connection(使用 长连接 接收事件/回调)'
+]
+[OK] 飞书长连接已启动
+[定时任务] 待审批检查已启动（每30分钟）
+[定时任务] 下次每日简报时间：2026/6/14 09:00:00（734 分钟后）
+[定时任务] 每日简报已安排（每天 9:00）
+[OK] 数据统计: 用户 13 人 | 公文 7 份 | 请假 7 条
+[Auth] SMTP 未配置，将使用模拟模式
+[OK] Auth 路由已注册
+
+========================================================
+🚀 服务已启动 (耗时 0.1s)
+📄 主页面:     http://localhost:3000/
+🤖 AI助手:     http://localhost:3000/chat
+🤖 Router API: POST /api/ai/router
+📝 Leave API:  POST /api/ai/leave
+📄 Doc API:    POST /api/ai/document
+📢 Notify API: POST /api/ai/notify
+💊 健康检查:   http://localhost:3000/health
+🔐 登录账号:   admin / admin123
+               zhangsan / 123456
+========================================================
+
+[error]: [ '[ws]', 'code: 1000040345, app_id or app_secret is invalid' ]
+[定时任务] 发现 5 份待审批公文, 0 条待审批请假
