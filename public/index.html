@@ -820,24 +820,12 @@ function logout() {
   document.getElementById('mainApp').style.display = 'none';
 }
 
-(function autoLogin() {
-  const saved = localStorage.getItem('token');
+((function() {
+  var saved = localStorage.getItem('token');
   if (saved) { token = saved; initApp(); }
 })();
 
-function switchPage(page, el) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => { p.style.display = 'none'; p.classList.remove('active'); });
-  if (el) el.classList.add('active');
-  const pg = document.getElementById('page-' + page);
-  if (pg) { pg.style.display = 'block'; pg.classList.add('active'); }
-  const titleMap = { dashboard: '概览', docs: '公文管理', leave: '请假管理' };
-  document.getElementById('pageTitle').textContent = titleMap[page] || '概览';
-  closeSidebar();
-  if (page === 'dashboard') loadDashboard();
-  else if (page === 'docs') loadDocs();
-  else if (page === 'leave') loadLeave();
-}
+
 
 function checkMobile() {
   const m = window.innerWidth <= 768;
