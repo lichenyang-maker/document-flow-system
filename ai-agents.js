@@ -8,7 +8,7 @@
 const axios = require('axios');
 
 // ---------- 配置 ----------
-const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || '';
+const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || 'sk-ananqfsipxweyiejefqltsbladjogmgnwfvxnihtjtnxwjem';
 const SILICONFLOW_BASE_URL = 'https://api.siliconflow.cn/v1';
 
 const MODELS = {

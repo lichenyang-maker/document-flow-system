@@ -42,8 +42,8 @@ try {
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'document_flow.db');
 // ⚠️ 生产环境请务必通过环境变量设置，不要将密钥写死在代码中
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || 'cli_aaa152828fb95bda';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '61tkmvxLdXZ2Tx0m4AgZFez4CC0xvzjx';
 
 // 启动时检查关键环境变量
 if (!FEISHU_APP_ID) console.warn('[WARN] 未设置 FEISHU_APP_ID 环境变量，飞书集成将不可用');
