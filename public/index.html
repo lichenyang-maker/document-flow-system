@@ -640,6 +640,16 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
   </div>
 </div>
 
+
+
+<!-- 用户管理页面 -->
+<div id="page-users" class="page" style="display:none">
+  <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+    <h3 style="font-size:15px;font-weight:600">👥 用户管理</h3>
+    <button onclick="showUserModal()" style="padding:6px 14px;font-size:12px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer">+ 新建用户</button>
+  </div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>姓名</th><th>用户名</th><th>角色</th><th>部门</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+</div>
 <!-- 公文模态框 -->
 <div class="modal-mask hidden" id="docModal" onclick="if(event.target.id==='docModal')closeDocModal()">
   <div class="modal">
@@ -707,7 +717,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 
 <script>
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-let token = '', currentUser = null, isAdmin = false;
+let token = '', currentUser = null, userRole = '';
 
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() });
 
@@ -736,15 +746,18 @@ async function initApp() {
     if (!res.ok) { logout(); return; }
     currentUser = await res.json();
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    isAdmin = String(currentUser.role || '').toLowerCase() === 'admin' || currentUser.username === 'admin';
+    userRole = currentUser.role || '';
+    const roleNames = { ADMIN:'管理员', COUNSELOR:'辅导员', TEACHER:'老师', STUDENT:'学生', EMPLOYEE:'职工', MANAGER:'部门经理', HR:'人事' };
     const name = currentUser.name || currentUser.username || '用户';
     document.getElementById('sidebarUser').textContent = name;
-    document.getElementById('sidebarRole').textContent = isAdmin ? '管理员' : '普通用户';
+    document.getElementById('sidebarRole').textContent = roleNames[userRole] || userRole;
     document.getElementById('avatarLetter').textContent = name.charAt(0).toUpperCase();
     document.getElementById('mobileUser').textContent = name;
     document.getElementById('welcomeText').textContent = name + '，欢迎回来';
     const now = new Date();
     document.getElementById('todayDate').textContent = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' });
+    // 根据角色显示/隐藏菜单
+    buildSidebar(userRole);
   } catch (e) {}
   checkMobile();
   loadDashboard();
@@ -762,7 +775,7 @@ function logout() {
   if (saved) { token = saved; initApp(); }
 })();
 
-function switchPage(page, el) {
+-=SWITCHMARKER=-
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => { p.style.display = 'none'; p.classList.remove('active'); });
   if (el) el.classList.add('active');
@@ -919,6 +932,94 @@ async function submitLeave() {
     loadLeave(); loadDashboard();
   } catch (e) { showToast('网络错误', 'error'); }
 }
+
+
+// ===== 角色菜单构建 =====
+function buildSidebar(role) {
+  var nav = document.getElementById('sidebarNav');
+  if (!nav) return;
+  var menus = {
+    ADMIN:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u7ba1\u7406'},{p:'users',i:'\ud83d\udc65',l:'\u7528\u6237\u7ba1\u7406'}],
+    COUNSELOR:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
+    TEACHER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'}],
+    STUDENT:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
+    EMPLOYEE:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
+    MANAGER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u5ba1\u6279\u7ba1\u7406'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
+    HR:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'users',i:'\ud83d\udc65',l:'\u4eba\u4e8b\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8003\u52e4\u7ba1\u7406'}]
+  };
+  var items = menus[role] || menus.STUDENT;
+  nav.innerHTML = items.map(function(m) {
+    return '<a class="nav-item" href="javascript:void(0)" onclick="switchPage(\'' + m.p + '\')">' + m.i + ' ' + m.l + '</a>';
+  }).join('');
+  var first = nav.querySelector('.nav-item');
+  if (first) first.classList.add('active');
+}
+
+function switchPage(page) {
+  var pages = ['dashboard','docs','leave','users'];
+  if (page === 'users' && userRole !== 'ADMIN') { showToast('\u65e0\u6743\u9650','error'); return; }
+  document.querySelectorAll('.nav-item').forEach(function(i){i.classList.remove('active')});
+  var activeEl = document.querySelector('.nav-item[onclick*="'+page+'"]');
+  if (activeEl) activeEl.classList.add('active');
+  pages.forEach(function(p){
+    var pg = document.getElementById('page-'+p);
+    if (pg) pg.style.display = p === page ? 'block' : 'none';
+  });
+  var titles = {dashboard:'\u5de5\u4f5c\u53f0',docs:'\u516c\u6587\u7ba1\u7406',leave:'\u8bf7\u5047\u7ba1\u7406',users:'\u7528\u6237\u7ba1\u7406'};
+  var pt = document.getElementById('pageTitle');
+  if (pt) pt.textContent = titles[page] || '\u5de5\u4f5c\u53f0';
+  if (page === 'docs') loadDocs();
+  else if (page === 'leave') loadLeave();
+  else if (page === 'users') loadUsers();
+  else if (page === 'dashboard') loadDashboard();
+}
+
+// ===== \u7528\u6237\u7ba1\u7406 =====
+async function loadUsers() {
+  var tbody = document.getElementById('usersBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px">\u52a0\u8f7d\u4e2d...</td></tr>';
+  try {
+    var res = await fetch(API + '/api/users', getHeaders());
+    var data = await res.json();
+    var rn = {ADMIN:'\u7ba1\u7406\u5458',COUNSELOR:'\u8f85\u5bfc\u5458',TEACHER:'\u8001\u5e08',STUDENT:'\u5b66\u751f',EMPLOYEE:'\u804c\u5de5',MANAGER:'\u7ecf\u7406',HR:'\u4eba\u4e8b'};
+    var rc = {ADMIN:'#f56c6c',COUNSELOR:'#e6a23c',TEACHER:'#409eff',STUDENT:'#67c23a',EMPLOYEE:'#909399',MANAGER:'#7c3aed',HR:'#059669'};
+    tbody.innerHTML = data.map(function(u) {
+      var color = rc[u.role]||'#909399';
+      var del = u.id !== currentUser.id ? '<button class="table-btn table-btn-danger" onclick="deleteUser('+u.id+',''" style="padding:2px 8px;font-size:11px">\u5220\u9664</button>' : '<span style="color:var(--text-muted);font-size:11px">\u5f53\u524d\u7528\u6237</span>';
+      return '<tr><td>'+u.id+'</td><td><strong>'+u.name+'</strong></td><td>'+u.username+'</td><td><span style="background:'+color+'15;color:'+color+';padding:2px 8px;border-radius:8px;font-size:11px">'+(rn[u.role]||u.role)+'</span></td><td>'+(u.department||'-')+'</td><td>'+(u.created_at||'-')+'</td><td>'+del+'</td></tr>';
+    }).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">\u52a0\u8f7d\u5931\u8d25</td></tr>'; }
+}
+
+function showUserModal() {
+  var m = document.getElementById('userModal');
+  if(m){m.style.display='flex';document.getElementById('userForm').reset();document.getElementById('userError').textContent=''}
+}
+function closeUserModal(){var m=document.getElementById('userModal');if(m)m.style.display='none'}
+
+async function submitUser(){
+  var data={username:document.getElementById('newUsername').value.trim(),password:document.getElementById('newPassword').value,name:document.getElementById('newName').value.trim(),role:document.getElementById('newRole').value,department:document.getElementById('newDept').value.trim()};
+  var err=document.getElementById('userError');
+  if(!data.username||!data.password||!data.name){err.textContent='\u8bf7\u586b\u5199\u5b8c\u6574\u4fe1\u606f';return}
+  try{
+    var res=await fetch(API+'/api/users',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(data)});
+    var result=await res.json();
+    if(result.success){closeUserModal();showToast('\u521b\u5efa\u6210\u529f','success');loadUsers()}
+    else err.textContent=result.message||'\u521b\u5efa\u5931\u8d25';
+  }catch(e){err.textContent='\u7f51\u7edc\u9519\u8bef'}
+}
+
+async function deleteUser(id,name){
+  if(!confirm('\u786e\u8ba4\u5220\u9664\u7528\u6237"'+name+'\"\uff1f'))return;
+  try{
+    var res=await fetch(API+'/api/users/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    var result=await res.json();
+    if(result.success){showToast('\u5df2\u5220\u9664','success');loadUsers()}
+    else showToast(result.message||'\u5220\u9664\u5931\u8d25','error');
+  }catch(e){showToast('\u7f51\u7edc\u9519\u8bef','error')}
+}
+
 </script>
 </body>
 </html>

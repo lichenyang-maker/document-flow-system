@@ -1091,6 +1091,59 @@ app.put('/api/users/:id', auth, (req, res) => {
         if (role) run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
         if (name) run('UPDATE users SET name = ? WHERE id = ?', [name, req.params.id]);
         res.json({ success: true });
+// 创建用户（管理员）
+app.post('/api/users', auth, (req, res) => {
+    try {
+        var cur = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
+        if (!cur || cur.role !== 'ADMIN') return res.status(403).json({ message: '需要管理员权限' });
+        var body = req.body;
+        if (!body.username || !body.password || !body.name || !body.role) return res.status(400).json({ message: '缺少必填字段(用户名/密码/姓名/角色)' });
+        var md5 = function(p) { return require('crypto').createHash('md5').update(p).digest('hex'); };
+        var pwd = md5(body.password);
+        var existing = query('SELECT id FROM users WHERE username = ?', [body.username]);
+        if (existing.length > 0) return res.status(400).json({ message: '用户名已存在' });
+        var r = run('INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)',
+            [body.username, pwd, body.name, body.role, body.department || '']);
+        console.log('[用户] 管理员创建用户: ' + body.username + ' (' + body.role + ')');
+        res.json({ success: true, id: r.lastID });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 删除用户（管理员）
+app.delete('/api/users/:id', auth, (req, res) => {
+    try {
+        var cur = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
+        if (!cur || cur.role !== 'ADMIN') return res.status(403).json({ message: '需要管理员权限' });
+        var targetId = parseInt(req.params.id);
+        if (targetId === req.userId) return res.status(400).json({ message: '不能删除自己' });
+        run('DELETE FROM leave_requests WHERE user_id = ?', [targetId]);
+        run('DELETE FROM leave_balance WHERE user_id = ?', [targetId]);
+        run('DELETE FROM feishu_user_map WHERE system_user_id = ?', [targetId]);
+        run('DELETE FROM users WHERE id = ?', [targetId]);
+        console.log('[用户] 管理员删除用户 #' + targetId);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取所有角色枚举
+app.get('/api/roles', auth, (req, res) => {
+    try {
+        res.json({
+            success: true,
+            roles: [
+                { value: 'ADMIN', label: '管理员', desc: '系统管理、用户管理、全部审批' },
+                { value: 'COUNSELOR', label: '辅导员', desc: '请假审批、公文审批' },
+                { value: 'TEACHER', label: '老师', desc: '请假审批、课程管理' },
+                { value: 'STUDENT', label: '学生', desc: '请假申请、查看记录' },
+                { value: 'EMPLOYEE', label: '职工', desc: '请假申请、公文查看' },
+                { value: 'MANAGER', label: '部门经理', desc: '本部门审批、公文管理' },
+                { value: 'HR', label: '人事', desc: '人员管理、考勤统计' }
+            ]
+        });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
