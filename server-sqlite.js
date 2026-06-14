@@ -134,6 +134,7 @@ async function initDB() {
             status TEXT DEFAULT 'PENDING',
             approver_id INTEGER,
             approver_comment TEXT DEFAULT '',
+            course TEXT DEFAULT '',
             feishu_chat_id TEXT DEFAULT '',
             feishu_msg_id TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -179,6 +180,9 @@ async function initDB() {
     for (const sql of tables) {
         try { db.run(sql); } catch (e) { console.warn('[WARN] 建表失败:', e.message); }
     }
+
+    // ------ 数据库迁移 ------
+    try { db.run("ALTER TABLE leave_requests ADD COLUMN course TEXT DEFAULT ''"); } catch (e) { /* 已存在 */ }
 
     // ------ 初始数据（如果是空数据库）------
     const userCount = query('SELECT COUNT(*) as c FROM users')[0].c;
@@ -311,6 +315,74 @@ async function _feishuSendRaw(receiveId, receiveType, text) {
         console.error(`[飞书] ❌ 发送消息失败 [${receiveType}=${receiveId.slice(0, 12)}...] err=`, typeof detail === 'object' ? JSON.stringify(detail) : detail);
         return { success: false, reason: typeof detail === 'object' ? (detail.msg || detail.code || detail.message || String(detail)) : String(detail) };
     }
+}
+
+// ---------- 发飞书交互卡片（教师审批专用）----------
+async function sendFeishuCard(receiveId, receiveType, cardContent) {
+    if (!larkClient) return { success: false, reason: '飞书客户端未初始化' };
+    if (!receiveId) return { success: false, reason: '未提供接收者 ID' };
+    try {
+        const res = await larkClient.im.message.create({
+            params: { receive_id_type: receiveType },
+            data: { receive_id: receiveId, content: JSON.stringify(cardContent), msg_type: 'interactive' }
+        });
+        const msgId = res?.data?.message_id || res?.message_id || 'ok';
+        console.log('[飞书] 卡片发送成功 [' + receiveType + '] msg_id=' + msgId);
+        return { success: true, messageId: msgId };
+    } catch (err) {
+        const detail = err?.data || err?.response?.data || err?.message || String(err);
+        console.error('[飞书] 卡片发送失败 [' + receiveType + '] err=', typeof detail === 'object' ? JSON.stringify(detail) : detail);
+        return { success: false, reason: typeof detail === 'object' ? (detail.msg || detail.code || detail.message || String(detail)) : String(detail) };
+    }
+}
+
+function buildLeaveApprovalCard(leave, applicant) {
+    var emoji = { '\u5e74\u5047': '\ud83c\udf34', '\u4e8b\u5047': '\ud83d\udccb', '\u75c5\u5047': '\ud83e\udd12', '\u5a5a\u5047': '\ud83d\udc91', '\u4ea7\u5047': '\ud83d\udc76', '\u4e27\u5047': '\ud83d\udd6f\ufe0f' };
+    var typeEmoji = emoji[leave.type] || '\ud83d\udcdd';
+    var courseLine = leave.course ? '\n**\ud83d\udcda \u6d89\u53ca\u8bfe\u7a0b**\uff1a' + leave.course : '';
+    return {
+        config: { wide_screen_mode: true },
+        header: { title: { tag: 'plain_text', content: '\ud83d\udccb \u8bf7\u5047\u5ba1\u6279\u7533\u8bf7' }, template: 'blue' },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\ud83d\udc64 \u7533\u8bf7\u4eba**\uff1a' + (applicant?.name || '\u672a\u77e5') + '\uff08' + (applicant?.department || '') + '\uff09\n' +
+                '**' + typeEmoji + ' \u7c7b\u578b**\uff1a' + leave.type + ' \u00b7 ' + leave.days + '\u5929\n' +
+                '**\ud83d\udcc5 \u65f6\u95f4**\uff1a' + leave.start_date + ' ~ ' + leave.end_date + '\n' +
+                '**\ud83d\udcac \u4e8b\u7531**\uff1a' + (leave.reason || '\u65e0') + '\n' +
+                '**\ud83d\udd19 \u7f16\u53f7**\uff1a#' + leave.id + courseLine
+            } },
+            { tag: 'hr' },
+            { tag: 'action', actions: [
+                { tag: 'button', text: { tag: 'plain_text', content: '\u2705 \u540c\u610f\u5e76\u6279\u5047' }, value: { action: 'approve_leave', leave_id: leave.id }, type: 'primary' },
+                { tag: 'button', text: { tag: 'plain_text', content: '\u274c \u62d2\u7edd' }, value: { action: 'reject_leave', leave_id: leave.id }, type: 'danger' }
+            ] },
+            { tag: 'note', elements: [{ tag: 'plain_text', content: '\u70b9\u51fb\u6309\u94ae\u5373\u53ef\u5ba1\u6279\uff0c\u4e5f\u53ef\u56de\u590d\u300c\u540c\u610f #' + leave.id + '\u300d\u6216\u300c\u4e0d\u540c\u610f #' + leave.id + '\u300d' }] }
+        ]
+    };
+}
+
+function buildLeaveResultCard(leave, result, approverName, comment) {
+    var isApproved = result === 'APPROVED';
+    return {
+        config: { wide_screen_mode: true },
+        header: { title: { tag: 'plain_text', content: (isApproved ? '\u2705 \u8bf7\u5047\u5df2\u6279\u51c6' : '\u274c \u8bf7\u5047\u672a\u901a\u8fc7') }, template: isApproved ? 'green' : 'red' },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\ud83d\udccb \u7c7b\u578b**\uff1a' + leave.type + ' \u00b7 ' + leave.days + '\u5929\n' +
+                '**\ud83d\udcc5 \u65f6\u95f4**\uff1a' + leave.start_date + ' ~ ' + leave.end_date + '\n' +
+                '**\ud83d\udc64 \u5ba1\u6279\u4eba**\uff1a' + approverName + '\n' +
+                '**\ud83d\udcac \u5ba1\u6279\u610f\u89c1**\uff1a' + (comment || (isApproved ? '\u5df2\u6279\u51c6' : '\u4e0d\u4e88\u6279\u51c6'))
+            } },
+            { tag: 'note', elements: [{ tag: 'plain_text', content: isApproved ? '\ud83c\udf89 \u5047\u671f\u6109\u5feb\uff01' : '\u5982\u6709\u7591\u95ee\u8bf7\u8054\u7cfb\u5ba1\u6279\u4eba' }] }
+        ]
+    };
+}
+
+// ---------- 给系统用户发飞书审批卡片 ----------
+async function sendCardToUser(systemUserId, cardContent) {
+    var feishuOpenId = getFeishuIdBySystemUser(systemUserId);
+    if (!feishuOpenId) return { success: false, reason: '\u8be5\u7528\u6237\u672a\u7ed1\u5b9a\u98de\u4e66' };
+    return await sendFeishuCard(feishuOpenId, 'open_id', cardContent);
 }
 
 // ---------- 发飞书群消息 ----------
@@ -977,6 +1049,42 @@ app.get('/api/feishu/bindings', auth, (req, res) => {
     try {
         res.json(query('SELECT f.feishu_open_id, f.system_user_id, u.name as user_name FROM feishu_user_map f LEFT JOIN users u ON f.system_user_id = u.id'));
     } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 飞书卡片按钮回调（教师点击同意/拒绝时飞书回调）
+app.post('/api/feishu/card/action', async (req, res) => {
+    try {
+        var body = req.body;
+        var action = body?.action?.value || {};
+        var openId = body?.operator?.open_id || body?.user?.open_id || '';
+        console.log('[飞书卡片] 回调 action=' + JSON.stringify(action));
+        if (!action.leave_id) return res.json({ code: 0, msg: 'no action' });
+        var leaveId = parseInt(action.leave_id);
+        var operator = getSystemUserByFeishuId(openId);
+        if (!operator) return res.json({ code: 0, msg: 'user not bound' });
+        var leave = query('SELECT * FROM leave_requests WHERE id = ?', [leaveId])[0];
+        if (!leave || leave.status !== 'PENDING') return res.json({ code: 0, msg: 'done' });
+        var applicant = query('SELECT id, name, department FROM users WHERE id = ?', [leave.user_id])[0];
+        if (action.action === 'approve_leave') {
+            run("UPDATE leave_requests SET status='APPROVED', approver_id=?, approver_comment='已批准', updated_at=datetime('now') WHERE id=?", [operator.id, leaveId]);
+            console.log('[飞书卡片] ' + operator.name + ' 批准请假 #' + leaveId);
+            if (applicant) {
+                var oid = getFeishuIdBySystemUser(applicant.id);
+                if (oid) await sendFeishuCard(oid, 'open_id', buildLeaveResultCard(leave, 'APPROVED', operator.name, '已批准'));
+            }
+        } else if (action.action === 'reject_leave') {
+            run("UPDATE leave_requests SET status='REJECTED', approver_id=?, approver_comment='不予批准', updated_at=datetime('now') WHERE id=?", [operator.id, leaveId]);
+            console.log('[飞书卡片] ' + operator.name + ' 驳回请假 #' + leaveId);
+            if (applicant) {
+                var oid2 = getFeishuIdBySystemUser(applicant.id);
+                if (oid2) await sendFeishuCard(oid2, 'open_id', buildLeaveResultCard(leave, 'REJECTED', operator.name, '不予批准'));
+            }
+        }
+        res.json({ code: 0, msg: 'success' });
+    } catch (e) {
+        console.error('[飞书卡片] 错误:', e.message);
+        res.json({ code: 0, msg: 'error: ' + e.message });
+    }
 });
 
 // 公文
@@ -2250,12 +2358,15 @@ async function start() {
         if (aiAgents) {
             try {
                 if (dbHelper) aiAgents.injectDB(dbHelper);
-                // 飞书消息发送器
+                // 飞书消息发送器（含交互卡片）
                 aiAgents.injectFeishu({
                     sendToUser: async (userId, text) => await sendFeishuToUser(userId, text),
                     sendToApprovers: async (text) => await sendFeishuToApprovers(text),
                     sendToUserByName: async (name, text) => await sendFeishuToUserByName(name, text),
-                    sendToChat: async (chatId, text) => await sendFeishuMsg(chatId, text)
+                    sendToChat: async (chatId, text) => await sendFeishuMsg(chatId, text),
+                    sendCardToUser: async (userId, card) => await sendCardToUser(userId, card),
+                    buildLeaveApprovalCard: buildLeaveApprovalCard,
+                    buildLeaveResultCard: buildLeaveResultCard
                 });
                 console.log('[OK] AI 智能体依赖已注入');
             } catch (e) {
