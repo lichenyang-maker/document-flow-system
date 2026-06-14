@@ -1,7 +1,21 @@
-node_modules/
-*.log
-.env
-.DS_Store
-*.bak
-*.tmp
+# 测试临时文件
+check_js*.js
+deep-test.js
+full-api-test.js
+test-*.js
+test-*.ps1
+verify_*.js
+temp_check.js
+
+# 日志文件
+server_*.txt
+
+# 数据库
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 系统生成
+node_modules/
+.env
