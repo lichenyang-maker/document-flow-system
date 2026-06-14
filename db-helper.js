@@ -210,8 +210,14 @@ function initDBHelper(db, saveDB) {
         const params = [];
         if (userId) { sql += ' AND user_id = ?'; params.push(userId); }
         if (onlyApproved) { sql += ' AND status = ?'; params.push('APPROVED'); }
-        if (startDate) { sql += ' AND start_date >= ?'; params.push(startDate); }
-        if (endDate) { sql += ' AND start_date <= ?'; params.push(endDate); }
+        // 修复：检查日期重叠，而非仅start_date
+        if (startDate && endDate) {
+            sql += ' AND start_date <= ? AND end_date >= ?';
+            params.push(endDate, startDate);
+        } else {
+            if (startDate) { sql += ' AND start_date >= ?'; params.push(startDate); }
+            if (endDate) { sql += ' AND start_date <= ?'; params.push(endDate); }
+        }
         const r = dbGet(sql, params);
         return { days: (r && r.total_days) || 0, count: (r && r.count) || 0 };
     }
