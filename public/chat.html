@@ -2,535 +2,414 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 多智能体 · DocFlow</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AI 智能助手 · DocFlow 公文流转系统</title>
 <style>
-  :root {
-    --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-500: #6366f1; --brand-600: #4f46e5; --brand-700: #4338ca;
-    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0; --slate-300: #cbd5e1;
-    --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569; --slate-700: #334155;
-    --slate-800: #1e293b; --slate-900: #0f172a; --slate-950: #020617;
-    --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
-    --bg: #f5f6f8; --card: #ffffff; --border: #e5e7eb;
-    --text: #0f172a; --text-sub: #475569; --text-muted: #94a3b8;
-    --radius: 8px; --radius-lg: 12px;
-    --agent-leave: #7c3aed; --agent-doc: #2563eb; --agent-stats: #059669; --agent-notify: #d97706;
-    --agent-general: #6366f1; --agent-approve: #dc2626;
-  }
-  html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    font-size: 14px; line-height: 1.5; }
-  * { box-sizing: border-box; }
-  .app-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; overflow: hidden; }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f2f5;--card:#fff;--border:#e4e7ed;--border-light:#ebeef5;
+  --text:#303133;--text-sub:#606266;--text-muted:#909399;--text-placeholder:#c0c4cc;
+  --primary:#409eff;--primary-dark:#337ecc;--primary-light:#ecf5ff;
+  --success:#67c23a;--warning:#e6a23c;--danger:#f56c6c;--info:#909399;
+  --sidebar-bg:#1d1e26;--sidebar-text:#bfc2d0;--sidebar-hover:#2a2b36;--sidebar-active:#363749;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.04);--shadow:0 2px 8px rgba(0,0,0,0.06);--shadow-lg:0 4px 16px rgba(0,0,0,0.08);
+  --radius-sm:4px;--radius:6px;--radius-md:8px;--radius-lg:12px;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+  font-size:14px;-webkit-font-smoothing:antialiased
+}
+html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
+.app{display:flex;height:100vh;overflow:hidden}
 
-  /* 侧边栏 - Agent 面板 */
-  .sidebar { background: var(--slate-900); color: #cbd5e1; display: flex; flex-direction: column; overflow: hidden; }
-  .sidebar-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .sidebar-logo { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #6366f1, #a855f7); flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
-  .sb-title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.2; }
-  .sb-sub { font-size: 10px; color: rgba(255,255,255,0.35); }
+/* ===== Sidebar ===== */
+.sidebar{width:240px;background:var(--sidebar-bg);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar-brand{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sidebar-brand-icon{width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#409eff,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-brand-icon svg{width:16px;height:16px;color:#fff}
+.sidebar-brand-text{line-height:1.2}
+.sidebar-brand-name{font-size:14px;font-weight:600;color:#fff}
+.sidebar-brand-sub{font-size:10px;color:rgba(255,255,255,0.35)}
+.sidebar-scroll{flex:1;overflow-y:auto;padding:10px 0}
+.sidebar-scroll::-webkit-scrollbar{width:3px}
+.sidebar-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+.sidebar-group{padding:4px 12px 8px}
+.sidebar-group-title{font-size:10px;font-weight:600;color:rgba(255,255,255,0.25);letter-spacing:.05em;text-transform:uppercase;padding:6px 6px 4px}
+.agent-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;cursor:pointer;transition:all .15s;margin-bottom:1px;border:1px solid transparent}
+.agent-item:hover{background:var(--sidebar-hover)}
+.agent-item.active{background:var(--sidebar-active);border-color:rgba(255,255,255,0.06)}
+.agent-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.agent-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0}
+.agent-info{flex:1;min-width:0}
+.agent-name{font-size:12.5px;color:#e8eaf0;font-weight:500}
+.agent-desc{font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-badge{font-size:9px;padding:1px 6px;border-radius:8px;font-weight:500;letter-spacing:.02em;flex-shrink:0}
+.sidebar-footer{padding:10px 14px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+.sidebar-footer a{color:rgba(255,255,255,0.3);font-size:11px;text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 0;transition:color .15s}
+.sidebar-footer a:hover{color:rgba(255,255,255,0.6)}
 
-  .agent-section { flex: 1; overflow-y: auto; padding: 10px 12px; }
-  .agent-section::-webkit-scrollbar { width: 3px; }
-  .agent-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-  .agent-group { margin-bottom: 10px; }
-  .agent-group-title { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; padding: 0 4px; }
-  .agent-card { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 5px; margin-bottom: 3px;
-    cursor: pointer; transition: all 0.12s; border: 1px solid transparent; }
-  .agent-card:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.06); }
-  .agent-card.active { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.25); }
-  .agent-icon { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; flex-shrink: 0; }
-  .agent-info { flex: 1; min-width: 0; }
-  .agent-name { font-size: 11.5px; font-weight: 500; color: #e2e8f0; }
-  .agent-desc { font-size: 9.5px; color: rgba(255,255,255,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .agent-badge { font-size: 8px; padding: 1px 5px; border-radius: 8px; font-weight: 600; letter-spacing: 0.05em; }
+/* ===== Main ===== */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:48px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.topbar-back{width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;text-decoration:none;color:var(--text-sub)}
+.topbar-back:hover{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
+.topbar-back svg{width:11px;height:11px}
+.topbar-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub)}
+.topbar-status-dot{width:6px;height:6px;border-radius:50%;display:none;flex-shrink:0}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.topbar-btn{padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text-sub);font-size:11px;cursor:pointer;transition:all .12s}
+.topbar-btn:hover{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
 
-  .sidebar-footer { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
-  .sidebar-footer a { color: rgba(255,255,255,0.4); font-size: 11px; text-decoration: none; display: block; padding: 4px 0; }
-  .sidebar-footer a:hover { color: #cbd5e1; }
+/* ===== Messages ===== */
+.msgs{flex:1;overflow-y:auto;padding:16px 24px}
+.msgs::-webkit-scrollbar{width:5px}
+.msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.msgs-inner{max-width:740px;margin:0 auto}
 
-  /* 主内容区 */
-  .main-content { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-  .top-bar { background: var(--card); border-bottom: 1px solid var(--border);
-    padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
-  .top-left { display: flex; align-items: center; gap: 10px; }
-  .back-btn { width: 28px; height: 28px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
-    color: var(--slate-500); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.12s; text-decoration: none; }
-  .back-btn:hover { background: var(--brand-50); color: var(--brand-600); border-color: var(--brand-200); }
-  .back-btn svg { width: 12px; height: 12px; }
-  .active-agent-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); }
-  .active-agent-dot { width: 6px; height: 6px; border-radius: 50%; display: none; }
-  .top-right { display: flex; align-items: center; gap: 8px; }
-  .clear-btn { padding: 5px 10px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
-    color: var(--text-sub); font-size: 11px; cursor: pointer; }
-  .clear-btn:hover { background: var(--slate-100); }
+.welcome{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 24px;margin-bottom:20px}
+.welcome h2{font-size:16px;font-weight:600;margin-bottom:4px}
+.welcome p{font-size:12px;color:var(--text-sub);margin-bottom:14px}
+.agent-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.agent-card{cursor:pointer;padding:10px 8px;text-align:center;border:1px solid var(--border-light);border-radius:var(--radius-sm);background:var(--bg);transition:all .15s}
+.agent-card:hover{border-color:var(--primary);background:var(--primary-light);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.agent-card .icon{font-size:20px;margin-bottom:3px}
+.agent-card .name{font-size:11px;font-weight:500;color:var(--text)}
+.agent-card .sub{font-size:9.5px;color:var(--text-muted);margin-top:1px}
+.examples{display:flex;flex-wrap:wrap;gap:5px}
+.example-btn{font-size:11px;padding:3px 10px;border-radius:10px;border:1px solid var(--border-light);color:var(--text-sub);cursor:pointer;transition:all .12s;background:var(--card)}
+.example-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
 
-  .chat-messages { flex: 1; overflow-y: auto; padding: 16px 20px; max-width: 800px; width: 100%; margin: 0 auto; }
-  .chat-messages::-webkit-scrollbar { width: 5px; }
-  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.msg{margin-bottom:12px;display:flex;gap:8px;align-items:flex-start}
+.msg.user{flex-direction:row-reverse}
+.msg-avatar{width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:600}
+.msg.user .msg-avatar{background:var(--primary);color:#fff}
+.msg .msg-avatar{font-size:14px}
+.msg-bubble{max-width:calc(100% - 48px);padding:8px 13px;border-radius:var(--radius-sm);font-size:13.5px;line-height:1.65;word-wrap:break-word;white-space:pre-wrap}
+.msg.user .msg-bubble{background:var(--primary);color:#fff}
+.msg.assistant .msg-bubble{background:var(--card);border:1px solid var(--border);color:var(--text)}
+.msg-agent{display:inline-block;font-size:9.5px;font-weight:500;padding:1px 7px;border-radius:8px;margin-right:5px;margin-bottom:2px}
+.msg-time{font-size:10px;color:var(--text-muted);margin-top:2px}
+.msg.user .msg-time{text-align:right}
 
-  .welcome-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 20px 24px; margin-bottom: 16px; }
-  .welcome-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-  .welcome-sub { font-size: 12px; color: var(--slate-500); margin-bottom: 14px; }
+/* ===== Input ===== */
+.input-wrap{background:var(--card);border-top:1px solid var(--border);padding:10px 20px 14px;flex-shrink:0}
+.input-inner{max-width:740px;margin:0 auto}
+.upload-bar{display:none;align-items:center;gap:6px;margin-bottom:6px}
+.upload-bar.show{display:flex}
+.file-chip{display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--primary-light);border:1px solid var(--primary);border-radius:var(--radius-sm);font-size:11px;color:var(--primary)}
+.file-chip .name{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-chip .size{color:var(--text-muted);font-size:10px}
+.file-chip .remove{cursor:pointer;font-size:13px;line-height:1;margin-left:2px;color:var(--danger);opacity:.6}
+.file-chip .remove:hover{opacity:1}
+.input-row{display:flex;gap:6px;align-items:flex-end}
+.input-row textarea{flex:1;padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);resize:none;font-size:13.5px;font-family:inherit;outline:none;background:var(--card);color:var(--text);min-height:36px;max-height:120px;transition:border-color .15s}
+.input-row textarea:focus{border-color:var(--primary)}
+.btn-upload{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-sub);flex-shrink:0;transition:all .12s;font-size:14px}
+.btn-upload:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+.btn-send{height:32px;padding:0 14px;border-radius:var(--radius-sm);background:var(--primary);color:#fff;border:none;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0;transition:all .12s}
+.btn-send:hover{background:var(--primary-dark)}
+.btn-send:disabled{background:var(--info);cursor:default}
+.input-hint{font-size:10px;color:var(--text-placeholder);margin-top:4px}
 
-  .agent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-  .agent-grid-item { padding: 10px 8px; background: var(--slate-50); border: 1px solid var(--border);
-    border-radius: 7px; text-align: center; cursor: pointer; transition: all 0.12s; }
-  .agent-grid-item:hover { background: var(--brand-50); border-color: var(--brand-200); transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-  .agent-grid-icon { font-size: 20px; margin-bottom: 4px; }
-  .agent-grid-name { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-  .agent-grid-desc { font-size: 9.5px; color: var(--text-muted); }
+/* ===== Drag overlay ===== */
+.drag-overlay{display:none;position:fixed;inset:0;z-index:999;background:rgba(64,158,255,0.06);border:3px dashed var(--primary);align-items:center;justify-content:center;pointer-events:none}
+.drag-overlay.show{display:flex}
+.drag-text{background:var(--card);padding:16px 28px;border-radius:var(--radius-md);box-shadow:var(--shadow-lg);font-size:15px;font-weight:500;color:var(--primary)}
+.drag-text svg{width:20px;height:20px;vertical-align:middle;margin-right:8px}
 
-  .example-prompts { display: flex; flex-wrap: wrap; gap: 5px; }
-  .example-btn { padding: 4px 10px; border-radius: 12px; font-size: 11px; background: var(--slate-50);
-    border: 1px solid var(--border); color: var(--text-sub); cursor: pointer; transition: all 0.12s; }
-  .example-btn:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+@keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+.typing span{display:inline-block;width:4px;height:4px;background:#c0c4cc;border-radius:50%;margin:0 1px;animation:blink 1.4s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
 
-  .message { margin-bottom: 14px; display: flex; gap: 8px; align-items: flex-start; }
-  .message.user { flex-direction: row-reverse; }
-  .message-avatar { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center;
-    justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 600; }
-  .message.user .message-avatar { background: var(--brand-600); color: #fff; }
-  .message.assistant .message-avatar { font-size: 13px; }
-  .message-content { max-width: calc(100% - 48px); }
-  .message-bubble { padding: 9px 13px; border-radius: 7px; font-size: 13.5px; line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
-  .message.user .message-bubble { background: var(--brand-600); color: #fff; }
-  .message.assistant .message-bubble { background: var(--card); color: var(--text); border: 1px solid var(--border); }
-  .msg-agent-tag { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 8px; margin-right: 4px; }
-  .msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
-  .message.user .msg-meta { text-align: right; }
-
-  .input-area { background: var(--card); border-top: 1px solid var(--border);
-    padding: 10px 20px 14px; width: 100%; max-width: 800px; margin: 0 auto; }
-  .input-wrapper { display: flex; gap: 8px; align-items: flex-end; }
-  .input-textarea { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 5px;
-    resize: none; font-size: 13.5px; font-family: inherit; outline: none;
-    background: var(--card); color: var(--text); }
-  .input-textarea:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-  .send-btn { padding: 8px 16px; border-radius: 5px; background: var(--brand-600); color: #fff;
-    border: none; font-size: 12px; font-weight: 500; cursor: pointer; }
-  .send-btn:hover { background: var(--brand-700); }
-  .send-btn:disabled { background: var(--slate-400); cursor: not-allowed; }
-  .hint-text { font-size: 10px; color: var(--text-muted); margin-top: 5px; opacity: 0.6; }
-
-  /* 文件上传 */
-  .upload-bar { display: none; align-items: center; gap: 8px; padding: 6px 0; }
-  .upload-bar.show { display: flex; }
-  .file-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--brand-50);
-    border: 1px solid var(--brand-200); border-radius: 5px; font-size: 12px; color: var(--brand-600); }
-  .file-chip .file-icon { font-size: 14px; }
-  .file-chip .file-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .file-chip .file-size { color: var(--text-muted); font-size: 10px; }
-  .file-chip .file-remove { cursor: pointer; color: var(--danger); font-size: 14px; line-height: 1; margin-left: 4px; }
-  .file-chip .file-remove:hover { opacity: 0.7; }
-  .upload-btn-group { display: flex; gap: 6px; }
-  .upload-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--card);
-    color: var(--text-sub); font-size: 11px; cursor: pointer; transition: all 0.12s; }
-  .upload-btn:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
-  .upload-btn svg { width: 12px; height: 12px; vertical-align: middle; margin-right: 3px; }
-
-  .drag-overlay { display: none; position: fixed; inset: 0; z-index: 999;
-    background: rgba(99,102,241,0.08); border: 3px dashed var(--brand-500);
-    align-items: center; justify-content: center; pointer-events: none; }
-  .drag-overlay.show { display: flex; }
-  .drag-overlay-text { font-size: 18px; font-weight: 600; color: var(--brand-600);
-    background: var(--card); padding: 20px 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-  .drag-overlay-text svg { width: 28px; height: 28px; vertical-align: middle; margin-right: 8px; }
-
-  .typing-indicator { display: inline-flex; align-items: center; color: var(--slate-500); font-size: 12px; gap: 5px; }
-  .typing-dots span { display: inline-block; width: 4px; height: 4px; background: var(--slate-300);
-    border-radius: 50%; margin: 0 1px; animation: typing 1.4s infinite; }
-  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes typing { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-
-  @media (max-width: 768px) {
-    .app-container { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .chat-messages { padding: 12px; }
-    .input-area { padding: 8px 12px; }
-    .agent-grid { grid-template-columns: repeat(2, 1fr); }
-  }
+@media(max-width:768px){
+  .sidebar{display:none}
+  .msgs{padding:12px}
+  .input-wrap{padding:8px 12px}
+  .agent-cards{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
-<div class="app-container">
+<div class="app">
 
-  <!-- 侧边栏：Agent 面板 -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">AI</div>
-      <div><div class="sb-title">多智能体系统</div><div class="sb-sub">7 个 Agent · 协作工作</div></div>
-    </div>
-    <div class="agent-section">
-      <div class="agent-group">
-        <div class="agent-group-title">核心业务</div>
-        <div class="agent-card active" data-agent="general" onclick="selectAgent('general')">
-          <div class="agent-icon" style="background:rgba(99,102,241,0.2);color:#a5b4fc">🤖</div>
-          <div class="agent-info"><div class="agent-name">全能助手</div><div class="agent-desc">闲聊 + 综合办公·自动路由</div></div>
-          <span class="agent-badge" style="background:rgba(99,102,241,0.2);color:#a5b4fc">Router</span>
-        </div>
-        <div class="agent-card" data-agent="leave" onclick="quickSend('我要请假3天回家')">
-          <div class="agent-icon" style="background:rgba(124,58,237,0.2);color:#c4b5fd">📋</div>
-          <div class="agent-info"><div class="agent-name">请假智能体</div><div class="agent-desc">请假申请·审批·查询</div></div>
-          <span class="agent-badge" style="background:rgba(124,58,237,0.15);color:#c4b5fd">Leave</span>
-        </div>
-        <div class="agent-card" data-agent="document" onclick="quickSend('帮我起草一份采购申请')">
-          <div class="agent-icon" style="background:rgba(37,99,235,0.2);color:#93c5fd">📄</div>
-          <div class="agent-info"><div class="agent-name">公文智能体</div><div class="agent-desc">公文起草·审批·归档</div></div>
-          <span class="agent-badge" style="background:rgba(37,99,235,0.15);color:#93c5fd">Doc</span>
-        </div>
-      </div>
-      <div class="agent-group">
-        <div class="agent-group-title">数据 & 通知</div>
-        <div class="agent-card" data-agent="stats" onclick="quickSend('本周请假统计')">
-          <div class="agent-icon" style="background:rgba(5,150,105,0.2);color:#6ee7b7">📊</div>
-          <div class="agent-info"><div class="agent-name">数据分析师</div><div class="agent-desc">统计查询·报表生成</div></div>
-          <span class="agent-badge" style="background:rgba(5,150,105,0.15);color:#6ee7b7">Stats</span>
-        </div>
-        <div class="agent-card" data-agent="notify" onclick="quickSend('通知所有审批人查看待办')">
-          <div class="agent-icon" style="background:rgba(217,119,6,0.2);color:#fcd34d">🔔</div>
-          <div class="agent-info"><div class="agent-name">通知智能体</div><div class="agent-desc">飞书消息·审批提醒</div></div>
-          <span class="agent-badge" style="background:rgba(217,119,6,0.15);color:#fcd34d">Notify</span>
-        </div>
-        <div class="agent-card" data-agent="approval" onclick="quickSend('待审批事项')">
-          <div class="agent-icon" style="background:rgba(220,38,38,0.2);color:#fca5a5">✅</div>
-          <div class="agent-info"><div class="agent-name">审批顾问</div><div class="agent-desc">审批分析·建议</div></div>
-          <span class="agent-badge" style="background:rgba(220,38,38,0.15);color:#fca5a5">Approval</span>
-        </div>
-      </div>
-      <div class="agent-group">
-        <div class="agent-group-title">协作模式</div>
-        <div class="agent-card" onclick="quickSend('帮我分析一下最近一周的请假和公文情况（多智能体协作）')">
-          <div class="agent-icon" style="background:rgba(236,72,153,0.2);color:#f9a8d4">🤝</div>
-          <div class="agent-info"><div class="agent-name">多智能体协作</div><div class="agent-desc">多个 Agent 并行/串行协作</div></div>
-          <span class="agent-badge" style="background:rgba(236,72,153,0.15);color:#f9a8d4">Team</span>
-        </div>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <div class="sidebar-brand-text"><div class="sidebar-brand-name">DocFlow AI</div><div class="sidebar-brand-sub">企业智能助手 v4.0</div></div>
+  </div>
+  <div class="sidebar-scroll">
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">智能助理</div>
+      <div class="agent-item active" data-agent="general" onclick="quickSend('你能帮我做什么')">
+        <div class="agent-dot" style="background:#409eff"></div>
+        <div class="agent-icon">🤖</div><div class="agent-info"><div class="agent-name">全能助理</div><div class="agent-desc">自动路由 · 综合办公</div></div>
+        <span class="agent-badge" style="background:rgba(64,158,255,.15);color:#409eff">Router</span>
       </div>
     </div>
-    <div class="sidebar-footer">
-      <a href="/">← 返回工作台</a>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">业务处理</div>
+      <div class="agent-item" data-agent="leave" onclick="quickSend('我要请假3天回家')">
+        <div class="agent-dot" style="background:#7c3aed"></div>
+        <div class="agent-icon">📋</div><div class="agent-info"><div class="agent-name">请假管理</div><div class="agent-desc">申请 · 审批 · 查询</div></div>
+        <span class="agent-badge" style="background:rgba(124,58,237,.12);color:#a78bfa">Leave</span>
+      </div>
+      <div class="agent-item" data-agent="document" onclick="quickSend('帮我起草一份采购申请表')">
+        <div class="agent-dot" style="background:#2563eb"></div>
+        <div class="agent-icon">📄</div><div class="agent-info"><div class="agent-name">公文管理</div><div class="agent-desc">起草 · 审批 · 归档</div></div>
+        <span class="agent-badge" style="background:rgba(37,99,235,.12);color:#93c5fd">Doc</span>
+      </div>
+      <div class="agent-item" data-agent="approval" onclick="quickSend('待审批事项')">
+        <div class="agent-dot" style="background:#dc2626"></div>
+        <div class="agent-icon">✅</div><div class="agent-info"><div class="agent-name">审批处理</div><div class="agent-desc">审批 · 驳回 · 建议</div></div>
+        <span class="agent-badge" style="background:rgba(220,38,38,.12);color:#fca5a5">Audit</span>
+      </div>
     </div>
-  </aside>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">数据分析</div>
+      <div class="agent-item" data-agent="stats" onclick="quickSend('本周请假统计')">
+        <div class="agent-dot" style="background:#059669"></div>
+        <div class="agent-icon">📊</div><div class="agent-info"><div class="agent-name">数据分析</div><div class="agent-desc">统计 · 报表 · 洞察</div></div>
+        <span class="agent-badge" style="background:rgba(5,150,105,.12);color:#6ee7b7">Stats</span>
+      </div>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">协作</div>
+      <div class="agent-item" onclick="quickSend('帮我分析最近一周请假和公文情况（多智能体协作）')">
+        <div class="agent-dot" style="background:#ec4899"></div>
+        <div class="agent-icon">🤝</div><div class="agent-info"><div class="agent-name">多智能体协作</div><div class="agent-desc">并行分析 · 综合报告</div></div>
+        <span class="agent-badge" style="background:rgba(236,72,153,.12);color:#f9a8d4">Team</span>
+      </div>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">通知</div>
+      <div class="agent-item" data-agent="notify" onclick="quickSend('通知所有审批人查看待办')">
+        <div class="agent-dot" style="background:#d97706"></div>
+        <div class="agent-icon">🔔</div><div class="agent-info"><div class="agent-name">消息通知</div><div class="agent-desc">飞书 · 提醒 · 推送</div></div>
+        <span class="agent-badge" style="background:rgba(217,119,6,.12);color:#fcd34d">Push</span>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> 返回工作台</a>
+  </div>
+</aside>
 
-  <!-- 主内容区 -->
-  <main class="main-content">
-    <div class="top-bar">
-      <div class="top-left">
-        <a href="/" class="back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a>
-        <div>
-          <div class="active-agent-indicator">
-            <span>AI 多智能体</span>
-            <span class="active-agent-dot" id="agentDot" style="display:none"></span>
-            <span id="agentLabel" style="font-size:11px;color:var(--text-muted)">Router 自动调度</span>
-          </div>
-        </div>
-      </div>
-      <div class="top-right">
-        <button class="clear-btn" onclick="clearChat()">清空对话</button>
-      </div>
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="topbar-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a>
+      <div class="topbar-status"><span>智能助手</span><span class="topbar-status-dot" id="dot" style="display:none"></span><span id="statusLabel" style="font-size:11px;color:var(--text-muted)">Router 自动调度</span></div>
     </div>
+    <div class="topbar-right"><button class="topbar-btn" onclick="clearChat()">清空对话</button></div>
+  </div>
 
-    <div class="chat-messages" id="chatMessages">
-      <div class="welcome-card" id="welcomeCard">
-        <div class="welcome-title">👋 欢迎使用多智能体系统</div>
-        <div class="welcome-sub">点击下方 Agent 直接干活，或发消息自动路由到对应智能体</div>
-        <div class="agent-grid">
-          <div class="agent-grid-item" onclick="quickSend('我要请3天病假')">
-            <div class="agent-grid-icon">📋</div>
-            <div class="agent-grid-name">请假</div>
-            <div class="agent-grid-desc">申请 + 查询 + 审批</div>
-          </div>
-          <div class="agent-grid-item" onclick="quickSend('帮我写一份采购申请表')">
-            <div class="agent-grid-icon">📄</div>
-            <div class="agent-grid-name">公文</div>
-            <div class="agent-grid-desc">起草 + 审批 + 归档</div>
-          </div>
-          <div class="agent-grid-item" onclick="quickSend('本周请假了多少人')">
-            <div class="agent-grid-icon">📊</div>
-            <div class="agent-grid-name">统计</div>
-            <div class="agent-grid-desc">数据查询 + 报表</div>
-          </div>
-          <div class="agent-grid-item" onclick="quickSend('你能帮我做什么')">
-            <div class="agent-grid-icon">🤖</div>
-            <div class="agent-grid-name">闲聊</div>
-            <div class="agent-grid-desc">咨询 + 全能助理</div>
-          </div>
+  <div class="msgs" id="msgs">
+    <div class="msgs-inner">
+      <div class="welcome" id="welcome">
+        <h2>👋 您好，有什么需要帮助？</h2>
+        <p>企业级 AI 智能助理，覆盖请假管理、公文处理、数据分析、审批流转全流程</p>
+        <div class="agent-cards">
+          <div class="agent-card" onclick="quickSend('我要请3天病假')"><div class="icon">📋</div><div class="name">请假申请</div><div class="sub">提交请假 · 查询余额</div></div>
+          <div class="agent-card" onclick="quickSend('帮我起草一份通知')"><div class="icon">📄</div><div class="name">公文起草</div><div class="sub">生成公文 · 审批流转</div></div>
+          <div class="agent-card" onclick="quickSend('本周请假统计')"><div class="icon">📊</div><div class="name">数据统计</div><div class="sub">报表 · 趋势分析</div></div>
+          <div class="agent-card" onclick="quickSend('待审批事项')"><div class="icon">✅</div><div class="name">审批处理</div><div class="sub">同意 · 驳回 · 待办</div></div>
         </div>
-        <div class="example-prompts">
-          <span class="example-btn" onclick="quickSend('我要请假3天回家')">请假3天</span>
-          <span class="example-btn" onclick="quickSend('我还有多少天年假')">年假余额</span>
-          <span class="example-btn" onclick="quickSend('待审批事项')">待审批</span>
-          <span class="example-btn" onclick="quickSend('帮我起草一份通知')">起草公文</span>
-          <span class="example-btn" onclick="quickSend('通知王老师开会')">发通知</span>
-          <span class="example-btn" onclick="quickSend('不同意 #1')">驳回审批</span>
+        <div class="examples">
+          <span class="example-btn" onclick="quickSend('我要请假3天回家')">📝 请假3天</span>
+          <span class="example-btn" onclick="quickSend('我还有多少天年假')">🌴 年假余额</span>
+          <span class="example-btn" onclick="quickSend('待审批事项')">⏳ 待审批</span>
+          <span class="example-btn" onclick="quickSend('帮我起草一份采购申请')">📄 起草公文</span>
+          <span class="example-btn" onclick="quickSend('通知王老师明天开会')">🔔 发通知</span>
+          <span class="example-btn" onclick="quickSend('分析一下本周数据')">📊 数据分析</span>
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="input-area">
+  <div class="input-wrap">
+    <div class="input-inner">
       <div class="upload-bar" id="uploadBar">
-        <div class="file-chip" id="fileChip">
-          <span class="file-icon">📄</span>
-          <span class="file-name" id="fileName">文件.txt</span>
-          <span class="file-size" id="fileSize">0KB</span>
-          <span class="file-remove" onclick="removeFile()">✕</span>
-        </div>
-        <div class="upload-btn-group">
-          <label class="upload-btn" style="cursor:pointer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            换文件
-            <input type="file" id="fileInput" accept=".txt,.md,.js,.py,.html,.css,.json,.csv,.xml,.yaml,.yml,.log" style="display:none" onchange="handleFileSelect(event)">
-          </label>
+        <div class="file-chip">
+          <span>📄</span><span class="name" id="fileName">file.txt</span><span class="size" id="fileSize">0KB</span>
+          <span class="remove" onclick="removeFile()">✕</span>
         </div>
       </div>
-      <div class="input-wrapper">
-        <label class="upload-btn" style="cursor:pointer;padding:5px 8px;flex-shrink:0" title="上传文件供 AI 分析">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <input type="file" id="fileInput2" accept=".txt,.md,.js,.py,.html,.css,.json,.csv,.xml,.yaml,.yml,.log,.docx" style="display:none" onchange="handleFileSelect(event)">
+      <div class="input-row">
+        <label class="btn-upload" title="上传文件供 AI 分析">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <input type="file" id="fileInput" accept=".txt,.md,.js,.py,.html,.css,.json,.csv,.xml,.yaml,.log" style="display:none" onchange="handleFile(event)">
         </label>
-        <textarea class="input-textarea" id="messageInput" rows="2" placeholder="直接说：我要请假 / 查看记录 / 起草公文 / 统计数据... 或上传文件让AI分析" onkeydown="handleKeydown(event)"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+        <textarea id="input" rows="1" placeholder="请输入您的问题，或上传文本文件让 AI 分析..." onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="btn-send" id="sendBtn" onclick="send()">发送</button>
       </div>
-      <div class="hint-text">📎 支持上传 .txt .md .js .py .html .json 等文本文件，AI 直接读取分析</div>
+      <div class="input-hint">支持 .txt .md .js .py .html .json 等文本文件，拖拽或点击上传按钮</div>
     </div>
-    <!-- 拖拽上传遮罩 -->
-    <div class="drag-overlay" id="dragOverlay">
-      <div class="drag-overlay-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>释放文件以供 AI 分析</div>
-    </div>
-  </main>
+  </div>
+</main>
 </div>
 
+<div class="drag-overlay" id="dragOverlay"><div class="drag-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>释放文件，AI 将自动分析</div></div>
+
 <script>
-  var token = localStorage.getItem('token');
-  var conversationId = 'web_' + Date.now();
-  var AGENTS = {
-    general: { name: '全能助手', icon: '🤖', color: '#6366f1' },
-    leave: { name: '请假智能体', icon: '📋', color: '#7c3aed' },
-    document: { name: '公文智能体', icon: '📄', color: '#2563eb' },
-    data: { name: '数据分析师', icon: '📊', color: '#059669' },
-    notify: { name: '通知智能体', icon: '🔔', color: '#d97706' },
-    approval: { name: '审批顾问', icon: '✅', color: '#dc2626' },
-    feishu: { name: '飞书助手', icon: '💬', color: '#0891b2' }
-  };
+var token=localStorage.getItem('token'),conversationId='web_'+Date.now(),selectedFile=null;
+var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{name:'请假管理',icon:'📋',color:'#7c3aed'},document:{name:'公文管理',icon:'📄',color:'#2563eb'},data:{name:'数据分析',icon:'📊',color:'#059669'},notify:{name:'消息通知',icon:'🔔',color:'#d97706'},approval:{name:'审批处理',icon:'✅',color:'#dc2626'}};
 
-  function escapeHTML(text) {
-    var div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+function escapeHTML(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function g(id){return document.getElementById(id)}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
 
-  function checkAuth() {
-    if (token) return true;
-    document.getElementById('chatMessages').innerHTML =
-      '<div style="padding:50px;text-align:center;max-width:400px;margin:0 auto;">' +
-      '<h4 style="color:#0f172a;margin-bottom:6px;font-size:16px;">请先登录</h4>' +
-      '<p style="color:#64748b;margin-bottom:20px;font-size:12px;">返回首页登录后使用 AI</p>' +
-      '<button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button></div>';
-    return false;
-  }
+function selectAgent(id){
+  document.querySelectorAll('.agent-item').forEach(function(c){c.classList.remove('active')});
+  var el=document.querySelector('.agent-item[data-agent="'+id+'"]');
+  if(el)el.classList.add('active');
+}
 
-  function selectAgent(id) {
-    document.querySelectorAll('.agent-card').forEach(function(c) { c.classList.remove('active'); });
-    var card = document.querySelector('.agent-card[data-agent="' + id + '"]');
-    if (card) card.classList.add('active');
-  }
+function getAction(text){
+  if(/请假|病假|事假|年假|休假|婚假|产假|申请/.test(text))return 'leave';
+  if(/公文|起草|通知|请示|报告|纪要|文件|文档|采购|方案/.test(text))return 'document';
+  if(/统计|多少|几个|数据|报表|周报|月报|余额|剩余|趋势/.test(text))return 'data';
+  if(/通知|提醒|告诉|发给|推送/.test(text))return 'notify';
+  if(/审批|同意|批准|驳回|拒绝|不同意|待办|待审批/.test(text))return 'approval';
+  return 'general';
+}
 
-  function getActionType(text) {
-    // 粗略判断意图用于显示 agent tag
-    if (/请假|病假|事假|年假|休假|婚假|产假|申请.*假/.test(text)) return 'leave';
-    if (/公文|起草|通知|请示|报告|会议纪要|文件/.test(text)) return 'document';
-    if (/统计|多少|几个|数据|报表|周报|月报|余额|剩余/.test(text)) return 'data';
-    if (/通知|提醒|告诉|发给/.test(text)) return 'notify';
-    if (/审批|同意|批准|驳回|拒绝|不同意/.test(text)) return 'approval';
-    return 'general';
-  }
+function msgHTML(role,text,agent){
+  var icon=role==='user'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:11px;height:11px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>':(AGENTS[agent]?AGENTS[agent].icon:'🤖');
+  var tag='';
+  if(role==='assistant'&&agent&&AGENTS[agent]){var a=AGENTS[agent];tag='<span class="msg-agent" style="background:'+a.color+'12;color:'+a.color+'">'+a.icon+' '+a.name+'</span>'}
+  var bg=role==='assistant'&&agent&&AGENTS[agent]?AGENTS[agent].color:'';
+  var time=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  return '<div class="msg '+role+'"><div class="msg-avatar"'+(bg?' style="background:'+bg+'10;color:'+bg+'"':'')+'>'+icon+'</div><div class="msg-content"><div class="msg-bubble">'+tag+escapeHTML(text)+'</div><div class="msg-time">'+time+'</div></div></div>';
+}
 
-  function createMessage(role, text, agentId) {
-    var div = document.createElement('div');
-    div.className = 'message ' + role;
-    var avatarContent = role === 'user'
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
-      : (AGENTS[agentId] ? AGENTS[agentId].icon : '🤖');
-    var agentTag = '';
-    if (role === 'assistant' && agentId && AGENTS[agentId]) {
-      var a = AGENTS[agentId];
-      agentTag = '<span class="msg-agent-tag" style="background:' + a.color + '15;color:' + a.color + '">' + a.icon + ' ' + a.name + '</span>';
-    }
-    var bgColor = role === 'assistant' && agentId && AGENTS[agentId] ? AGENTS[agentId].color : '';
-    div.innerHTML =
-      '<div class="message-avatar"' + (bgColor ? ' style="background:' + bgColor + '15;color:' + bgColor + '"' : '') + '>' + avatarContent + '</div>' +
-      '<div class="message-content">' +
-        '<div class="message-bubble">' + agentTag + escapeHTML(text) + '</div>' +
-        '<div class="msg-meta">' + new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) + '</div>' +
-      '</div>';
-    return div;
-  }
+function addMsg(role,text,agent){
+  var inner=document.querySelector('.msgs-inner');
+  inner.insertAdjacentHTML('beforeend',msgHTML(role,text,agent));
+  g('msgs').scrollTop=g('msgs').scrollHeight;
+}
 
-  function handleKeydown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  }
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}
 
-  var selectedFile = null;
+function quickSend(text){
+  if(!checkAuth())return;
+  g('input').value=text;send();
+}
 
-  function handleFileSelect(event) {
-    var file = event.target.files[0];
-    if (!file) return;
-    selectedFile = file;
-    var sizeKB = Math.round(file.size / 1024);
-    var sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + 'MB' : sizeKB + 'KB';
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileSize').textContent = sizeStr;
-    document.getElementById('uploadBar').classList.add('show');
-    // Auto-send after file selected
-    sendMessage();
-  }
+function handleFile(e){
+  var f=e.target.files[0];if(!f)return;
+  selectedFile=f;
+  var kb=Math.round(f.size/1024);
+  g('fileName').textContent=f.name;
+  g('fileSize').textContent=kb>1024?(kb/1024).toFixed(1)+'MB':kb+'KB';
+  g('uploadBar').classList.add('show');
+}
 
-  function removeFile() {
-    selectedFile = null;
-    document.getElementById('uploadBar').classList.remove('show');
-    document.getElementById('fileInput').value = '';
-    document.getElementById('fileInput2').value = '';
-  }
+function removeFile(){selectedFile=null;g('uploadBar').classList.remove('show');g('fileInput').value=''}
 
-  // Drag and drop
-  document.addEventListener('DOMContentLoaded', function() {
-    var mainEl = document.querySelector('.main-content');
-    if (mainEl) {
-      mainEl.addEventListener('dragover', function(e) { e.preventDefault(); document.getElementById('dragOverlay').classList.add('show'); });
-      mainEl.addEventListener('dragleave', function(e) { document.getElementById('dragOverlay').classList.remove('show'); });
-      mainEl.addEventListener('drop', function(e) {
-        e.preventDefault();
-        document.getElementById('dragOverlay').classList.remove('show');
-        var file = e.dataTransfer.files[0];
-        if (file) {
-          selectedFile = file;
-          var sizeKB = Math.round(file.size / 1024);
-          document.getElementById('fileName').textContent = file.name;
-          document.getElementById('fileSize').textContent = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + 'MB' : sizeKB + 'KB';
-          document.getElementById('uploadBar').classList.add('show');
-          sendMessage();
-        }
-      });
-    }
+function readFile(f){
+  return new Promise(function(ok,no){
+    var r=new FileReader();
+    r.onload=function(){ok({name:f.name,size:f.size,type:f.type,content:r.result.split(',')[1]})};
+    r.onerror=function(){no(new Error('读取文件失败'))};
+    r.readAsDataURL(f);
   });
+}
 
-  function quickSend(text) {
-    if (!checkAuth()) return;
-    document.getElementById('messageInput').value = text;
-    sendMessage();
+async function send(){
+  if(!checkAuth())return;
+  var input=g('input'),text=input.value.trim();
+  if(!text&&!selectedFile)return;
+
+  // Read file
+  var fileData=null;
+  if(selectedFile){
+    if(selectedFile.size>5*1024*1024){alert('文件最大支持 5MB');removeFile();return}
+    try{fileData=await readFile(selectedFile);if(!text)text='请分析这个文件：'+selectedFile.name;removeFile()}catch(e){alert('读取失败');removeFile();return}
   }
 
-  function readFileAsBase64(file) {
-    return new Promise(function(resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function() {
-        var base64 = reader.result.split(',')[1];
-        resolve({ name: file.name, size: file.size, type: file.type, content: base64 });
-      };
-      reader.onerror = function() { reject(new Error('读取文件失败')); };
-      reader.readAsDataURL(file);
+  input.value='';input.style.height='auto';
+  var welcome=g('welcome');if(welcome)welcome.style.display='none';
+
+  // Show user msg
+  addMsg('user',fileData?'📎 '+fileData.name+'\n'+text:text);
+
+  var agent=getAction(text);
+  selectAgent(agent);
+  var a=AGENTS[agent]||{name:'AI',color:'#409eff'};
+  g('dot').style.display='inline-block';g('dot').style.background=a.color;
+  g('statusLabel').textContent=a.name+' 处理中...';
+
+  // Waiting
+  var inner=document.querySelector('.msgs-inner');
+  var waitId='w'+Date.now();
+  inner.insertAdjacentHTML('beforeend','<div class="msg assistant" id="'+waitId+'"><div class="msg-avatar" style="background:#ecf5ff;color:#409eff">🤖</div><div class="msg-content"><div class="msg-bubble"><span style="display:inline-flex;align-items:center;gap:4px;color:#909399;font-size:12px"><span class="typing"><span></span><span></span><span></span></span> '+a.name+' 处理中...</span></div></div></div>');
+  g('msgs').scrollTop=g('msgs').scrollHeight;
+
+  try{
+    var endpoint=fileData?'/api/ai/upload':'/api/agents/router';
+    var body={message:text,conversationId:conversationId};
+    if(fileData)body.file=fileData;
+
+    var res=await fetch(endpoint,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify(body)
+    });
+
+    if(res.status===401||res.status===403){
+      localStorage.removeItem('token');
+      g('msgs').innerHTML='<div style="padding:60px;text-align:center;max-width:400px;margin:0 auto"><h3 style="font-size:16px;margin-bottom:8px">登录已过期</h3><p style="color:var(--text-sub);margin-bottom:20px">请返回首页重新登录</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#409eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px">返回首页登录</button></div>';
+      return;
+    }
+
+    var result=await res.json();
+    var waitEl=g(waitId);if(waitEl)waitEl.remove();
+
+    if(result.success&&result.content){
+      addMsg('assistant',result.content,result.action||agent);
+    }else{
+      addMsg('assistant',result.content||result.error||'处理失败',agent);
+    }
+  }catch(e){
+    var waitEl=g(waitId);if(waitEl)waitEl.remove();
+    addMsg('assistant','网络错误：'+e.message);
+  }
+
+  g('statusLabel').textContent='Router 自动调度';
+  g('dot').style.display='none';
+}
+
+function clearChat(){
+  if(!confirm('确认清空对话？'))return;
+  conversationId='web_'+Date.now();
+  var inner=document.querySelector('.msgs-inner');
+  inner.innerHTML='';
+  inner.appendChild(g('welcome'));
+  g('welcome').style.display='';
+}
+
+function checkAuth(){
+  if(token)return true;
+  g('msgs').innerHTML='<div style="padding:60px;text-align:center;max-width:400px;margin:0 auto"><h3 style="font-size:16px;margin-bottom:8px">请先登录</h3><p style="color:var(--text-sub);margin-bottom:20px">登录后即可使用 AI 智能助手</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#409eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px">返回首页登录</button></div>';
+  return false;
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded',function(){
+  var main=document.querySelector('.main');
+  if(main){
+    main.addEventListener('dragover',function(e){e.preventDefault();g('dragOverlay').classList.add('show')});
+    main.addEventListener('dragleave',function(e){g('dragOverlay').classList.remove('show')});
+    main.addEventListener('drop',function(e){
+      e.preventDefault();g('dragOverlay').classList.remove('show');
+      var f=e.dataTransfer.files[0];if(f){selectedFile=f;var kb=Math.round(f.size/1024);g('fileName').textContent=f.name;g('fileSize').textContent=kb>1024?(kb/1024).toFixed(1)+'MB':kb+'KB';g('uploadBar').classList.add('show')}
     });
   }
+});
 
-  async function sendMessage() {
-    if (!checkAuth()) return;
-    var input = document.getElementById('messageInput');
-    var text = input.value.trim();
-    if (!text && !selectedFile) return;
-
-    var fileData = null;
-    if (selectedFile) {
-      try {
-        if (selectedFile.size > 1024 * 1024 * 5) { // 5MB limit
-          alert('文件过大，请上传小于 5MB 的文本文件');
-          removeFile();
-          return;
-        }
-        fileData = await readFileAsBase64(selectedFile);
-        // Use filename as input text if no message
-        if (!text) text = '请分析这个文件：' + selectedFile.name;
-        removeFile();
-      } catch(e) {
-        alert('文件读取失败: ' + e.message);
-        removeFile();
-        return;
-      }
-    }
-
-    input.value = '';
-    var msgs = document.getElementById('chatMessages');
-    var welcome = document.getElementById('welcomeCard');
-    if (welcome) welcome.style.display = 'none';
-
-    // Add user message
-    var userMsg = text;
-    if (fileData) userMsg = '📎 ' + fileData.name + '\n' + text;
-    msgs.appendChild(createMessage('user', userMsg));
-    msgs.scrollTop = msgs.scrollHeight;
-
-    var guessedAgent = getActionType(text);
-    selectAgent(guessedAgent);
-    document.getElementById('agentDot').style.display = 'inline-block';
-    document.getElementById('agentDot').style.background = AGENTS[guessedAgent] ? AGENTS[guessedAgent].color : '#6366f1';
-    document.getElementById('agentLabel').textContent = (AGENTS[guessedAgent] ? AGENTS[guessedAgent].name : 'AI') + ' 处理中...';
-
-    var waiting = document.createElement('div');
-    waiting.className = 'message assistant';
-    waiting.innerHTML = '<div class="message-avatar" style="background:#eef2ff;color:#6366f1">🤖</div><div class="message-content"><div class="message-bubble"><span class="typing-indicator"><span class="typing-dots"><span></span><span></span><span></span></span> ' + (AGENTS[guessedAgent] ? AGENTS[guessedAgent].name : 'AI') + (fileData ? ' 读取文件中...' : ' 思考中...') + '</span></div></div>';
-    msgs.appendChild(waiting);
-    msgs.scrollTop = msgs.scrollHeight;
-
-    try {
-      var endpoint = fileData ? '/api/ai/upload' : '/api/agents/router';
-      var body = { message: text, conversationId: conversationId };
-      if (fileData) body.file = fileData;
-
-      var res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify(body)
-      });
-
-      if (res.status === 401 || res.status === 403) {
-        waiting.remove();
-        localStorage.removeItem('token');
-        document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请重新登录</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer">返回首页登录</button></div>';
-        return;
-      }
-
-      var result = await res.json();
-      waiting.remove();
-
-      if (result.success && result.content) {
-        msgs.appendChild(createMessage('assistant', result.content, result.action || guessedAgent));
-      } else {
-        msgs.appendChild(createMessage('assistant', (result.content || result.error || '处理失败了'), 'general'));
-      }
-    } catch (e) {
-      waiting.remove();
-      msgs.appendChild(createMessage('assistant', '网络错误：' + e.message, 'general'));
-    }
-
-    msgs.scrollTop = msgs.scrollHeight;
-    document.getElementById('agentLabel').textContent = 'Router 自动调度';
-    document.getElementById('agentDot').style.display = 'none';
-  }
-
-  function clearChat() {
-    if (!confirm('清空当前对话？')) return;
-    conversationId = 'web_' + Date.now();
-    var welcome = document.getElementById('welcomeCard');
-    if (welcome) welcome.style.display = '';
-    document.getElementById('chatMessages').innerHTML = '';
-    document.getElementById('chatMessages').appendChild(welcome);
-  }
-
-  (function init() { checkAuth(); })();
+checkAuth();
 </script>
 </body>
 </html>
