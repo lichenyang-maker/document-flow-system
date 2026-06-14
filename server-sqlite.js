@@ -2747,7 +2747,14 @@ app.post('/api/agents/collaboration/execute', auth, async (req, res) => {
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 
 // 飞书 AI 聊天页面
+app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 app.get('/feishu-chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'feishu-chat.html')));
+app.get('/leave', (req, res) => res.sendFile(path.join(__dirname, 'leave.html')));
+app.get('/docflow', (req, res) => res.sendFile(path.join(__dirname, 'docflow.html')));
+app.get('/docflow-pro', (req, res) => res.sendFile(path.join(__dirname, 'docflow_pro.html')));
+app.get('/docflow-advanced', (req, res) => res.sendFile(path.join(__dirname, 'docflow_advanced.html')));
+app.get('/docflow-ai', (req, res) => res.sendFile(path.join(__dirname, 'docflow_ai.html')));
+
 
 // ============================================================
 //  启动
