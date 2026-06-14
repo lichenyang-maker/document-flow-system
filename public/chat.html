@@ -3,116 +3,122 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 学工助手 · DocFlow</title>
+<title>AI 多智能体 · DocFlow</title>
 <style>
   :root {
-    --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-200: #c7d2fe;
-    --brand-500: #6366f1; --brand-600: #4f46e5; --brand-700: #4338ca;
+    --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-500: #6366f1; --brand-600: #4f46e5; --brand-700: #4338ca;
     --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0; --slate-300: #cbd5e1;
-    --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569;
-    --slate-700: #334155; --slate-800: #1e293b; --slate-900: #0f172a;
+    --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569; --slate-700: #334155;
+    --slate-800: #1e293b; --slate-900: #0f172a; --slate-950: #020617;
     --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
     --bg: #f5f6f8; --card: #ffffff; --border: #e5e7eb;
     --text: #0f172a; --text-sub: #475569; --text-muted: #94a3b8;
     --radius: 8px; --radius-lg: 12px;
+    --agent-leave: #7c3aed; --agent-doc: #2563eb; --agent-stats: #059669; --agent-notify: #d97706;
+    --agent-general: #6366f1; --agent-approve: #dc2626;
   }
   html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    font-size: 14px; line-height: 1.5; }
   * { box-sizing: border-box; }
+  .app-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; overflow: hidden; }
 
-  .app-container { display: grid; grid-template-columns: 240px 1fr; height: 100vh; overflow: hidden; }
-
-  /* 侧边栏 */
+  /* 侧边栏 - Agent 面板 */
   .sidebar { background: var(--slate-900); color: #cbd5e1; display: flex; flex-direction: column; overflow: hidden; }
-  .sidebar-header { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
-  .sidebar-logo { width: 30px; height: 30px; border-radius: 7px; background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex; align-items: center; justify-content: center; }
-  .sidebar-logo svg { width: 15px; height: 15px; color: #fff; }
-  .sb-title { font-size: 13px; font-weight: 600; color: #fff; }
+  .sidebar-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .sidebar-logo { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #6366f1, #a855f7); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .sb-title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.2; }
   .sb-sub { font-size: 10px; color: rgba(255,255,255,0.35); }
 
-  .nav-section { padding: 14px 14px 8px; }
-  .nav-section-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
-  .nav-buttons { display: flex; flex-direction: column; gap: 4px; }
-  .nav-btn { padding: 7px 10px; border-radius: 5px; text-decoration: none; color: #cbd5e1;
-    font-size: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
-    transition: all 0.12s; }
-  .nav-btn:hover { background: rgba(99,102,241,0.15); color: #c7d2fe; }
-  .nav-btn.active { background: linear-gradient(90deg, rgba(99,102,241,0.2), rgba(99,102,241,0.06)); color: #c7d2fe; }
+  .agent-section { flex: 1; overflow-y: auto; padding: 10px 12px; }
+  .agent-section::-webkit-scrollbar { width: 3px; }
+  .agent-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+  .agent-group { margin-bottom: 10px; }
+  .agent-group-title { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; padding: 0 4px; }
+  .agent-card { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 5px; margin-bottom: 3px;
+    cursor: pointer; transition: all 0.12s; border: 1px solid transparent; }
+  .agent-card:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.06); }
+  .agent-card.active { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.25); }
+  .agent-icon { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; flex-shrink: 0; }
+  .agent-info { flex: 1; min-width: 0; }
+  .agent-name { font-size: 11.5px; font-weight: 500; color: #e2e8f0; }
+  .agent-desc { font-size: 9.5px; color: rgba(255,255,255,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-badge { font-size: 8px; padding: 1px 5px; border-radius: 8px; font-weight: 600; letter-spacing: 0.05em; }
 
-  .quick-actions { padding: 12px 14px; border-top: 1px solid rgba(255,255,255,0.06); }
-  .qa-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; margin-bottom: 8px; }
-  .qa-btn { display: block; width: 100%; padding: 8px 10px; margin-bottom: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03); color: #cbd5e1; font-size: 11.5px; cursor: pointer; text-align: left;
-    transition: all 0.12s; }
-  .qa-btn:hover { background: rgba(99,102,241,0.15); color: #c7d2fe; border-color: rgba(99,102,241,0.3); }
+  .sidebar-footer { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+  .sidebar-footer a { color: rgba(255,255,255,0.4); font-size: 11px; text-decoration: none; display: block; padding: 4px 0; }
+  .sidebar-footer a:hover { color: #cbd5e1; }
 
   /* 主内容区 */
   .main-content { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
   .top-bar { background: var(--card); border-bottom: 1px solid var(--border);
-    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
+    padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
   .top-left { display: flex; align-items: center; gap: 10px; }
-  .back-btn { width: 30px; height: 30px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
+  .back-btn { width: 28px; height: 28px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
     color: var(--slate-500); display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.12s; text-decoration: none; }
   .back-btn:hover { background: var(--brand-50); color: var(--brand-600); border-color: var(--brand-200); }
-  .back-btn svg { width: 13px; height: 13px; }
-  .top-title { font-size: 14px; font-weight: 600; color: var(--text); }
-  .top-sub { font-size: 11px; color: var(--slate-500); }
+  .back-btn svg { width: 12px; height: 12px; }
+  .active-agent-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); }
+  .active-agent-dot { width: 6px; height: 6px; border-radius: 50%; display: none; }
   .top-right { display: flex; align-items: center; gap: 8px; }
-  .clear-btn { padding: 6px 10px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
-    color: var(--text-sub); font-size: 11px; cursor: pointer; transition: all 0.12s; }
+  .clear-btn { padding: 5px 10px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
+    color: var(--text-sub); font-size: 11px; cursor: pointer; }
   .clear-btn:hover { background: var(--slate-100); }
 
-  .chat-messages { flex: 1; overflow-y: auto; padding: 20px; max-width: 800px; width: 100%; margin: 0 auto; }
-  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px 20px; max-width: 800px; width: 100%; margin: 0 auto; }
+  .chat-messages::-webkit-scrollbar { width: 5px; }
   .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
   .welcome-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 20px 24px; margin-bottom: 20px; }
-  .welcome-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-  .welcome-subtitle { font-size: 12px; color: var(--slate-500); margin-bottom: 14px; }
-  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .feature-item { padding: 8px 10px; background: var(--slate-50); border: 1px solid var(--border);
-    border-radius: 5px; font-size: 11px; color: var(--text-sub); text-align: center; cursor: pointer; transition: all 0.12s; }
-  .feature-item:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+    padding: 20px 24px; margin-bottom: 16px; }
+  .welcome-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .welcome-sub { font-size: 12px; color: var(--slate-500); margin-bottom: 14px; }
 
-  .message { margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
+  .agent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .agent-grid-item { padding: 10px 8px; background: var(--slate-50); border: 1px solid var(--border);
+    border-radius: 7px; text-align: center; cursor: pointer; transition: all 0.12s; }
+  .agent-grid-item:hover { background: var(--brand-50); border-color: var(--brand-200); transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .agent-grid-icon { font-size: 20px; margin-bottom: 4px; }
+  .agent-grid-name { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .agent-grid-desc { font-size: 9.5px; color: var(--text-muted); }
+
+  .example-prompts { display: flex; flex-wrap: wrap; gap: 5px; }
+  .example-btn { padding: 4px 10px; border-radius: 12px; font-size: 11px; background: var(--slate-50);
+    border: 1px solid var(--border); color: var(--text-sub); cursor: pointer; transition: all 0.12s; }
+  .example-btn:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+
+  .message { margin-bottom: 14px; display: flex; gap: 8px; align-items: flex-start; }
   .message.user { flex-direction: row-reverse; }
-  .message-avatar { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center;
-    justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600; }
+  .message-avatar { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 600; }
   .message.user .message-avatar { background: var(--brand-600); color: #fff; }
-  .message.assistant .message-avatar { background: var(--brand-50); color: var(--brand-600); }
-  .message-avatar svg { width: 13px; height: 13px; }
+  .message.assistant .message-avatar { font-size: 13px; }
   .message-content { max-width: calc(100% - 48px); }
-  .message-bubble { padding: 10px 14px; border-radius: 7px; font-size: 13.5px; line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
+  .message-bubble { padding: 9px 13px; border-radius: 7px; font-size: 13.5px; line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
   .message.user .message-bubble { background: var(--brand-600); color: #fff; }
-  .message.assistant .message-bubble { background: var(--card); color: var(--text);
-    border: 1px solid var(--border); }
-  .msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+  .message.assistant .message-bubble { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .msg-agent-tag { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 8px; margin-right: 4px; }
+  .msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
   .message.user .msg-meta { text-align: right; }
 
   .input-area { background: var(--card); border-top: 1px solid var(--border);
-    padding: 12px 20px 16px; width: 100%; max-width: 800px; margin: 0 auto; }
-  .quick-buttons { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
-  .quick-btn { padding: 5px 10px; border-radius: 12px; font-size: 11px; background: var(--slate-50);
-    border: 1px solid var(--border); color: var(--text-sub); cursor: pointer; transition: all 0.12s; }
-  .quick-btn:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+    padding: 10px 20px 14px; width: 100%; max-width: 800px; margin: 0 auto; }
   .input-wrapper { display: flex; gap: 8px; align-items: flex-end; }
-  .input-textarea { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 5px;
-    resize: none; font-size: 13.5px; font-family: inherit; outline: none; transition: all 0.12s;
+  .input-textarea { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 5px;
+    resize: none; font-size: 13.5px; font-family: inherit; outline: none;
     background: var(--card); color: var(--text); }
   .input-textarea:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-  .send-btn { padding: 9px 16px; border-radius: 5px; background: var(--brand-600); color: #fff;
-    border: none; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s; }
+  .send-btn { padding: 8px 16px; border-radius: 5px; background: var(--brand-600); color: #fff;
+    border: none; font-size: 12px; font-weight: 500; cursor: pointer; }
   .send-btn:hover { background: var(--brand-700); }
   .send-btn:disabled { background: var(--slate-400); cursor: not-allowed; }
-  .send-btn svg { width: 12px; height: 12px; }
-  .hint-text { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+  .hint-text { font-size: 10px; color: var(--text-muted); margin-top: 5px; opacity: 0.6; }
 
   .typing-indicator { display: inline-flex; align-items: center; color: var(--slate-500); font-size: 12px; gap: 5px; }
-  .typing-dots span { display: inline-block; width: 5px; height: 5px; background: var(--slate-300);
+  .typing-dots span { display: inline-block; width: 4px; height: 4px; background: var(--slate-300);
     border-radius: 50%; margin: 0 1px; animation: typing 1.4s infinite; }
   .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
   .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
@@ -122,33 +128,68 @@
     .app-container { grid-template-columns: 1fr; }
     .sidebar { display: none; }
     .chat-messages { padding: 12px; }
-    .input-area { padding: 10px 12px; }
-    .feature-grid { grid-template-columns: 1fr 1fr; }
+    .input-area { padding: 8px 12px; }
+    .agent-grid { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
 <body>
 <div class="app-container">
 
-  <!-- 侧边栏 -->
+  <!-- 侧边栏：Agent 面板 -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-      <div><div class="sb-title">AI 学工助手</div><div class="sb-sub">DocFlow v4.0</div></div>
+      <div class="sidebar-logo">AI</div>
+      <div><div class="sb-title">多智能体系统</div><div class="sb-sub">7 个 Agent · 协作工作</div></div>
     </div>
-    <div class="nav-section">
-      <div class="nav-section-title">导航</div>
-      <div class="nav-buttons">
-        <a href="/" class="nav-btn">← 返回工作台</a>
-        <a href="/chat" class="nav-btn active">AI 学工助手</a>
+    <div class="agent-section">
+      <div class="agent-group">
+        <div class="agent-group-title">核心业务</div>
+        <div class="agent-card active" data-agent="general" onclick="selectAgent('general')">
+          <div class="agent-icon" style="background:rgba(99,102,241,0.2);color:#a5b4fc">🤖</div>
+          <div class="agent-info"><div class="agent-name">全能助手</div><div class="agent-desc">闲聊 + 综合办公·自动路由</div></div>
+          <span class="agent-badge" style="background:rgba(99,102,241,0.2);color:#a5b4fc">Router</span>
+        </div>
+        <div class="agent-card" data-agent="leave" onclick="quickSend('我要请假3天回家')">
+          <div class="agent-icon" style="background:rgba(124,58,237,0.2);color:#c4b5fd">📋</div>
+          <div class="agent-info"><div class="agent-name">请假智能体</div><div class="agent-desc">请假申请·审批·查询</div></div>
+          <span class="agent-badge" style="background:rgba(124,58,237,0.15);color:#c4b5fd">Leave</span>
+        </div>
+        <div class="agent-card" data-agent="document" onclick="quickSend('帮我起草一份采购申请')">
+          <div class="agent-icon" style="background:rgba(37,99,235,0.2);color:#93c5fd">📄</div>
+          <div class="agent-info"><div class="agent-name">公文智能体</div><div class="agent-desc">公文起草·审批·归档</div></div>
+          <span class="agent-badge" style="background:rgba(37,99,235,0.15);color:#93c5fd">Doc</span>
+        </div>
+      </div>
+      <div class="agent-group">
+        <div class="agent-group-title">数据 & 通知</div>
+        <div class="agent-card" data-agent="stats" onclick="quickSend('本周请假统计')">
+          <div class="agent-icon" style="background:rgba(5,150,105,0.2);color:#6ee7b7">📊</div>
+          <div class="agent-info"><div class="agent-name">数据分析师</div><div class="agent-desc">统计查询·报表生成</div></div>
+          <span class="agent-badge" style="background:rgba(5,150,105,0.15);color:#6ee7b7">Stats</span>
+        </div>
+        <div class="agent-card" data-agent="notify" onclick="quickSend('通知所有审批人查看待办')">
+          <div class="agent-icon" style="background:rgba(217,119,6,0.2);color:#fcd34d">🔔</div>
+          <div class="agent-info"><div class="agent-name">通知智能体</div><div class="agent-desc">飞书消息·审批提醒</div></div>
+          <span class="agent-badge" style="background:rgba(217,119,6,0.15);color:#fcd34d">Notify</span>
+        </div>
+        <div class="agent-card" data-agent="approval" onclick="quickSend('待审批事项')">
+          <div class="agent-icon" style="background:rgba(220,38,38,0.2);color:#fca5a5">✅</div>
+          <div class="agent-info"><div class="agent-name">审批顾问</div><div class="agent-desc">审批分析·建议</div></div>
+          <span class="agent-badge" style="background:rgba(220,38,38,0.15);color:#fca5a5">Approval</span>
+        </div>
+      </div>
+      <div class="agent-group">
+        <div class="agent-group-title">协作模式</div>
+        <div class="agent-card" onclick="quickSend('帮我分析一下最近一周的请假和公文情况（多智能体协作）')">
+          <div class="agent-icon" style="background:rgba(236,72,153,0.2);color:#f9a8d4">🤝</div>
+          <div class="agent-info"><div class="agent-name">多智能体协作</div><div class="agent-desc">多个 Agent 并行/串行协作</div></div>
+          <span class="agent-badge" style="background:rgba(236,72,153,0.15);color:#f9a8d4">Team</span>
+        </div>
       </div>
     </div>
-    <div class="quick-actions">
-      <div class="qa-title">快捷操作</div>
-      <button class="qa-btn" onclick="quickSend('我要请假3天回家')">📝 申请请假</button>
-      <button class="qa-btn" onclick="quickSend('我的请假记录')">🔍 查看记录</button>
-      <button class="qa-btn" onclick="quickSend('我还有多少天年假')">🌴 假期余额</button>
-      <button class="qa-btn" onclick="quickSend('待审批事项')">⏳ 待审批</button>
+    <div class="sidebar-footer">
+      <a href="/">← 返回工作台</a>
     </div>
   </aside>
 
@@ -158,8 +199,11 @@
       <div class="top-left">
         <a href="/" class="back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a>
         <div>
-          <div class="top-title">AI 学工助手</div>
-          <div class="top-sub">请假申请 · 审批处理 · 数据查询</div>
+          <div class="active-agent-indicator">
+            <span>AI 多智能体</span>
+            <span class="active-agent-dot" id="agentDot" style="display:none"></span>
+            <span id="agentLabel" style="font-size:11px;color:var(--text-muted)">Router 自动调度</span>
+          </div>
         </div>
       </div>
       <div class="top-right">
@@ -168,110 +212,160 @@
     </div>
 
     <div class="chat-messages" id="chatMessages">
-      <div class="welcome-card">
-        <div class="welcome-title">👋 欢迎使用 AI 学工助手</div>
-        <div class="welcome-subtitle">我能帮你请假、审批、查询数据，直接告诉我你要做什么</div>
-        <div class="feature-grid">
-          <div class="feature-item" onclick="quickSend('我要请假3天回家')">📝 申请请假</div>
-          <div class="feature-item" onclick="quickSend('我的请假记录')">🔍 查看记录</div>
-          <div class="feature-item" onclick="quickSend('我还有多少天年假')">🌴 假期余额</div>
+      <div class="welcome-card" id="welcomeCard">
+        <div class="welcome-title">👋 欢迎使用多智能体系统</div>
+        <div class="welcome-sub">点击下方 Agent 直接干活，或发消息自动路由到对应智能体</div>
+        <div class="agent-grid">
+          <div class="agent-grid-item" onclick="quickSend('我要请3天病假')">
+            <div class="agent-grid-icon">📋</div>
+            <div class="agent-grid-name">请假</div>
+            <div class="agent-grid-desc">申请 + 查询 + 审批</div>
+          </div>
+          <div class="agent-grid-item" onclick="quickSend('帮我写一份采购申请表')">
+            <div class="agent-grid-icon">📄</div>
+            <div class="agent-grid-name">公文</div>
+            <div class="agent-grid-desc">起草 + 审批 + 归档</div>
+          </div>
+          <div class="agent-grid-item" onclick="quickSend('本周请假了多少人')">
+            <div class="agent-grid-icon">📊</div>
+            <div class="agent-grid-name">统计</div>
+            <div class="agent-grid-desc">数据查询 + 报表</div>
+          </div>
+          <div class="agent-grid-item" onclick="quickSend('你能帮我做什么')">
+            <div class="agent-grid-icon">🤖</div>
+            <div class="agent-grid-name">闲聊</div>
+            <div class="agent-grid-desc">咨询 + 全能助理</div>
+          </div>
+        </div>
+        <div class="example-prompts">
+          <span class="example-btn" onclick="quickSend('我要请假3天回家')">请假3天</span>
+          <span class="example-btn" onclick="quickSend('我还有多少天年假')">年假余额</span>
+          <span class="example-btn" onclick="quickSend('待审批事项')">待审批</span>
+          <span class="example-btn" onclick="quickSend('帮我起草一份通知')">起草公文</span>
+          <span class="example-btn" onclick="quickSend('通知王老师开会')">发通知</span>
+          <span class="example-btn" onclick="quickSend('不同意 #1')">驳回审批</span>
         </div>
       </div>
     </div>
 
     <div class="input-area">
-      <div class="quick-buttons" id="quickButtons">
-        <span class="quick-btn" onclick="quickSend('我要请假3天回家')">请假3天</span>
-        <span class="quick-btn" onclick="quickSend('我的请假记录')">请假记录</span>
-        <span class="quick-btn" onclick="quickSend('假期余额')">假期余额</span>
-      </div>
       <div class="input-wrapper">
-        <textarea class="input-textarea" id="messageInput" rows="2" placeholder="直接告诉我你要做什么... 如：我要请假3天回家" onkeydown="handleKeydown(event)"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
+        <textarea class="input-textarea" id="messageInput" rows="2" placeholder="直接说：我要请假 / 查看记录 / 起草公文 / 统计数据..." onkeydown="handleKeydown(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
       </div>
-      <div class="hint-text">直接说你要做什么，我会直接帮你处理。Enter 发送，Shift+Enter 换行</div>
+      <div class="hint-text">Router Agent 自动识别意图→派给对应 Agent。Enter 发送，Shift+Enter 换行</div>
     </div>
   </main>
 </div>
 
 <script>
-  let token = localStorage.getItem('token');
-  let conversationId = 'web_' + Date.now();
+  var token = localStorage.getItem('token');
+  var conversationId = 'web_' + Date.now();
+  var AGENTS = {
+    general: { name: '全能助手', icon: '🤖', color: '#6366f1' },
+    leave: { name: '请假智能体', icon: '📋', color: '#7c3aed' },
+    document: { name: '公文智能体', icon: '📄', color: '#2563eb' },
+    data: { name: '数据分析师', icon: '📊', color: '#059669' },
+    notify: { name: '通知智能体', icon: '🔔', color: '#d97706' },
+    approval: { name: '审批顾问', icon: '✅', color: '#dc2626' },
+    feishu: { name: '飞书助手', icon: '💬', color: '#0891b2' }
+  };
 
   function escapeHTML(text) {
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
   function checkAuth() {
-    if (!token) {
-      document.getElementById('chatMessages').innerHTML = `
-        <div style="padding:50px;text-align:center;max-width:400px;margin:0 auto;">
-          <div style="width:40px;height:40px;margin:0 auto 14px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </div>
-          <h4 style="color:#0f172a;margin-bottom:6px;font-size:16px;font-weight:600;">请先登录</h4>
-          <p style="color:#64748b;margin-bottom:20px;font-size:12px;">返回首页登录后再使用 AI 学工助手</p>
-          <button onclick="window.location.href='/'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button>
-        </div>`;
-      return false;
-    }
-    return true;
+    if (token) return true;
+    document.getElementById('chatMessages').innerHTML =
+      '<div style="padding:50px;text-align:center;max-width:400px;margin:0 auto;">' +
+      '<h4 style="color:#0f172a;margin-bottom:6px;font-size:16px;">请先登录</h4>' +
+      '<p style="color:#64748b;margin-bottom:20px;font-size:12px;">返回首页登录后使用 AI</p>' +
+      '<button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button></div>';
+    return false;
   }
 
-  function createMessage(role, text) {
-    const div = document.createElement('div');
+  function selectAgent(id) {
+    document.querySelectorAll('.agent-card').forEach(function(c) { c.classList.remove('active'); });
+    var card = document.querySelector('.agent-card[data-agent="' + id + '"]');
+    if (card) card.classList.add('active');
+  }
+
+  function getActionType(text) {
+    // 粗略判断意图用于显示 agent tag
+    if (/请假|病假|事假|年假|休假|婚假|产假|申请.*假/.test(text)) return 'leave';
+    if (/公文|起草|通知|请示|报告|会议纪要|文件/.test(text)) return 'document';
+    if (/统计|多少|几个|数据|报表|周报|月报|余额|剩余/.test(text)) return 'data';
+    if (/通知|提醒|告诉|发给/.test(text)) return 'notify';
+    if (/审批|同意|批准|驳回|拒绝|不同意/.test(text)) return 'approval';
+    return 'general';
+  }
+
+  function createMessage(role, text, agentId) {
+    var div = document.createElement('div');
     div.className = 'message ' + role;
-    const avatarSVG = role === 'user'
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg>';
-    div.innerHTML = `
-      <div class="message-avatar">${avatarSVG}</div>
-      <div class="message-content">
-        <div class="message-bubble">${escapeHTML(text)}</div>
-        <div class="msg-meta">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>
-      </div>
-    `;
+    var avatarContent = role === 'user'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      : (AGENTS[agentId] ? AGENTS[agentId].icon : '🤖');
+    var agentTag = '';
+    if (role === 'assistant' && agentId && AGENTS[agentId]) {
+      var a = AGENTS[agentId];
+      agentTag = '<span class="msg-agent-tag" style="background:' + a.color + '15;color:' + a.color + '">' + a.icon + ' ' + a.name + '</span>';
+    }
+    var bgColor = role === 'assistant' && agentId && AGENTS[agentId] ? AGENTS[agentId].color : '';
+    div.innerHTML =
+      '<div class="message-avatar"' + (bgColor ? ' style="background:' + bgColor + '15;color:' + bgColor + '"' : '') + '>' + avatarContent + '</div>' +
+      '<div class="message-content">' +
+        '<div class="message-bubble">' + agentTag + escapeHTML(text) + '</div>' +
+        '<div class="msg-meta">' + new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) + '</div>' +
+      '</div>';
     return div;
   }
 
   function handleKeydown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   function quickSend(text) {
+    if (!checkAuth()) return;
     document.getElementById('messageInput').value = text;
     sendMessage();
   }
 
   async function sendMessage() {
     if (!checkAuth()) return;
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
+    var input = document.getElementById('messageInput');
+    var text = input.value.trim();
     if (!text) return;
 
     input.value = '';
-    const msgs = document.getElementById('chatMessages');
+    var msgs = document.getElementById('chatMessages');
+    // Remove welcome card on first message
+    var welcome = document.getElementById('welcomeCard');
+    if (welcome) welcome.style.display = 'none';
 
-    // 添加用户消息
+    // Add user message
     msgs.appendChild(createMessage('user', text));
     msgs.scrollTop = msgs.scrollHeight;
 
-    // 添加等待提示
-    const waiting = document.createElement('div');
+    // Show which agent is working
+    var guessedAgent = getActionType(text);
+    selectAgent(guessedAgent);
+    document.getElementById('agentDot').style.display = 'inline-block';
+    document.getElementById('agentDot').style.background = AGENTS[guessedAgent] ? AGENTS[guessedAgent].color : '#6366f1';
+    document.getElementById('agentLabel').textContent = AGENTS[guessedAgent] ? AGENTS[guessedAgent].name + ' 处理中...' : '处理中...';
+
+    // Add waiting indicator
+    var waiting = document.createElement('div');
     waiting.className = 'message assistant';
-    waiting.innerHTML = `<div class="message-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg></div><div class="message-content"><div class="message-bubble"><span class="typing-indicator"><span class="typing-dots"><span></span><span></span><span></span></span> 处理中...</span></div></div>`;
+    waiting.innerHTML = '<div class="message-avatar" style="background:#eef2ff;color:#6366f1">🤖</div><div class="message-content"><div class="message-bubble"><span class="typing-indicator"><span class="typing-dots"><span></span><span></span><span></span></span> ' + (AGENTS[guessedAgent] ? AGENTS[guessedAgent].name : 'AI') + ' 思考中...</span></div></div>';
     msgs.appendChild(waiting);
     msgs.scrollTop = msgs.scrollHeight;
 
     try {
-      const res = await fetch('/api/agents/router', {
+      var res = await fetch('/api/agents/router', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ message: text, conversationId: conversationId })
@@ -280,44 +374,39 @@
       if (res.status === 401 || res.status === 403) {
         waiting.remove();
         localStorage.removeItem('token');
-        document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px;font-size:16px;">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请返回首页重新登录</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button></div>';
+        document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px;font-size:16px;">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请重新登录</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button></div>';
         return;
       }
 
-      const result = await res.json();
+      var result = await res.json();
       waiting.remove();
 
       if (result.success && result.content) {
-        msgs.appendChild(createMessage('assistant', result.content));
+        msgs.appendChild(createMessage('assistant', result.content, result.action || guessedAgent));
       } else {
-        msgs.appendChild(createMessage('assistant', '😅 抱歉，处理失败了：' + (result.error || '未知错误')));
+        msgs.appendChild(createMessage('assistant', (result.content || result.error || '处理失败了，请稍后重试'), 'general'));
       }
     } catch (e) {
       waiting.remove();
-      msgs.appendChild(createMessage('assistant', '😅 网络错误：' + e.message));
+      msgs.appendChild(createMessage('assistant', '网络错误：' + e.message, 'general'));
     }
+
     msgs.scrollTop = msgs.scrollHeight;
+    // Reset indicator
+    document.getElementById('agentLabel').textContent = 'Router 自动调度';
+    document.getElementById('agentDot').style.display = 'none';
   }
 
   function clearChat() {
-    if (!confirm('确认清空当前对话？')) return;
+    if (!confirm('清空当前对话？')) return;
     conversationId = 'web_' + Date.now();
-    document.getElementById('chatMessages').innerHTML = `
-      <div class="welcome-card">
-        <div class="welcome-title">👋 欢迎使用 AI 学工助手</div>
-        <div class="welcome-subtitle">我能帮你请假、审批、查询数据，直接告诉我你要做什么</div>
-        <div class="feature-grid">
-          <div class="feature-item" onclick="quickSend('我要请假3天回家')">📝 申请请假</div>
-          <div class="feature-item" onclick="quickSend('我的请假记录')">🔍 查看记录</div>
-          <div class="feature-item" onclick="quickSend('我还有多少天年假')">🌴 假期余额</div>
-        </div>
-      </div>`;
+    var welcome = document.getElementById('welcomeCard');
+    if (welcome) welcome.style.display = '';
+    document.getElementById('chatMessages').innerHTML = '';
+    document.getElementById('chatMessages').appendChild(welcome);
   }
 
-  // 启动
-  (function init() {
-    if (!checkAuth()) return;
-  })();
+  (function init() { checkAuth(); })();
 </script>
 </body>
 </html>
