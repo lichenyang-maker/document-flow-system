@@ -42,9 +42,9 @@ try {
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'document_flow.db');
 // ⚠️ 生产环境请务必通过环境变量设置，不要将密钥写死在代码中
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || 'cli_aaa152828fb95bda';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || 'REPLACE_WITH_YOUR_ACTUAL_FEISHU_APP_SECRET';
-const SILICONFLOW_KEY = process.env.SILICONFLOW_API_KEY || 'sk-ananqfsipxweyiejefqltsbladjogmgnwfvxnihtjtnxwjem';
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+const SILICONFLOW_KEY = process.env.SILICONFLOW_API_KEY || '';
 
 // ---------- Express ----------
 const app = express();
@@ -905,12 +905,22 @@ function auth(req, res, next) {
     const token = header.slice(7);
     try {
         const [b64, sig] = token.split('.');
-        if (!b64 || !sig) throw new Error('invalid format');
-        const h = crypto.createHmac('sha256', 'docflow-secret-2024').update(b64).digest('base64url');
-        if (h !== sig) throw new Error('invalid sig');
-        const payload = JSON.parse(Buffer.from(b64, 'base64url').toString());
-        req.userId = payload.id;
-        req.userRole = payload.role;
+        if (b64 && sig) {
+            const h = crypto.createHmac('sha256', 'docflow-secret-2024').update(b64).digest('base64url');
+            if (h !== sig) throw new Error('invalid sig');
+            const payload = JSON.parse(Buffer.from(b64, 'base64url').toString());
+            req.userId = payload.id;
+            req.userRole = payload.role;
+            return next();
+        }
+        // 兼容 base64(id:username) 格式
+        var dec = Buffer.from(token, 'base64').toString();
+        var uid = parseInt(dec.split(':')[0]);
+        if (!uid) throw new Error('invalid token');
+        var userRow = query('SELECT id, role FROM users WHERE id = ?', [uid])[0];
+        if (!userRow) throw new Error('user not found');
+        req.userId = userRow.id;
+        req.userRole = userRow.role;
         next();
     } catch { res.status(401).json({ message: '无效凭证' }); }
 }
