@@ -302,6 +302,34 @@ function getFeishuIdBySystemUser(systemUserId) {
     return null;
 }
 
+// ---------- 跨平台对话同步 ----------
+function saveConversation(userId, source, role, content, agent, feishuChatId) {
+    try {
+        run("INSERT INTO conversations (user_id, source, role, content, agent, feishu_chat_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [userId, source, role, content, agent || '', feishuChatId || '']);
+        run("DELETE FROM conversations WHERE user_id = ? AND id NOT IN (SELECT id FROM conversations WHERE user_id = ? ORDER BY id DESC LIMIT 100)", [userId, userId]);
+    } catch (e) {
+        console.error('[对话] 保存失败:', e.message);
+    }
+}
+
+async function sendToFeishuIfBound(userId, text) {
+    const feishuOpenId = getFeishuIdBySystemUser(userId);
+    if (feishuOpenId && larkClient) {
+        try {
+            const r = await _feishuSendRaw(feishuOpenId, 'open_id', text);
+            if (r.success) {
+                console.log('[同步] 已发送到飞书 user_id=' + userId);
+                saveConversation(userId, 'feishu', 'assistant', text, '', '');
+                return true;
+            }
+        } catch (e) {
+            console.warn('[同步] 飞书发送失败:', e.message);
+        }
+    }
+    return false;
+}
+
 // ---------- 发飞书消息（通用，自动根据 receiveId 类型选择）----------
 async function _feishuSendRaw(receiveId, receiveType, text) {
     if (!larkClient) {
@@ -762,6 +790,11 @@ async function handleFeishuMessage(data) {
                     conversationId: 'feishu_' + senderId + '_' + chatId
                 };
 
+                // 保存飞书用户消息到对话记录（供网页端查看）
+                if (user && user.id) {
+                    saveConversation(user.id, 'feishu', 'user', content, '', chatId);
+                }
+
                 console.log('[Router] 处理: "' + content.slice(0, 60) + '" by ' + user.name + ' (' + user.role + ')');
                 const result = await aiAgents.routerAgentProcess(content, context);
 
@@ -772,6 +805,24 @@ async function handleFeishuMessage(data) {
             } catch (err) {
                 console.error('[Router] 路由处理失败:', err.message);
                 await sendFeishuMsg(chatId, '😅 抱歉，处理你的消息时出了点问题，请稍后再试。');
+            }
+            return;
+        }
+
+        // ========== 兜底处理：AI 不可用时回复 ==========
+        if (!aiAgents || !dbHelper) {
+            console.log('[飞书] AI 或数据库未准备就绪，发送兜底回复');
+            try {
+                await sendFeishuMsg(chatId,
+                    '👋 你好！我是学工请假助手小流。\n\n' +
+                    '当前 AI 系统正在初始化或维护中，暂时无法智能回答。\n' +
+                    '你可以尝试以下功能：\n' +
+                    '📝 说「我要请假X天」提交请假\n' +
+                    '✅ 说「同意 #编号」审批请假\n' +
+                    '📊 说「待审批事项」查看待办\n\n' +
+                    '🔧 如果问题持续，请联系管理员检查 AI 服务状态。');
+            } catch (e) {
+                console.error('[飞书] 兜底回复发送失败:', e.message);
             }
             return;
         }
@@ -1415,6 +1466,21 @@ app.post('/api/notify/send', auth, async (req, res) => {
         // 解析意图：判断是给指定用户、还是给审批人
         const lowerMsg = message.toLowerCase();
 
+        // 检查是否是发送到群聊
+        if (/群里|群聊|群发|告诉大家|通知大家|在群里|群通知|发到群/.test(message)) {
+            let content = message;
+            content = content.replace(/在群里|群聊|群发|告诉大家|通知大家|群通知|发到群/g, '').trim();
+            if (!content || content.length < 2) content = '📢 来自系统的群通知';
+
+            const result = await sendFeishuToGroup('📢 群通知\n\n' + content + '\n\n—— ' + new Date().toLocaleString('zh-CN'));
+            return res.json({
+                success: result.success,
+                target: '群聊',
+                content: content,
+                reason: result.reason
+            });
+        }
+
         // 检查是否是发送给审批人
         if (/审批人|管理员|领导|主管|经理/.test(message) ||
             (/(通知|提醒|发消息).*(审批|审批人|批)/.test(message))) {
@@ -1600,6 +1666,34 @@ app.post('/api/leave/:id/reject', auth, async (req, res) => {
             await sendFeishuToUser(leave.user_id, notifyText);
         }
 
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取单个请假详情
+app.get('/api/leave/:id', auth, (req, res) => {
+    try {
+        const leaveId = parseInt(req.params.id);
+        if (!leaveId) return res.status(400).json({ message: '无效的请假编号' });
+        const leave = query('SELECT l.*, u.name as user_name, u.department FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ?', [leaveId])[0];
+        if (!leave) return res.status(404).json({ message: '请假记录不存在' });
+        const cur = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
+        const canSeeAll = cur && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(cur.role);
+        if (!canSeeAll && leave.user_id !== req.userId) return res.status(403).json({ message: '无权查看此请假记录' });
+        res.json(leave);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 取消请假
+app.put('/api/leave/:id/cancel', auth, (req, res) => {
+    try {
+        const leaveId = parseInt(req.params.id);
+        if (!leaveId) return res.status(400).json({ message: '无效的请假编号' });
+        const leave = query('SELECT * FROM leave_requests WHERE id = ?', [leaveId])[0];
+        if (!leave) return res.status(404).json({ message: '请假记录不存在' });
+        if (leave.user_id !== req.userId) return res.status(403).json({ message: '只能取消自己的请假' });
+        if (leave.status !== 'PENDING') return res.status(400).json({ message: '只能取消待审批状态的请假' });
+        run("UPDATE leave_requests SET status='CANCELLED', updated_at=datetime('now') WHERE id=?", [leaveId]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
@@ -2003,12 +2097,55 @@ app.post('/api/stats/query', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// ===== 飞书诊断端点 =====
+app.get('/api/feishu/test', (req, res) => {
+    const status = {
+        larkClient: !!larkClient,
+        tokenValid: feishuTokenValid,
+        appId: FEISHU_APP_ID ? FEISHU_APP_ID.slice(0, 8) + '***' : '未设置',
+        groupChatId: FEISHU_GROUP_CHAT_ID ? FEISHU_GROUP_CHAT_ID.slice(0, 8) + '***' : '未设置',
+        aiAgents: !!aiAgents,
+        dbHelper: !!dbHelper
+    };
+    res.json({ success: true, ...status });
+});
+
+// ===== 飞书消息发送测试 =====
+app.post('/api/feishu/test/send', async (req, res) => {
+    try {
+        const { target, text } = req.body;
+        if (!text) return res.json({ success: false, error: '缺少 text' });
+        let result;
+        if (target === 'group' || !target) {
+            result = await sendFeishuToGroup(text || '🧪 测试消息：飞书消息通道正常');
+        } else {
+            result = await sendFeishuToUser(parseInt(target), text);
+        }
+        res.json({ success: result.success, detail: result });
+    } catch (e) {
+        res.json({ success: false, error: e.message });
+    }
+});
+
 // 飞书 Webhook
 app.post('/api/feishu/webhook', async (req, res) => {
     const body = req.body;
     
     // URL 验证（飞书事件订阅首次配置）
     if (body.type === 'url_verification') {
+        console.log('[飞书Webhook] ✓ URL 验证通过');
+        return res.json({ challenge: body.challenge });
+    }
+    
+    // 快速响应飞书（20ms 内，否则飞书重试）
+    res.json({ success: true });
+    
+    // 打印收到的完整事件结构（调试用）
+    console.log('[飞书Webhook] 收到事件: type=' + (body.header?.event_type || body.type || 'unknown'));
+    
+    // 异步处理消息
+    try {
+        if (body.header?.event_type === 'im.message.receive_v1') {
         return res.json({ challenge: body.challenge });
     }
     
@@ -2214,6 +2351,24 @@ app.post('/api/ai/feishu-router', async (req, res) => {
         }
     } catch (err) {
         console.error('[Feishu Router API] 错误:', err.message);
+    }
+});
+
+// ===== 对话历史 API（跨平台同步）=====
+app.get('/api/conversations', auth, (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        const source = req.query.source || '';
+        let sql = 'SELECT id, source, role, content, agent, feishu_chat_id, created_at FROM conversations WHERE user_id = ?';
+        const params = [req.userId];
+        if (source) { sql += ' AND source = ?'; params.push(source); }
+        sql += ' ORDER BY id DESC LIMIT ?';
+        params.push(limit);
+        const rows = query(sql, params);
+        rows.reverse();
+        res.json({ success: true, conversations: rows });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 
@@ -2610,6 +2765,7 @@ async function start() {
                     sendToApprovers: async (text) => await sendFeishuToApprovers(text),
                     sendToUserByName: async (name, text) => await sendFeishuToUserByName(name, text),
                     sendToChat: async (chatId, text) => await sendFeishuMsg(chatId, text),
+                    sendToGroup: async (text) => await sendFeishuToGroup(text),
                     sendCardToUser: async (userId, card) => await sendCardToUser(userId, card),
                     buildLeaveApprovalCard: buildLeaveApprovalCard,
                     buildLeaveResultCard: buildLeaveResultCard
@@ -2638,7 +2794,8 @@ async function start() {
             { name: 'documents', sql: `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, type TEXT DEFAULT 'NORMAL', priority TEXT DEFAULT 'NORMAL', status TEXT DEFAULT 'PENDING', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
-            { name: 'feishu_user_map', sql: `CREATE TABLE IF NOT EXISTS feishu_user_map (id INTEGER PRIMARY KEY AUTOINCREMENT, feishu_open_id TEXT UNIQUE NOT NULL, system_user_id INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
+            { name: 'feishu_user_map', sql: `CREATE TABLE IF NOT EXISTS feishu_user_map (id INTEGER PRIMARY KEY AUTOINCREMENT, feishu_open_id TEXT UNIQUE NOT NULL, system_user_id INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'conversations', sql: `CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, source TEXT DEFAULT 'web', role TEXT, content TEXT, agent TEXT, feishu_chat_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
         ];
 
         let createdCount = 0;
