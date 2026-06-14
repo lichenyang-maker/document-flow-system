@@ -87,6 +87,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
 .msg.user .msg-bubble{background:var(--primary);color:#fff}
 .msg.assistant .msg-bubble{background:var(--card);border:1px solid var(--border);color:var(--text)}
 .msg-agent{display:inline-block;font-size:9.5px;font-weight:500;padding:1px 7px;border-radius:8px;margin-right:5px;margin-bottom:2px}
+
+/* Markdown 渲染样式 */
+.msg-bubble h1,.msg-bubble h2,.msg-bubble h3{margin:6px 0 4px;font-weight:600;line-height:1.3}
+.msg-bubble h1{font-size:16px}
+.msg-bubble h2{font-size:15px}
+.msg-bubble h3{font-size:14px}
+.msg-bubble p{margin:4px 0}
+.msg-bubble ul,.msg-bubble ol{margin:4px 0;padding-left:18px}
+.msg-bubble li{margin:2px 0}
+.msg-bubble code{background:rgba(0,0,0,0.06);padding:1px 4px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+.msg-bubble pre{background:rgba(0,0,0,0.06);padding:8px 12px;border-radius:4px;overflow-x:auto;margin:6px 0}
+.msg-bubble pre code{background:none;padding:0;font-size:12px}
+.msg-bubble blockquote{border-left:3px solid var(--primary);margin:4px 0;padding:2px 10px;color:var(--text-sub);font-style:italic}
+.msg.user .msg-bubble code{background:rgba(255,255,255,0.2)}
 .msg-time{font-size:10px;color:var(--text-muted);margin-top:2px}
 .msg.user .msg-time{text-align:right}
 
@@ -278,16 +292,65 @@ var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{nam
 document.addEventListener('DOMContentLoaded',function(){loadConversations();});
 
 function escapeHTML(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+// Markdown 渲染：支持粗体、标题、列表、代码块、引用、换行
+function renderMarkdown(text){
+  if (!text) return '';
+  // 先 escape HTML
+  var html = escapeHTML(text);
+  
+  // 代码块 ```code```
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  
+  // 行内代码 `code`
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  
+  // 标题 ### text
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  
+  // 粗体 **text**
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // 斜体 *text*
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // 引用 > text
+  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  
+  // 无序列表 - item
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  
+  // 有序列表 1. item
+  html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  
+  // 换行处理：连续两个换行分段
+  html = html.replace(/\n\n/g, '</p><p>');
+  // 单个换行
+  html = html.replace(/\n/g, '<br>');
+  
+  // 包裹段落（如果没有被其他块级标签包裹）
+  if (!html.startsWith('<')) {
+    html = '<p>' + html + '</p>';
+  }
+  // 修复连续 p 标签
+  html = html.replace(/<p><\/p>/g, '');
+  
+  return html;
+}
+
 function renderContent(text){
   // Render markdown images ![alt](url)
   var imgRegex=/!\[([^\]]*)\]\(([^)]+)\)/g;
   var parts=[],last=0,match;
   while((match=imgRegex.exec(text))!==null){
-    parts.push(escapeHTML(text.substring(last,match.index)));
+    parts.push(renderMarkdown(text.substring(last,match.index)));
     parts.push('<img src="'+match[2]+'" alt="'+match[1]+'" style="max-width:100%;border-radius:4px;margin:4px 0;display:block" loading="lazy" onerror="this.style.display=\'none\'">');
     last=match.index+match[0].length;
   }
-  parts.push(escapeHTML(text.substring(last)));
+  parts.push(renderMarkdown(text.substring(last)));
   return parts.join('');
 }
 function g(id){return document.getElementById(id)}
