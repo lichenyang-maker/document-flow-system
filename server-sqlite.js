@@ -2054,9 +2054,9 @@ app.post('/api/feishu/webhook', async (req, res) => {
     // 快速响应飞书（20ms 内，否则飞书重试）
     res.json({ success: true });
     
-    // 异步处理消息：im.message.receive_v1 由 WS长连接处理，跳过避免重复
+    // 异步处理消息（WS无法接收消息，用Webhook处理）
     try {
-        if (body.header?.event_type !== 'im.message.receive_v1') {
+        if (body.header?.event_type === 'im.message.receive_v1') {
             const event = body.event || {};
             const msg = event.message || {};
             const sender = event.sender || {};
