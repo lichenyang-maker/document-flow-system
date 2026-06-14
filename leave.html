@@ -423,7 +423,7 @@ function doLogin() {
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value;
     if (!u || !p) return toast('请输入用户名和密码', 'error');
-    fetch('/api/auth/login', {
+    fetch('/api/public/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: u, password: p })

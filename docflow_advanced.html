@@ -903,7 +903,7 @@ async function login() {
   btn.innerHTML = '<span class="loading"></span> 登录中...';
   
   try {
-    const d = await api('/auth/login', {
+    const d = await api('/public/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
