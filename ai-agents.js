@@ -169,6 +169,7 @@ const INTENT_TO_AGENT = {
     doc_create: 'document',
     doc_approve: 'approval',
     stats: 'data',
+    chart: 'data',
     notify: 'notify',
     general: 'general'
 };
@@ -938,10 +939,10 @@ async function statsAgentProcess(message, context = {}) {
     // 本周统计
     if (/本周|这周|this week/i.test(message)) {
         const week = dbHelper.getWeekRange();
-        const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, week.start, week.end, false);
+        const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_week.start, c_week.end, false);
         return {
             success: true,
-            content: `📅 本周请假统计（${week.start} ~ ${week.end}）\n\n📝 请假单：${weekLeave.count} 份\n📊 请假天数：${weekLeave.days} 天`,
+            content: `📅 本周请假统计（${c_week.start} ~ ${c_week.end}）\n\n📝 请假单：${c_wl.count} 份\n📊 请假天数：${c_wl.days} 天`,
             action: 'week_stats', data: { week, weekLeave }
         };
     }
@@ -949,10 +950,10 @@ async function statsAgentProcess(message, context = {}) {
     // 本月统计
     if (/本月|这个月/.test(message)) {
         const month = dbHelper.getMonthRange();
-        const monthLeave = dbHelper.countLeavesInRange(adminView ? null : userId, month.start, month.end, false);
+        const monthLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_month.start, c_month.end, false);
         return {
             success: true,
-            content: `📅 本月请假统计（${month.start} ~ ${month.end}）\n\n📝 请假单：${monthLeave.count} 份\n📊 请假天数：${monthLeave.days} 天`,
+            content: `📅 本月请假统计（${c_month.start} ~ ${c_month.end}）\n\n📝 请假单：${c_ml.count} 份\n📊 请假天数：${c_ml.days} 天`,
             action: 'month_stats', data: { month, monthLeave }
         };
     }
@@ -986,11 +987,64 @@ async function statsAgentProcess(message, context = {}) {
         return { success: true, content: text, action: 'doc_stats', data: stats };
     }
 
-    // 系统总览（默认）
+    
+    // ===== 图表生成 =====
+    if (/图表|趋势图|柱状图|饼图|折线图|趋势|chart|统计图/i.test(message)) {
+        try {
+            var c_overview = dbHelper.getSystemOverview();
+            var c_week = dbHelper.getWeekRange();
+            var c_wl= dbHelper.countLeavesInRange(adminView ? null : userId, c_week.start, c_week.end, false);
+            var c_month = dbHelper.getMonthRange();
+            var c_ml= dbHelper.countLeavesInRange(adminView ? null : userId, c_month.start, c_month.end, false);
+            var allLeaves = dbHelper.dbAll("SELECT type, COUNT(*) as cnt FROM leave_requests GROUP BY type");
+            
+            // Build chart data for quickchart.io
+            var typeLabels = []; var typeCounts = [];
+            var typeMap = { '\u5e74\u5047':'\u5e74\u5047', '\u4e8b\u5047':'\u4e8b\u5047', '\u75c5\u5047':'\u75c5\u5047', '\u5a5a\u5047':'\u5a5a\u5047', '\u4ea7\u5047':'\u4ea7\u5047' };
+            for (var i = 0; i < allLeaves.length; i++) {
+                typeLabels.push(allLeaves[i].type || '\u5176\u4ed6');
+                typeCounts.push(allLeaves[i].cnt);
+            }
+            if (typeLabels.length === 0) { typeLabels = ['\u6682\u65e0\u6570\u636e']; typeCounts = [0]; }
+            
+            var chartConfig = JSON.stringify({
+                type: 'bar',
+                data: {
+                    labels: typeLabels,
+                    datasets: [{
+                        label: '\u8bf7\u5047\u7c7b\u578b\u5206\u5e03',
+                        data: typeCounts,
+                        backgroundColor: ['rgba(64,158,255,0.7)', 'rgba(103,194,58,0.7)', 'rgba(230,162,60,0.7)', 'rgba(245,108,108,0.7)', 'rgba(144,147,153,0.7)'],
+                        borderColor: ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    title: { display: true, text: '\u8bf7\u5047\u7edf\u8ba1\u56fe\u8868' },
+                    plugins: { legend: { display: true, position: 'bottom' } },
+                    scales: { yAxes: [{ ticks: { beginAtZero: true, precision: 0 } }] }
+                }
+            });
+            
+            var chartUrl = 'https://quickchart.io/chart?c=' + encodeURIComponent(chartConfig) + '&width=600&height=350&backgroundColor=white&format=png';
+            
+            text = '\ud83d\udcca **\u8bf7\u5047\u7edf\u8ba1\u56fe\u8868**\n\n' +
+                '\u672c\u5468\u8bf7\u5047\uff1a' + c_wl.count + ' \u4efd (' + c_wl.days + '\u5929)\n' +
+                '\u672c\u6708\u8bf7\u5047\uff1a' + c_ml.count + ' \u4efd (' + c_ml.days + '\u5929)\n\n' +
+                '\u7c7b\u578b\u5206\u5e03\uff1a' + typeLabels.map(function(t,i){return t + ' ' + typeCounts[i] + '\u4efd'}).join('\u3001') + '\n\n' +
+                '![' + encodeURI('\u8bf7\u5047\u7edf\u8ba1\u56fe') + '](' + chartUrl + ')';
+            return { success: true, content: text, action: 'chart', data: { chartUrl: chartUrl, labels: typeLabels, counts: typeCounts } };
+        } catch (chartErr) {
+            console.error('[Stats Agent] \u56fe\u8868\u751f\u6210\u5931\u8d25:', chartErr.message);
+        }
+    }
+
+
+// 系统总览（默认）
     const overview = dbHelper.getSystemOverview();
     const balance = dbHelper.getLeaveBalance(userId);
     const week = dbHelper.getWeekRange();
-    const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, week.start, week.end, false);
+    const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_week.start, c_week.end, false);
 
     let text = `📊 系统数据概览\n\n`;
     text += `👥 用户总数：${overview.totalUsers} 人\n`;
@@ -998,7 +1052,7 @@ async function statsAgentProcess(message, context = {}) {
     text += `📝 请假申请：${overview.totalLeave} 份\n`;
     text += `⏳ 待审批公文：${overview.pendingDocs} 份\n`;
     text += `⏳ 待审批请假：${overview.pendingLeave} 份\n`;
-    text += `📅 本周请假：${weekLeave.count} 份 (${weekLeave.days} 天)\n\n`;
+    text += `📅 本周请假：${c_wl.count} 份 (${c_wl.days} 天)\n\n`;
     text += `${user.name || userName}的个人信息：\n`;
     text += `🌴 剩余年假：${balance.annual.remaining} 天`;
     if (overview.admins.length > 0) {
@@ -1090,7 +1144,14 @@ async function routerAgentProcess(message, context = {}) {
     const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
     const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
 
-    // 1. 统一 LLM 意图识别
+    // 0. 图表关键词快速匹配（跳过LLM）
+    if (/图表|趋势图|柱状图|饼图|折线图|统计图|统计图表|生成.*图|chart/i.test(message)) {
+        console.log('[Router] \u56fe\u8868\u8bf7\u6c42 -> statsAgent');
+        var chartResult = await statsAgentProcess(message, context);
+        if (chartResult) return chartResult;
+    }
+
+        // 1. 统一 LLM 意图识别
     const intentResult = await classifyIntent(message);
     console.log('[Router] 意图:', intentResult.intent, '方法:', intentResult.method);
 

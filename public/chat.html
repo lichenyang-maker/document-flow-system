@@ -257,6 +257,18 @@ var token=localStorage.getItem('token'),conversationId='web_'+Date.now(),selecte
 var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{name:'请假管理',icon:'📋',color:'#7c3aed'},document:{name:'公文管理',icon:'📄',color:'#2563eb'},data:{name:'数据分析',icon:'📊',color:'#059669'},notify:{name:'消息通知',icon:'🔔',color:'#d97706'},approval:{name:'审批处理',icon:'✅',color:'#dc2626'}};
 
 function escapeHTML(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function renderContent(text){
+  // Render markdown images ![alt](url)
+  var imgRegex=/!\[([^\]]*)\]\(([^)]+)\)/g;
+  var parts=[],last=0,match;
+  while((match=imgRegex.exec(text))!==null){
+    parts.push(escapeHTML(text.substring(last,match.index)));
+    parts.push('<img src="'+match[2]+'" alt="'+match[1]+'" style="max-width:100%;border-radius:4px;margin:4px 0;display:block" loading="lazy" onerror="this.style.display=\'none\'">');
+    last=match.index+match[0].length;
+  }
+  parts.push(escapeHTML(text.substring(last)));
+  return parts.join('');
+}
 function g(id){return document.getElementById(id)}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
 
@@ -281,7 +293,7 @@ function msgHTML(role,text,agent){
   if(role==='assistant'&&agent&&AGENTS[agent]){var a=AGENTS[agent];tag='<span class="msg-agent" style="background:'+a.color+'12;color:'+a.color+'">'+a.icon+' '+a.name+'</span>'}
   var bg=role==='assistant'&&agent&&AGENTS[agent]?AGENTS[agent].color:'';
   var time=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-  return '<div class="msg '+role+'"><div class="msg-avatar"'+(bg?' style="background:'+bg+'10;color:'+bg+'"':'')+'>'+icon+'</div><div class="msg-content"><div class="msg-bubble">'+tag+escapeHTML(text)+'</div><div class="msg-time">'+time+'</div></div></div>';
+  return '<div class="msg '+role+'"><div class="msg-avatar"'+(bg?' style="background:'+bg+'10;color:'+bg+'"':'')+'>'+icon+'</div><div class="msg-content"><div class="msg-bubble">'+tag+renderContent(text)+'</div><div class="msg-time">'+time+'</div></div></div>';
 }
 
 function addMsg(role,text,agent){
