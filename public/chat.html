@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 智能助手 · DocFlow</title>
+<title>AI 学工助手 · DocFlow</title>
 <style>
   :root {
     --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-200: #c7d2fe;
@@ -12,205 +12,118 @@
     --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569;
     --slate-700: #334155; --slate-800: #1e293b; --slate-900: #0f172a;
     --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
-    --bg: #f5f6f8; --card: #ffffff; --border: #e5e7eb; --border-strong: #d1d5db;
+    --bg: #f5f6f8; --card: #ffffff; --border: #e5e7eb;
     --text: #0f172a; --text-sub: #475569; --text-muted: #94a3b8;
-    --radius-sm: 6px; --radius: 8px; --radius-lg: 12px;
-    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --radius: 8px; --radius-lg: 12px;
   }
   html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
 
-  .app-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; overflow: hidden; }
+  .app-container { display: grid; grid-template-columns: 240px 1fr; height: 100vh; overflow: hidden; }
 
-  /* ===== 侧边栏（深色专业风格）===== */
+  /* 侧边栏 */
   .sidebar { background: var(--slate-900); color: #cbd5e1; display: flex; flex-direction: column; overflow: hidden; }
-  .sidebar-header { padding: 18px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 10px; }
-  .sidebar-logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
-  .sidebar-logo svg { width: 16px; height: 16px; color: #fff; }
-  .sb-text { line-height: 1.2; }
-  .sb-text .sidebar-title { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.2px; }
-  .sb-text .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .sidebar-header { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+  .sidebar-logo { width: 30px; height: 30px; border-radius: 7px; background: linear-gradient(135deg, #6366f1, #4f46e5);
+    display: flex; align-items: center; justify-content: center; }
+  .sidebar-logo svg { width: 15px; height: 15px; color: #fff; }
+  .sb-title { font-size: 13px; font-weight: 600; color: #fff; }
+  .sb-sub { font-size: 10px; color: rgba(255,255,255,0.35); }
 
-  .nav-section { padding: 16px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .nav-section-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4);
-    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
-  .nav-buttons { display: flex; gap: 6px; flex-direction: column; }
-  .nav-btn { padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #cbd5e1;
-    font-size: 12.5px; text-align: center; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03); transition: all 0.12s; font-weight: 500; }
-  .nav-btn:hover { background: rgba(99, 102, 241, 0.15); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.3); }
-  .nav-btn.active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0.08));
-    color: #c7d2fe; border-color: rgba(99, 102, 241, 0.25); }
+  .nav-section { padding: 14px 14px 8px; }
+  .nav-section-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .nav-buttons { display: flex; flex-direction: column; gap: 4px; }
+  .nav-btn { padding: 7px 10px; border-radius: 5px; text-decoration: none; color: #cbd5e1;
+    font-size: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+    transition: all 0.12s; }
+  .nav-btn:hover { background: rgba(99,102,241,0.15); color: #c7d2fe; }
+  .nav-btn.active { background: linear-gradient(90deg, rgba(99,102,241,0.2), rgba(99,102,241,0.06)); color: #c7d2fe; }
 
-  .agents-container { flex: 1; overflow-y: auto; padding: 14px 14px; }
-  .agents-container::-webkit-scrollbar { width: 5px; }
-  .agents-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+  .quick-actions { padding: 12px 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .qa-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; margin-bottom: 8px; }
+  .qa-btn { display: block; width: 100%; padding: 8px 10px; margin-bottom: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03); color: #cbd5e1; font-size: 11.5px; cursor: pointer; text-align: left;
+    transition: all 0.12s; }
+  .qa-btn:hover { background: rgba(99,102,241,0.15); color: #c7d2fe; border-color: rgba(99,102,241,0.3); }
 
-  .mode-tabs { display: flex; gap: 3px; padding: 3px; background: rgba(255,255,255,0.04);
-    border-radius: 6px; margin-bottom: 12px; }
-  .mode-tab { flex: 1; padding: 6px 6px; text-align: center; border-radius: 4px; cursor: pointer;
-    font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,0.55); transition: all 0.12s; }
-  .mode-tab:hover { color: #e2e8f0; }
-  .mode-tab.active { background: rgba(255,255,255,0.08); color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-
-  /* ===== 智能体卡片 ===== */
-  .agent-card { padding: 10px 12px; border-radius: 6px; cursor: pointer;
-    border: 1px solid transparent; margin-bottom: 3px; display: flex; align-items: center; gap: 10px; transition: all 0.12s; }
-  .agent-card:hover { background: rgba(255,255,255,0.04); }
-  .agent-card.active { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.35); }
-  .agent-icon { width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #94a3b8; }
-  .agent-icon svg { width: 15px; height: 15px; }
-  .agent-card.active .agent-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; }
-  .agent-info { flex: 1; min-width: 0; }
-  .agent-name { font-size: 13px; font-weight: 500; color: #e2e8f0; margin-bottom: 2px; }
-  .agent-desc { font-size: 11.5px; color: rgba(255,255,255,0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .agent-checkbox { padding: 10px 12px; border-radius: 6px; cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
-    margin-bottom: 5px; display: flex; align-items: center; gap: 10px; transition: all 0.12s; }
-  .agent-checkbox:hover { border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.08); }
-  .agent-checkbox.selected { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.15); }
-  .checkbox-box { width: 16px; height: 16px; border: 1.5px solid rgba(255,255,255,0.2);
-    border-radius: 4px; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; font-size: 11px; color: #fff; transition: all 0.15s; }
-  .agent-checkbox.selected .checkbox-box { background: var(--brand-600); border-color: var(--brand-600); }
-  .agent-checkbox .agent-info { padding: 0; }
-
-  /* ===== 主内容区 ===== */
+  /* 主内容区 */
   .main-content { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-
   .top-bar { background: var(--card); border-bottom: 1px solid var(--border);
-    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; min-height: 56px; }
-  .top-left { display: flex; align-items: center; gap: 12px; }
-  .back-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--card); border: 1px solid var(--border);
+    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
+  .top-left { display: flex; align-items: center; gap: 10px; }
+  .back-btn { width: 30px; height: 30px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
     color: var(--slate-500); display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.12s; text-decoration: none; }
   .back-btn:hover { background: var(--brand-50); color: var(--brand-600); border-color: var(--brand-200); }
-  .back-btn svg { width: 14px; height: 14px; }
-  .top-title-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--brand-50); color: var(--brand-600);
-    display: flex; align-items: center; justify-content: center; }
-  .top-title-icon svg { width: 14px; height: 14px; }
-  .top-title-text { font-size: 15px; font-weight: 600; color: var(--text); }
-  .top-sub-text { font-size: 12px; color: var(--slate-500); }
+  .back-btn svg { width: 13px; height: 13px; }
+  .top-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .top-sub { font-size: 11px; color: var(--slate-500); }
   .top-right { display: flex; align-items: center; gap: 8px; }
-  .mode-badge { padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: 500;
-    background: var(--brand-50); color: var(--brand-600); border: 1px solid var(--brand-200); }
-  .small-info { font-size: 11px; color: var(--slate-400); }
+  .clear-btn { padding: 6px 10px; border-radius: 5px; background: var(--card); border: 1px solid var(--border);
+    color: var(--text-sub); font-size: 11px; cursor: pointer; transition: all 0.12s; }
+  .clear-btn:hover { background: var(--slate-100); }
 
-  .clear-btn { padding: 7px 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--border);
-    color: var(--text-sub); font-size: 12px; cursor: pointer; transition: all 0.12s;
-    display: inline-flex; align-items: center; gap: 5px; }
-  .clear-btn:hover { background: var(--slate-100); color: var(--slate-700); border-color: var(--border-strong); }
-  .clear-btn svg { width: 12px; height: 12px; }
-
-  /* ===== 消息区 ===== */
-  .chat-messages { flex: 1; overflow-y: auto; padding: 28px; max-width: 900px; width: 100%; margin: 0 auto; }
-  .chat-messages::-webkit-scrollbar { width: 8px; }
-  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 20px; max-width: 800px; width: 100%; margin: 0 auto; }
+  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
   .welcome-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 24px 28px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
-  .welcome-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 5px;
-    display: flex; align-items: center; gap: 8px; }
-  .welcome-subtitle { font-size: 13px; color: var(--slate-500); margin-bottom: 16px; }
-  .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .feature-item { padding: 10px 12px; background: var(--slate-50); border: 1px solid var(--border);
-    border-radius: 6px; font-size: 12px; color: var(--text-sub); text-align: center; }
+    padding: 20px 24px; margin-bottom: 20px; }
+  .welcome-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .welcome-subtitle { font-size: 12px; color: var(--slate-500); margin-bottom: 14px; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .feature-item { padding: 8px 10px; background: var(--slate-50); border: 1px solid var(--border);
+    border-radius: 5px; font-size: 11px; color: var(--text-sub); text-align: center; cursor: pointer; transition: all 0.12s; }
+  .feature-item:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
 
-  .message { margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+  .message { margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
   .message.user { flex-direction: row-reverse; }
-  .message-avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
-    justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 600; }
-  .message-avatar svg { width: 14px; height: 14px; }
+  .message-avatar { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600; }
   .message.user .message-avatar { background: var(--brand-600); color: #fff; }
   .message.assistant .message-avatar { background: var(--brand-50); color: var(--brand-600); }
-  .message-content { max-width: calc(100% - 55px); }
-  .message-bubble { padding: 12px 16px; border-radius: 8px; font-size: 14px; line-height: 1.7; word-wrap: break-word; }
-  .message.user .message-bubble { background: var(--brand-600); color: #fff; border-bottom-right-radius: 2px; }
+  .message-avatar svg { width: 13px; height: 13px; }
+  .message-content { max-width: calc(100% - 48px); }
+  .message-bubble { padding: 10px 14px; border-radius: 7px; font-size: 13.5px; line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
+  .message.user .message-bubble { background: var(--brand-600); color: #fff; }
   .message.assistant .message-bubble { background: var(--card); color: var(--text);
-    border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-  .msg-meta { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+    border: 1px solid var(--border); }
+  .msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
   .message.user .msg-meta { text-align: right; }
 
-  /* Markdown */
-  .message-bubble h1.md-h1, .message-bubble h2.md-h2, .message-bubble h3.md-h3, .message-bubble h4.md-h4 {
-    margin: 12px 0 6px; font-weight: 600; line-height: 1.4; color: var(--text); }
-  .message-bubble h2.md-h2 { font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
-  .message-bubble h3.md-h3 { font-size: 14.5px; color: var(--brand-600); }
-  .message-bubble .md-codeblock { background: var(--slate-800); color: #e2e8f0; border-radius: 6px;
-    padding: 10px 12px; margin: 8px 0; font-size: 12.5px; font-family: 'Consolas', monospace; white-space: pre; overflow-x: auto; }
-  .message-bubble .md-inline-code { background: var(--slate-100); color: #dc2626; padding: 2px 6px;
-    border-radius: 4px; font-size: 12.5px; font-family: 'Consolas', monospace; }
-  .message-bubble .md-list { margin: 5px 0; padding-left: 22px; }
-  .message-bubble .md-list li { margin: 3px 0; line-height: 1.6; }
-  .message-bubble .md-quote { border-left: 3px solid var(--brand-500); padding: 4px 12px;
-    margin: 8px 0; color: var(--text-sub); background: var(--slate-50); border-radius: 0 6px 6px 0; }
-
-  /* 协作结果 */
-  .collaboration-panel { background: var(--card); border: 1px solid var(--border);
-    border-left: 3px solid var(--brand-500); border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; }
-  .collab-panel-title { font-size: 12.5px; font-weight: 600; color: var(--brand-600); margin-bottom: 4px; }
-  .collab-panel-desc { font-size: 12px; color: var(--slate-500); }
-  .collab-result-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; margin: 12px 0; overflow: hidden; }
-  .collab-result-header { background: var(--slate-50); padding: 8px 14px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; }
-  .collab-result-left { display: flex; align-items: center; gap: 8px; }
-  .collab-result-body { padding: 14px 16px; line-height: 1.7; font-size: 14px; color: var(--text); }
-  .collab-summary-card { background: var(--brand-50); border: 1px solid var(--brand-200); border-radius: 8px;
-    padding: 16px 18px; margin: 14px 0 4px; }
-  .collab-summary-title { font-size: 13px; font-weight: 600; color: var(--brand-600); margin-bottom: 8px; }
-  .step-badge { background: var(--card); color: var(--text-sub); padding: 3px 8px; border-radius: 10px;
-    font-size: 11px; font-weight: 500; border: 1px solid var(--border); margin-right: 6px; }
-  .collab-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
-  .flow-arrow { text-align: center; color: var(--slate-300); font-size: 14px; padding: 4px 0; font-weight: 300; }
-
-  /* ===== 输入区 ===== */
   .input-area { background: var(--card); border-top: 1px solid var(--border);
-    padding: 14px 24px 18px; width: 100%; max-width: 900px; margin: 0 auto; }
-  .quick-buttons { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .quick-btn { padding: 6px 12px; border-radius: 14px; font-size: 12px; background: var(--slate-50);
+    padding: 12px 20px 16px; width: 100%; max-width: 800px; margin: 0 auto; }
+  .quick-buttons { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .quick-btn { padding: 5px 10px; border-radius: 12px; font-size: 11px; background: var(--slate-50);
     border: 1px solid var(--border); color: var(--text-sub); cursor: pointer; transition: all 0.12s; }
   .quick-btn:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
-  .input-wrapper { display: flex; gap: 10px; align-items: flex-end; }
-  .input-textarea { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px;
-    resize: none; font-size: 14px; font-family: inherit; outline: none; transition: all 0.12s; line-height: 1.5;
+  .input-wrapper { display: flex; gap: 8px; align-items: flex-end; }
+  .input-textarea { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 5px;
+    resize: none; font-size: 13.5px; font-family: inherit; outline: none; transition: all 0.12s;
     background: var(--card); color: var(--text); }
-  .input-textarea:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+  .input-textarea:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .send-btn { padding: 9px 16px; border-radius: 5px; background: var(--brand-600); color: #fff;
+    border: none; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s; }
+  .send-btn:hover { background: var(--brand-700); }
+  .send-btn:disabled { background: var(--slate-400); cursor: not-allowed; }
+  .send-btn svg { width: 12px; height: 12px; }
+  .hint-text { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
 
-  .send-btn { padding: 10px 18px; border-radius: 6px; background: var(--brand-600); color: #fff;
-    border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s;
-    display: inline-flex; align-items: center; gap: 6px; }
-  .send-btn:hover { background: var(--brand-700); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2); }
-  .send-btn:active { transform: translateY(1px); }
-  .send-btn svg { width: 13px; height: 13px; }
-  .send-btn:disabled { background: var(--slate-400); cursor: not-allowed; box-shadow: none; }
-
-  .hint-text { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
-
-  code { background: var(--slate-100); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Consolas, monospace; }
-  .message-bubble pre { background: var(--slate-800); color: #e2e8f0; padding: 10px 12px;
-    border-radius: 6px; overflow-x: auto; margin: 8px 0; font-size: 12.5px; }
-
-  .typing-indicator { display: inline-flex; align-items: center; color: var(--slate-500); font-size: 13px; gap: 6px; }
-  .typing-dots span { display: inline-block; width: 6px; height: 6px; background: var(--slate-300);
+  .typing-indicator { display: inline-flex; align-items: center; color: var(--slate-500); font-size: 12px; gap: 5px; }
+  .typing-dots span { display: inline-block; width: 5px; height: 5px; background: var(--slate-300);
     border-radius: 50%; margin: 0 1px; animation: typing 1.4s infinite; }
   .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
   .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes typing { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 
-  /* 响应式 */
-  @media (max-width: 900px) {
+  @media (max-width: 768px) {
     .app-container { grid-template-columns: 1fr; }
     .sidebar { display: none; }
-    .chat-messages { padding: 16px; }
-    .input-area { padding: 12px 16px; }
-    .feature-grid { grid-template-columns: repeat(2, 1fr); }
+    .chat-messages { padding: 12px; }
+    .input-area { padding: 10px 12px; }
+    .feature-grid { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -221,113 +134,71 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-      <div class="sb-text">
-        <div class="sidebar-title">AI 智能助手</div>
-        <div class="sidebar-sub">DocFlow</div>
-      </div>
+      <div><div class="sb-title">AI 学工助手</div><div class="sb-sub">DocFlow v4.0</div></div>
     </div>
-
     <div class="nav-section">
-      <div class="nav-section-title">快速导航</div>
+      <div class="nav-section-title">导航</div>
       <div class="nav-buttons">
         <a href="/" class="nav-btn">← 返回工作台</a>
-        <a href="/chat" class="nav-btn active">AI 智能助手</a>
+        <a href="/chat" class="nav-btn active">AI 学工助手</a>
       </div>
     </div>
-
-    <div class="agents-container">
-      <div class="nav-section-title" style="margin-bottom:10px;">工作模式</div>
-      <div class="mode-tabs">
-        <div class="mode-tab active" data-mode="single" onclick="switchMode('single')">单智能体</div>
-        <div class="mode-tab" data-mode="sequential" onclick="switchMode('sequential')">序列协作</div>
-        <div class="mode-tab" data-mode="parallel" onclick="switchMode('parallel')">并行分析</div>
-      </div>
-
-      <div class="nav-section-title" style="margin:16px 0 8px 0;">智能体</div>
-      <div id="agentList"></div>
+    <div class="quick-actions">
+      <div class="qa-title">快捷操作</div>
+      <button class="qa-btn" onclick="quickSend('我要请假3天回家')">📝 申请请假</button>
+      <button class="qa-btn" onclick="quickSend('我的请假记录')">🔍 查看记录</button>
+      <button class="qa-btn" onclick="quickSend('我还有多少天年假')">🌴 假期余额</button>
+      <button class="qa-btn" onclick="quickSend('待审批事项')">⏳ 待审批</button>
     </div>
   </aside>
 
   <!-- 主内容区 -->
   <main class="main-content">
-
-    <!-- 顶部栏 -->
     <div class="top-bar">
       <div class="top-left">
-        <a href="/" class="back-btn" title="返回首页">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </a>
-        <div class="top-title-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg>
-        </div>
+        <a href="/" class="back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a>
         <div>
-          <div class="top-title-text" id="currentAgentName">通用助手</div>
-          <div class="top-sub-text" id="currentAgentDesc">综合对话、问答、日常咨询</div>
+          <div class="top-title">AI 学工助手</div>
+          <div class="top-sub">请假申请 · 审批处理 · 数据查询</div>
         </div>
       </div>
       <div class="top-right">
-        <span class="mode-badge" id="modeBadge">单智能体模式</span>
-        <span class="small-info" id="modelInfo"></span>
-        <button class="clear-btn" onclick="clearChat()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-          清空
-        </button>
+        <button class="clear-btn" onclick="clearChat()">清空对话</button>
       </div>
     </div>
 
-    <!-- 消息区 -->
     <div class="chat-messages" id="chatMessages">
       <div class="welcome-card">
-        <div class="welcome-title">欢迎使用 AI 智能助手</div>
-        <div class="welcome-subtitle">为企业公文场景提供的多智能体协同工作平台</div>
+        <div class="welcome-title">👋 欢迎使用 AI 学工助手</div>
+        <div class="welcome-subtitle">我能帮你请假、审批、查询数据，直接告诉我你要做什么</div>
         <div class="feature-grid">
-          <div class="feature-item">通用对话</div>
-          <div class="feature-item">公文撰写</div>
-          <div class="feature-item">审批分析</div>
-          <div class="feature-item">数据洞察</div>
+          <div class="feature-item" onclick="quickSend('我要请假3天回家')">📝 申请请假</div>
+          <div class="feature-item" onclick="quickSend('我的请假记录')">🔍 查看记录</div>
+          <div class="feature-item" onclick="quickSend('我还有多少天年假')">🌴 假期余额</div>
         </div>
       </div>
     </div>
 
-    <!-- 输入区 -->
     <div class="input-area">
-      <div class="quick-buttons" id="quickButtons"></div>
+      <div class="quick-buttons" id="quickButtons">
+        <span class="quick-btn" onclick="quickSend('我要请假3天回家')">请假3天</span>
+        <span class="quick-btn" onclick="quickSend('我的请假记录')">请假记录</span>
+        <span class="quick-btn" onclick="quickSend('假期余额')">假期余额</span>
+      </div>
       <div class="input-wrapper">
-        <textarea class="input-textarea" id="messageInput" rows="2" placeholder="输入您的问题，Enter 发送，Shift+Enter 换行" onkeydown="handleKeydown(event)"></textarea>
+        <textarea class="input-textarea" id="messageInput" rows="2" placeholder="直接告诉我你要做什么... 如：我要请假3天回家" onkeydown="handleKeydown(event)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          发送
         </button>
       </div>
-      <div class="hint-text">切换到"序列协作"或"并行分析"模式可让多个智能体协同工作</div>
+      <div class="hint-text">直接说你要做什么，我会直接帮你处理。Enter 发送，Shift+Enter 换行</div>
     </div>
-
   </main>
 </div>
 
 <script>
   let token = localStorage.getItem('token');
-  let currentAgent = 'general';
-  let currentMode = 'single';
-  let selectedAgents = new Set(['general']);
-  let conversationIds = {};
-  let agentsData = [];
-  let messageCount = 0;
-
-  const modeLabels = {
-    single: { badge: '单智能体模式', hint: '选择一个智能体进行对话', desc: '选择一个智能体进行对话' },
-    sequential: { badge: '序列协作模式', hint: '多个智能体按序接力', desc: '多个智能体按顺序接力处理任务' },
-    parallel: { badge: '并行分析模式', hint: '多智能体同时分析', desc: '多个智能体从不同角度同时分析' }
-  };
-
-  const quickPrompts = {
-    general: ['介绍一下系统功能', '如何使用请假功能？', '今天有什么需要注意的？'],
-    coder: ['写一个数据处理脚本', '如何优化 SQL 查询？', 'REST API 最佳实践'],
-    document: ['帮我写一份会议通知', '撰写季度工作总结', '优化公文表达方式'],
-    approval: ['分析这份请假申请', '帮我写审批回复', '合理的请假流程建议'],
-    data: ['分析最近请假数据', '生成数据统计报告', '数据采集优化建议'],
-    reasoning: ['系统功能改进方向', '对比两种方案优劣', '深度分析业务问题']
-  };
+  let conversationId = 'web_' + Date.now();
 
   function escapeHTML(text) {
     const div = document.createElement('div');
@@ -335,241 +206,32 @@
     return div.innerHTML;
   }
 
-  function formatMarkdown(text) {
-    if (!text) return '';
-    let html = escapeHTML(text);
-
-    html = html.replace(/\`\`\`([\s\S]*?)\`\`\`/g, function(m, code) {
-      return '<div class="md-codeblock"><code>' + code.trim() + '</code></div>';
-    });
-    html = html.replace(/\`([^\`]+)\`/g, '<code class="md-inline-code">$1</code>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    const lines = html.split('\n');
-    let result = [];
-    let inList = false;
-    let listType = null;
-
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
-      let headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      let olMatch = line.match(/^(\d+)\.\s+(.+)$/);
-      let ulMatch = line.match(/^[-*+]\s+(.+)$/);
-      let quoteMatch = line.match(/^>\s?(.+)$/);
-
-      if (headingMatch) {
-        if (inList) { result.push('</' + listType + '>'); inList = false; listType = null; }
-        const level = headingMatch[1].length;
-        result.push('<h' + level + ' class="md-h' + level + '">' + headingMatch[2] + '</h' + level + '>');
-      } else if (olMatch) {
-        if (!inList || listType !== 'ol') { if (inList) result.push('</' + listType + '>');
-        result.push('<ol class="md-list md-ol">'); inList = true; listType = 'ol';
-        result.push('<li>' + olMatch[2] + '</li>');
-      } else if (ulMatch) {
-        if (!inList || listType !== 'ul') { if (inList) result.push('</' + listType + '>');
-        result.push('<ul class="md-list md-ul">'); inList = true; listType = 'ul';
-        result.push('<li>' + ulMatch[1] + '</li>');
-      } else if (quoteMatch) {
-        if (inList) { result.push('</' + listType + '>'); inList = false; listType = null; }
-        result.push('<blockquote class="md-quote">' + quoteMatch[1] + '</blockquote>');
-      } else if (line.trim() === '') {
-        if (inList) { result.push('</' + listType + '>'); inList = false; listType = null; }
-        result.push('<br><br>');
-      } else {
-        if (inList) { result.push('</' + listType + '>'); inList = false; listType = null; }
-        result.push('<span>' + line + '</span>');
-      }
-    }
-    if (inList) result.push('</' + listType + '>');
-    return result.join('\n');
-  }
-
   function checkAuth() {
     if (!token) {
       document.getElementById('chatMessages').innerHTML = `
-        <div style="padding:60px 40px;text-align:center;max-width:500px;margin:0 auto;">
-          <div style="width:48px;height:48px;margin:0 auto 16px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div style="padding:50px;text-align:center;max-width:400px;margin:0 auto;">
+          <div style="width:40px;height:40px;margin:0 auto 14px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <h4 style="color:#0f172a;margin-bottom:8px;font-size:18px;font-weight:600;">请先登录</h4>
-          <p style="color:#64748b;margin-bottom:24px;font-size:13px;line-height:1.6;">请返回首页完成登录后再使用 AI 智能助手</p>
-          <button onclick="window.location.href='/'" style="padding:10px 22px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">返回首页登录</button>
+          <h4 style="color:#0f172a;margin-bottom:6px;font-size:16px;font-weight:600;">请先登录</h4>
+          <p style="color:#64748b;margin-bottom:20px;font-size:12px;">返回首页登录后再使用 AI 学工助手</p>
+          <button onclick="window.location.href='/'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button>
         </div>`;
       return false;
     }
     return true;
   }
 
-  async function loadAgents() {
-    try {
-      const res = await fetch('/api/agents');
-      const data = await res.json();
-      if (!data.success || !data.agents || data.agents.length === 0) {
-        throw new Error('智能体列表为空');
-      }
-      agentsData = data.agents || [];
-      renderAgents();
-      updateHeaderInfo();
-      renderQuickButtons();
-    } catch (e) {
-      console.error('加载智能体失败:', e);
-      document.getElementById('agentList').innerHTML = `
-        <div style="padding:20px;text-align:center;color:#64748b;font-size:13px;">
-          ⚠ 智能体列表加载失败<br>
-          <small style="font-size:12px;">请刷新页面重试</small>
-        </div>`;
-    }
-  }
-
-  function renderAgents() {
-    const list = document.getElementById('agentList');
-    if (currentMode === 'single') {
-      list.innerHTML = agentsData.map(a => `
-        <div class="agent-card ${currentAgent === a.id ? 'active' : ''}" data-agent="${a.id}" onclick="selectAgent('${a.id}')">
-          <div class="agent-icon">${getAgentEmoji(a.id)}</div>
-          <div class="agent-info">
-            <div class="agent-name">${a.name.split(' ').pop() || a.name}</div>
-            <div class="agent-desc">${a.description}</div>
-          </div>
-        </div>
-      `).join('');
-    } else {
-      list.innerHTML = agentsData.map(a => `
-        <div class="agent-checkbox ${selectedAgents.has(a.id) ? 'selected' : ''}" data-agent="${a.id}" onclick="toggleAgentSelect('${a.id}')">
-          <div class="checkbox-box">${selectedAgents.has(a.id) ? '✓' : ''}</div>
-          <div class="agent-icon">${getAgentEmoji(a.id)}</div>
-          <div class="agent-info">
-            <div class="agent-name">${a.name.split(' ').pop() || a.name}</div>
-            <div class="agent-desc">${a.description}</div>
-          </div>
-        </div>
-      `).join('');
-    }
-  }
-
-  const agentIconSVG = {
-    general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg>',
-    coder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
-    document: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
-    approval: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-    data: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-    reasoning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 0-7 17c1-1 3-2 3-5 0-3 3-3 3-6s-2-4 1-4 3 1 2 4c0 3 3 3 3 0 0-3 2-4 3-4s2 1 2 3-1 4 1 7 3 2 3-1a10 10 0 0 0-15-4z"/></svg>',
-    meeting: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>',
-    email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
-  };
-  function getAgentIcon(id) {
-    return agentIconSVG[id] || agentIconSVG.general;
-  }
-  function getAgentEmoji(id) { return getAgentIcon(id); }
-
-  function switchMode(mode) {
-    currentMode = mode;
-    document.querySelectorAll('.mode-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.mode === mode);
-    });
-    const info = modeLabels[mode];
-    const badge = document.getElementById('modeBadge');
-    if (badge) badge.textContent = info.badge;
-
-    if (mode === 'single') {
-      if (!selectedAgents.has(currentAgent)) {
-        currentAgent = Array.from(selectedAgents)[0] || 'general';
-      }
-      selectedAgents.clear();
-      selectedAgents.add(currentAgent);
-    } else {
-      if (selectedAgents.size === 0) selectedAgents.add('general');
-    }
-
-    updateHeaderInfo();
-    renderAgents();
-    renderQuickButtons();
-  }
-
-  function toggleAgentSelect(agentId) {
-    if (currentMode === 'single') {
-      currentAgent = agentId;
-      selectedAgents.clear();
-      selectedAgents.add(agentId);
-    } else {
-      if (selectedAgents.has(agentId)) {
-        if (selectedAgents.size > 1) selectedAgents.delete(agentId);
-      } else {
-        selectedAgents.add(agentId);
-      }
-    }
-    updateHeaderInfo();
-    renderAgents();
-    renderQuickButtons();
-  }
-
-  function selectAgent(agentId) {
-    currentAgent = agentId;
-    selectedAgents.clear();
-    selectedAgents.add(agentId);
-    const agent = agentsData.find(a => a.id === agentId);
-    if (!agent) return;
-
-    updateHeaderInfo();
-    renderAgents();
-    renderQuickButtons();
-
-    if (!conversationIds[agentId]) {
-      conversationIds[agentId] = agentId + '_' + Date.now();
-    }
-  }
-
-  function updateHeaderInfo() {
-    if (currentMode === 'single') {
-      const agent = agentsData.find(a => a.id === currentAgent);
-      if (agent) {
-        document.getElementById('currentAgentName').textContent = agent.name.split(' ').pop() || agent.name;
-        document.getElementById('currentAgentDesc').textContent = agent.description;
-        document.getElementById('modelInfo').textContent = agent.model || '';
-      }
-    } else {
-      const selected = Array.from(selectedAgents);
-      const names = selected.map(id => {
-        const a = agentsData.find(x => x.id === id);
-        return a ? (a.name.split(' ').pop() || a.name) : id;
-      });
-      document.getElementById('currentAgentName').textContent = names.join(' · ');
-      document.getElementById('currentAgentDesc').textContent = selected.length + ' 个智能体协同工作';
-      document.getElementById('modelInfo').textContent = '';
-    }
-  }
-
-  function renderQuickButtons() {
-    const btns = document.getElementById('quickButtons');
-    if (currentMode === 'single') {
-      const prompts = quickPrompts[currentAgent] || [];
-      btns.innerHTML = prompts.map(p => `<span class="quick-btn" onclick="quickSend('${p}')">${p}</span>`).join('');
-    } else {
-      btns.innerHTML = [
-        '优化企业公文审批流程',
-        '撰写一份完整的项目方案',
-        '分析系统功能的改进方向',
-        '综合评估请假申请'
-      ].map(p => `<span class="quick-btn" onclick="quickSend('${p}')">${p}</span>`).join('');
-    }
-  }
-
-  function quickSend(text) {
-    document.getElementById('messageInput').value = text;
-    sendMessage();
-  }
-
-  function createMessage(role, avatarHTML, text) {
+  function createMessage(role, text) {
     const div = document.createElement('div');
     div.className = 'message ' + role;
-    let avatar = avatarHTML;
-    if (role === 'user') {
-      avatar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-    }
+    const avatarSVG = role === 'user'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg>';
     div.innerHTML = `
-      <div class="message-avatar">${avatar}</div>
+      <div class="message-avatar">${avatarSVG}</div>
       <div class="message-content">
-        <div class="message-bubble">${formatMarkdown(text)}</div>
+        <div class="message-bubble">${escapeHTML(text)}</div>
         <div class="msg-meta">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>
       </div>
     `;
@@ -583,182 +245,78 @@
     }
   }
 
+  function quickSend(text) {
+    document.getElementById('messageInput').value = text;
+    sendMessage();
+  }
+
   async function sendMessage() {
     if (!checkAuth()) return;
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
     if (!text) return;
-    if (currentMode !== 'single' && selectedAgents.size < 1) {
-      alert('请至少选择 1 个智能体参与协作');
-      return;
-    }
 
     input.value = '';
     const msgs = document.getElementById('chatMessages');
-    messageCount++;
 
-    const userMsg = createMessage('user', '我', text);
-    msgs.appendChild(userMsg);
+    // 添加用户消息
+    msgs.appendChild(createMessage('user', text));
     msgs.scrollTop = msgs.scrollHeight;
 
-    const waitingMsg = document.createElement('div');
-    waitingMsg.className = 'message assistant';
-    if (currentMode === 'single') {
-      const agent = agentsData.find(a => a.id === currentAgent);
-      const avatarName = agent ? getAgentIcon(currentAgent) : agentIconSVG.general;
-      waitingMsg.innerHTML = `<div class="message-avatar">${avatarName}</div><div class="message-content"><div class="message-bubble"><span class="typing-indicator"><span class="typing-dots"><span></span><span></span><span></span></span> 正在思考...</span></div></div>`;
-    } else {
-      const agentNames = Array.from(selectedAgents).map(id => {
-        const a = agentsData.find(x => x.id === id);
-        return a ? (a.name.split(' ').pop() || a.name) : id;
-      }).join('、');
-      const teamIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
-      waitingMsg.innerHTML = `<div class="message-avatar">${teamIcon}</div><div class="message-content">
-        <div class="message-bubble">
-          <div style="font-weight:500;margin-bottom:4px;color:#4f46e5;">协作处理中</div>
-          <div style="font-size:12px;color:#64748b;">参与: ${agentNames}</div>
-          <div class="typing-indicator" style="margin-top:8px;"><span class="typing-dots"><span></span><span></span><span></span></span> 智能体正在协同工作...</div>
-        </div>
-      </div>`;
-    }
-    msgs.appendChild(waitingMsg);
+    // 添加等待提示
+    const waiting = document.createElement('div');
+    waiting.className = 'message assistant';
+    waiting.innerHTML = `<div class="message-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/></svg></div><div class="message-content"><div class="message-bubble"><span class="typing-indicator"><span class="typing-dots"><span></span><span></span><span></span></span> 处理中...</span></div></div>`;
+    msgs.appendChild(waiting);
     msgs.scrollTop = msgs.scrollHeight;
 
     try {
-      let result;
-      if (currentMode === 'single') {
-        const res = await fetch('/api/agents/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ agentId: currentAgent, message: text, conversationId: conversationIds[currentAgent] })
-        });
-        if (res.status === 401 || res.status === 403) {
-          waitingMsg.remove();
-          localStorage.removeItem('token');
-          localStorage.removeItem('currentUser');
-          document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px;font-size:16px;font-weight:600;">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请返回首页重新登录</p><button onclick="window.location.href=\'/\'" style="padding:10px 22px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">返回首页登录</button></div>';
-          return;
-        }
-        result = await res.json();
-        waitingMsg.remove();
-        if (result.success) {
-          const agent = agentsData.find(a => a.id === currentAgent);
-          const avatarName = agent ? getAgentIcon(currentAgent) : agentIconSVG.general;
-          const botMsg = createMessage('assistant', avatarName, result.content);
-          const meta = botMsg.querySelector('.msg-meta');
-          if (meta) meta.innerHTML += ` · <span style="color:#4f46e5;">${result.tokens} tokens · ${result.elapsed}ms</span>`;
-          msgs.appendChild(botMsg);
-        } else {
-          const errSVG = agentIconSVG.general;
-          const errMsg = createMessage('assistant', errSVG, '抱歉，发生了错误：' + (result.error || '未知错误'));
-          msgs.appendChild(errMsg);
-        }
+      const res = await fetch('/api/agents/router', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ message: text, conversationId: conversationId })
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        waiting.remove();
+        localStorage.removeItem('token');
+        document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px;font-size:16px;">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请返回首页重新登录</p><button onclick="window.location.href=\'/\'" style="padding:8px 20px;background:#4f46e5;color:white;border:none;border-radius:5px;cursor:pointer;font-size:13px;">返回首页登录</button></div>';
+        return;
+      }
+
+      const result = await res.json();
+      waiting.remove();
+
+      if (result.success && result.content) {
+        msgs.appendChild(createMessage('assistant', result.content));
       } else {
-        const apiMode = currentMode === 'sequential' ? 'sequential' : 'parallel';
-        const res = await fetch('/api/agents/collaboration/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({
-            message: text,
-            mode: apiMode,
-            agents: Array.from(selectedAgents),
-            sessionId: 'collab_' + Date.now()
-          })
-        });
-        if (res.status === 401 || res.status === 403) {
-          waitingMsg.remove();
-          localStorage.removeItem('token');
-          localStorage.removeItem('currentUser');
-          document.getElementById('chatMessages').innerHTML = '<div style="padding:40px;text-align:center"><h4 style="color:#0f172a;margin-bottom:8px;font-size:16px;font-weight:600;">登录已过期</h4><p style="color:#64748b;font-size:13px;margin-bottom:20px;">请返回首页重新登录</p><button onclick="window.location.href=\'/\'" style="padding:10px 22px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">返回首页登录</button></div>';
-          return;
-        }
-        result = await res.json();
-        waitingMsg.remove();
-
-        if (result.success) {
-          const collabContainer = document.createElement('div');
-          collabContainer.className = 'message assistant';
-          collabContainer.style.display = 'block';
-          collabContainer.style.width = '100%';
-
-          let stepHtml = '';
-
-          if (result.plan) {
-            stepHtml += `<div class="collaboration-panel">
-              <div class="collab-panel-title">协作方案</div>
-              <div class="collab-panel-desc">${result.plan.rationale || (result.mode === 'sequential' ? '智能体按顺序依次处理' : '多个智能体从不同角度同时分析')}</div>
-            </div>`;
-          }
-
-          result.steps.forEach((step, idx) => {
-            const stepNum = idx + 1;
-            const modeLabel = result.mode === 'sequential' ? `步骤 ${stepNum}` : `方案 ${stepNum}`;
-            const arrowIcon = (idx < result.steps.length - 1 && result.mode === 'sequential') ? '<div class="flow-arrow">▼</div>' : '';
-            stepHtml += `
-              <div class="collab-result-card">
-                <div class="collab-result-header">
-                  <div class="collab-result-left">
-                    <span class="step-badge">${modeLabel}</span>
-                    <span style="font-size:13px;font-weight:500;color:#0f172a;">${step.agentName || step.agent}</span>
-                  </div>
-                  <div style="font-size:11px;color:#94a3b8;">${step.tokens || 0} t · ${step.elapsed || 0}ms</div>
-                </div>
-                <div class="collab-result-body">${formatMarkdown(step.content || '无内容')}</div>
-              </div>
-              ${arrowIcon}
-            `;
-          });
-
-          if (result.summary && result.summary.success) {
-            stepHtml += `
-              <div class="collab-summary-card">
-                <div class="collab-summary-title">综合汇总</div>
-                <div style="line-height:1.7;font-size:14px;color:#1e3a8a;">${formatMarkdown(result.summary.content || '')}</div>
-                <div class="collab-meta">
-                  总耗时 ${result.totalElapsed || 0}ms · ${result.totalTokens || 0} tokens
-                </div>
-              </div>
-            `;
-          }
-
-          const teamSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
-          collabContainer.innerHTML = `<div class="message-avatar">${teamSvg}</div><div class="message-content"><div class="message-bubble" style="padding:0;background:transparent;border:none;box-shadow:none;">${stepHtml}</div><div class="msg-meta">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div></div>`;
-          msgs.appendChild(collabContainer);
-        } else {
-          const errSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
-          const errMsg = createMessage('assistant', errSVG, '协作失败：' + (result.error || '未知错误'));
-          msgs.appendChild(errMsg);
-        }
+        msgs.appendChild(createMessage('assistant', '😅 抱歉，处理失败了：' + (result.error || '未知错误')));
       }
     } catch (e) {
-      waitingMsg.remove();
-      const errSVG2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
-      const errMsg = createMessage('assistant', errSVG2, '网络错误：' + e.message);
-      msgs.appendChild(errMsg);
+      waiting.remove();
+      msgs.appendChild(createMessage('assistant', '😅 网络错误：' + e.message));
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function clearChat() {
     if (!confirm('确认清空当前对话？')) return;
-    conversationIds = {};
-    document.getElementById('chatMessages').innerHTML = `<div class="welcome-card">
-      <div class="welcome-title">欢迎使用 AI 智能助手</div>
-      <div class="welcome-subtitle">为企业公文场景提供的多智能体协同工作平台</div>
-      <div class="feature-grid">
-        <div class="feature-item">通用对话</div>
-        <div class="feature-item">公文撰写</div>
-        <div class="feature-item">审批分析</div>
-        <div class="feature-item">数据洞察</div>
-      </div>
-    </div>`;
-    messageCount = 0;
+    conversationId = 'web_' + Date.now();
+    document.getElementById('chatMessages').innerHTML = `
+      <div class="welcome-card">
+        <div class="welcome-title">👋 欢迎使用 AI 学工助手</div>
+        <div class="welcome-subtitle">我能帮你请假、审批、查询数据，直接告诉我你要做什么</div>
+        <div class="feature-grid">
+          <div class="feature-item" onclick="quickSend('我要请假3天回家')">📝 申请请假</div>
+          <div class="feature-item" onclick="quickSend('我的请假记录')">🔍 查看记录</div>
+          <div class="feature-item" onclick="quickSend('我还有多少天年假')">🌴 假期余额</div>
+        </div>
+      </div>`;
   }
 
-  // 启动流程：先检查登录，再加载智能体列表
-  (async function init() {
+  // 启动
+  (function init() {
     if (!checkAuth()) return;
-    await loadAgents();
   })();
 </script>
 </body>

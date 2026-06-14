@@ -1,7 +1,7 @@
 // ============================================================
-//  公文流转 + 请假系统 - 全流程 AI 群聊审批版
+//  学工请假系统 - 全流程 AI 飞书审批版
 //  端口：3000 | 数据库：sql.js (纯JS SQLite)
-//  v2.0 - 多智能体系统 + 飞书深度集成
+//  v4.0 - 学工角色 + 全流程AI + 飞书闭环
 // ============================================================
 const express = require('express');
 const initSqlJs = require('sql.js');
@@ -180,16 +180,31 @@ async function initDB() {
         try { db.run(sql); } catch (e) { console.warn('[WARN] 建表失败:', e.message); }
     }
 
-    // ------ 初始数据（如果是空数据库） ------
+    // ------ 初始数据（如果是空数据库）------
     const userCount = query('SELECT COUNT(*) as c FROM users')[0].c;
     if (userCount === 0) {
-        run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
-            ['admin', 'admin123', '管理员', 'ADMIN', '管理部']);
-        // 初始化管理员的年假余额
         const year = new Date().getFullYear();
-        run(`INSERT INTO leave_balance (user_id, year, annual_days, used_days, sick_days, sick_used, personal_days, personal_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [1, year, 10, 0, 5, 0, 3, 0]);
-        console.log('[OK] 初始管理员账号已创建');
+        const md5 = p => crypto.createHash('md5').update(p).digest('hex');
+        // 学工系统角色：ADMIN(系统管理员), COUNSELOR(辅导员), TEACHER(老师), STUDENT(学生)
+        const initUsers = [
+            ['admin', md5('admin123'), '系统管理员', 'ADMIN', '信息中心'],
+            ['fudaoyuan', md5('123456'), '李辅导员', 'COUNSELOR', '学生工作部'],
+            ['wanglaoshi', md5('123456'), '王老师', 'TEACHER', '计算机系'],
+            ['zhanglaoshi', md5('123456'), '张老师', 'TEACHER', '数学系'],
+            ['xiaoming', md5('123456'), '小明', 'STUDENT', '计算机系2023级'],
+            ['xiaohong', md5('123456'), '小红', 'STUDENT', '数学系2023级'],
+            ['xiaogang', md5('123456'), '小刚', 'STUDENT', '计算机系2024级'],
+        ];
+        for (const [username, password, name, role, dept] of initUsers) {
+            run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
+                [username, password, name, role, dept]);
+        }
+        // 给每个人初始化年假余额
+        for (let i = 1; i <= initUsers.length; i++) {
+            run(`INSERT INTO leave_balance (user_id, year, annual_days, used_days, sick_days, sick_used, personal_days, personal_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [i, year, 10, 0, 5, 0, 3, 0]);
+        }
+        console.log('[OK] 学工系统初始账号已创建（管理员/辅导员/老师/学生共7人）');
     }
 }
 
@@ -304,11 +319,11 @@ async function sendFeishuToGroup(text) {
     return await _feishuSendRaw(FEISHU_GROUP_CHAT_ID, 'chat_id', text);
 }
 
-// ---------- 给所有审批人（ADMIN 角色）发飞书消息 ----------
+// ---------- 给所有审批人（ADMIN/COUNSELOR/TEACHER）发飞书消息 ----------
 async function sendFeishuToApprovers(text) {
     if (!larkClient) return { success: false, sent: 0, reason: '飞书客户端未初始化' };
-    const admins = query('SELECT id, name FROM users WHERE role = ?', ['ADMIN']);
-    if (admins.length === 0) return { success: false, sent: 0, reason: '系统中没有管理员' };
+    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+    if (admins.length === 0) return { success: false, sent: 0, reason: '系统中没有审批人（管理员/辅导员/老师）' };
 
     let sentCount = 0;
     const failedNames = [];
@@ -324,7 +339,7 @@ async function sendFeishuToApprovers(text) {
     }
 
     if (openIds.length === 0) {
-        return { success: false, sent: 0, reason: '所有管理员均未绑定飞书: ' + failedNames.join(', ') };
+        return { success: false, sent: 0, reason: '所有审批人均未绑定飞书: ' + failedNames.join(', ') };
     }
 
     for (const u of openIds) {
@@ -486,15 +501,21 @@ async function handleFeishuMessage(data) {
                         run('INSERT INTO feishu_user_map (feishu_open_id, system_user_id) VALUES (?, ?)', [senderId, sysUser.id]);
                     }
                 }
+                const roleNames = { ADMIN: '系统管理员', COUNSELOR: '辅导员', TEACHER: '老师', STUDENT: '学生', EMPLOYEE: '员工' };
+                const roleName = roleNames[sysUser.role] || sysUser.role;
                 console.log('[飞书] 绑定成功: ' + senderId + ' → ' + sysUser.name + ' (' + sysUser.role + ')');
-                await sendFeishuMsg(chatId,
-                    '✅ 绑定成功！' + sysUser.name + '（' + (sysUser.role === 'ADMIN' ? '管理员' : '员工') + '）\n\n' +
-                    '以后直接发消息即可操作：\n' +
-                    '📝 请假 → 说「请假3天 年假 6月15到17号」\n' +
-                    '📄 写公文 → 说「帮我写一份采购申请」\n' +
-                    '📊 查数据 → 说「本周有多少请假」\n' +
-                    '🔍 查询 → 说「我的请假记录」\n' +
-                    '✅ 审批 → 回复「同意」或「不同意」');
+
+                let tipsMsg = '✅ 绑定成功！' + sysUser.name + '（' + roleName + '）\n\n以后直接发消息即可操作：\n';
+                if (sysUser.role === 'STUDENT') {
+                    tipsMsg += '📝 请假 → 说「我要请假3天回家」\n' +
+                        '🔍 查询 → 说「我的请假记录」\n' +
+                        '📊 余额 → 说「我还有多少天年假」';
+                } else if (['COUNSELOR', 'TEACHER', 'ADMIN'].includes(sysUser.role)) {
+                    tipsMsg += '✅ 审批 → 回复「同意 #编号」或「不同意」\n' +
+                        '📊 查看 → 说「待审批事项」或「本周统计」\n' +
+                        '📢 通知 → 说「提醒学生XX」';
+                }
+                await sendFeishuMsg(chatId, tipsMsg);
                 return;
             } else {
                 await sendFeishuMsg(chatId, '❌ 系统中未找到「' + name + '」这个用户。\n请让管理员先在系统里添加你的账号，或核对名字是否正确。');
@@ -522,31 +543,34 @@ async function handleFeishuMessage(data) {
 
         // 未绑定身份 → 友好提示绑定
         if (!user) {
+            const allUsers = query('SELECT name, role FROM users LIMIT 10');
+            const userList = allUsers.map(u => u.name + '(' + ({ADMIN:'管理员',COUNSELOR:'辅导员',TEACHER:'老师',STUDENT:'学生',EMPLOYEE:'员工'}[u.role]||u.role) + ')').join('、');
             await sendFeishuMsg(chatId,
-                '👋 你好！我是公文流转助手。\n\n' +
+                '👋 你好！我是学工请假助手。\n\n' +
                 '⚠️ 当前还没有绑定你的身份。\n\n' +
-                '🔗 请回复：「我是你的名字」\n   例如：「我是张三」\n\n' +
-                '已存在的用户：admin(管理员)、张三、李四、王五、赵六、孙七\n\n' +
+                '🔗 请回复：「我是你的名字」\n   例如：「我是小明」\n\n' +
+                '系统中已有用户：' + userList + '\n\n' +
                 '绑定后我就能帮你请假、审批、查数据啦！');
             return;
         }
 
         console.log('[飞书] 当前身份: ' + user.name + ' (' + user.role + ')');
 
-        // ========== Router Agent 智能路由（全 AI 驱动）==========
+        // ========== Router Agent 智能路由（v4.0 全 AI 驱动 + 学工角色）==========
         if (aiAgents && dbHelper) {
             try {
                 const context = {
                     userId: user.id,
                     userName: user.name,
-                    isAdmin: user.role === 'ADMIN',
+                    userRole: user.role,
+                    isAdmin: (user.role === 'ADMIN' || user.role === 'COUNSELOR'),
                     feishuChatId: chatId,
                     feishuMsgId: msgId,
                     feishuOpenId: senderId,
                     conversationId: 'feishu_' + senderId + '_' + chatId
                 };
 
-                console.log('[Router] 处理: "' + content.slice(0, 60) + '" by ' + user.name);
+                console.log('[Router] 处理: "' + content.slice(0, 60) + '" by ' + user.name + ' (' + user.role + ')');
                 const result = await aiAgents.routerAgentProcess(content, context);
 
                 if (result && typeof result === 'object' && result.content) {
@@ -746,13 +770,17 @@ async function sendWechatNotify(title, content) {
 
 // ---------- 认证 ----------
 function auth(req, res, next) {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ message: '未登录' });
+    const header = req.headers.authorization || '';
+    if (!header.startsWith('Bearer ')) return res.status(401).json({ message: '未登录' });
+    const token = header.slice(7);
     try {
-        const parts = Buffer.from(token, 'base64').toString().split(':');
-        if (parts.length !== 2) throw new Error();
-        req.userId = parseInt(parts[0]);
-        req.username = parts[1];
+        const [b64, sig] = token.split('.');
+        if (!b64 || !sig) throw new Error('invalid format');
+        const h = crypto.createHmac('sha256', 'docflow-secret-2024').update(b64).digest('base64url');
+        if (h !== sig) throw new Error('invalid sig');
+        const payload = JSON.parse(Buffer.from(b64, 'base64url').toString());
+        req.userId = payload.id;
+        req.userRole = payload.role;
         next();
     } catch { res.status(401).json({ message: '无效凭证' }); }
 }
@@ -1084,7 +1112,9 @@ app.post('/api/notify/send', auth, async (req, res) => {
 app.get('/api/leave', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        const uid = user?.role === 'ADMIN' ? null : req.userId;
+        // ADMIN/COUNSELOR/TEACHER 可看全部请假，STUDENT 只看自己的
+        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+        const uid = canSeeAll ? null : req.userId;
         let sql = `SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE 1=1`;
         const p = [];
         if (uid) { sql += ' AND l.user_id = ?'; p.push(uid); }
@@ -1094,32 +1124,118 @@ app.get('/api/leave', auth, (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/leave', auth, (req, res) => {
+// 请假申请 - 提交后自动通知审批人（辅导员/老师）
+app.post('/api/leave', auth, async (req, res) => {
     try {
         const { type, startDate, endDate, start_date, end_date, days, reason } = req.body;
         const sDate = startDate || start_date || '';
         const eDate = endDate || end_date || '';
         const r = run(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')`,
             [req.userId, type, sDate, eDate, days, reason || '']);
-        const user = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
-        sendWechatNotify('【新请假申请】来自 ' + (user?.name || ''),
+        const leaveId = r.lastID;
+
+        const applicant = query('SELECT id, name, role, department FROM users WHERE id = ?', [req.userId])[0];
+
+        // 构建通知消息
+        const notifyText = `📝 **新的请假申请**\n\n` +
+            `👤 申请人：${applicant.name}（${applicant.department || ''}）\n` +
+            `📋 类型：${type}\n` +
+            `📅 时间：${sDate} 至 ${eDate}（${days}天）\n` +
+            `💬 事由：${reason || '无'}\n` +
+            `🆔 编号：#${leaveId}\n\n` +
+            `👉 请及时审批！回复「同意 #${leaveId}」或「不同意 #${leaveId}」`;
+
+        // 1. 飞书通知审批人（辅导员+老师+管理员）
+        let feishuResult = { success: false, sent: 0 };
+        try {
+            // 通知辅导员和管理员（他们负责审批学生请假）
+            const approvers = query(
+                `SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN') OR (role = 'TEACHER' AND department LIKE ?)`,
+                ['%' + (applicant.department || '').replace(/[0-9]+级$/, '') + '%']
+            );
+            if (approvers.length === 0) {
+                // 如果没有匹配的老师，通知所有辅导员和管理员
+                const fallbackApprovers = query(`SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN')`);
+                for (const a of fallbackApprovers) {
+                    const r2 = await sendFeishuToUser(a.id, notifyText);
+                    if (r2.success) feishuResult.sent++;
+                }
+            } else {
+                for (const a of approvers) {
+                    const r2 = await sendFeishuToUser(a.id, notifyText);
+                    if (r2.success) feishuResult.sent++;
+                }
+            }
+            feishuResult.success = feishuResult.sent > 0;
+        } catch (e) { console.error('[请假通知] 飞书通知失败:', e.message); }
+
+        // 2. 也发到群聊
+        try { await sendFeishuToGroup(notifyText); } catch (e) {}
+
+        // 3. 微信通知
+        sendWechatNotify('【新请假申请】来自 ' + (applicant?.name || ''),
             `请假类型：${type}\n时间：${sDate} 至 ${eDate}\n天数：${days}\n事由：${reason || '无'}`);
-        res.json({ success: true, id: r.lastID });
+
+        res.json({
+            success: true,
+            id: leaveId,
+            notified: feishuResult.sent > 0,
+            notifiedCount: feishuResult.sent
+        });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/leave/:id/approve', auth, (req, res) => {
+// 请假审批 - 通过后自动通知申请人
+app.post('/api/leave/:id/approve', auth, async (req, res) => {
     try {
+        const leaveId = req.params.id;
+        const comment = req.body.comment || '已批准';
+
         run(`UPDATE leave_requests SET status = 'APPROVED', approver_id = ?, approver_comment = ?, updated_at = datetime('now') WHERE id = ?`,
-            [req.userId, req.body.comment || '', req.params.id]);
+            [req.userId, comment, leaveId]);
+
+        const leave = query('SELECT l.*, u.name as user_name, u.department FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ?', [leaveId])[0];
+        const approver = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+
+        if (leave) {
+            // 通知申请人
+            const notifyText = `✅ **请假已批准**\n\n` +
+                `📋 ${leave.type} · ${leave.days}天\n` +
+                `📅 ${leave.start_date} ~ ${leave.end_date}\n` +
+                `👤 审批人：${approver?.name || '管理员'}\n` +
+                `💬 审批意见：${comment}\n\n` +
+                `🎉 假期愉快！`;
+
+            await sendFeishuToUser(leave.user_id, notifyText);
+        }
+
         res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/leave/:id/reject', auth, (req, res) => {
+// 请假驳回 - 驳回后自动通知申请人
+app.post('/api/leave/:id/reject', auth, async (req, res) => {
     try {
+        const leaveId = req.params.id;
+        const comment = req.body.comment || '不予批准';
+
         run(`UPDATE leave_requests SET status = 'REJECTED', approver_id = ?, approver_comment = ?, updated_at = datetime('now') WHERE id = ?`,
-            [req.userId, req.body.comment || '', req.params.id]);
+            [req.userId, comment, leaveId]);
+
+        const leave = query('SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ?', [leaveId])[0];
+        const approver = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+
+        if (leave) {
+            const notifyText = `❌ **请假未通过**\n\n` +
+                `📋 ${leave.type} · ${leave.days}天\n` +
+                `📅 ${leave.start_date} ~ ${leave.end_date}\n` +
+                `👤 审批人：${approver?.name || '管理员'}\n` +
+                `💬 驳回理由：${comment}\n\n` +
+                `如有疑问请联系审批人。`;
+
+            await sendFeishuToUser(leave.user_id, notifyText);
+        }
+
         res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
@@ -1127,7 +1243,9 @@ app.post('/api/leave/:id/reject', auth, (req, res) => {
 app.get('/api/leave/stats', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        const uid = user?.role === 'ADMIN' ? null : req.userId;
+        // ADMIN/COUNSELOR/TEACHER 可看全部，STUDENT 只看自己的
+        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+        const uid = canSeeAll ? null : req.userId;
         const w = uid ? ' WHERE user_id = ?' : '';
         const p = uid ? [uid] : [];
         const total = query('SELECT COUNT(*) as c FROM leave_requests' + w, p)[0].c;
@@ -1267,7 +1385,7 @@ function getSystemOverview() {
     const totalLeave = query('SELECT COUNT(*) as c FROM leave_requests')[0].c;
     const pendingDocs = query(`SELECT COUNT(*) as c FROM documents WHERE status = 'PENDING'`)[0].c;
     const pendingLeave = query(`SELECT COUNT(*) as c FROM leave_requests WHERE status = 'PENDING'`)[0].c;
-    const admins = query('SELECT id, name, role FROM users WHERE role = ?', ['ADMIN']);
+    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
     // 检查 department 列是否存在（使用 try-catch 安全方式）
     let departments = [];
     try {
@@ -1351,7 +1469,7 @@ app.post('/api/stats/query', auth, async (req, res) => {
         const user = query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
         if (!user) return res.status(401).json({ success: false, message: '用户不存在' });
 
-        const isAdmin = user.role === 'ADMIN';
+        const isAdmin = ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
         const lowerMsg = message.toLowerCase();
         const text = message;
         const result = { success: true, queryType: 'unknown', data: {}, text: '', message: message, userName: user.name, isAdmin };
@@ -1598,11 +1716,12 @@ app.post('/api/ai/router', auth, async (req, res) => {
         const context = {
             userId: req.userId,
             userName: user ? user.name : '用户#' + req.userId,
-            isAdmin: user ? user.role === 'ADMIN' : false,
+            userRole: user ? user.role : 'STUDENT',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
             conversationId: 'web_' + req.userId
         };
 
-        console.log(`[Router API] 用户=${context.userName} 消息="${message.slice(0, 60)}"`);
+        console.log(`[Router API] 用户=${context.userName} 角色=${context.userRole} 消息="${message.slice(0, 60)}"`);
         const result = await aiAgents.routerAgentProcess(message, context);
 
         if (result.success) {
@@ -1612,6 +1731,38 @@ app.post('/api/ai/router', auth, async (req, res) => {
         }
     } catch (err) {
         console.error('[Router API] 错误:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Web Chat 入口 - chat.html 调用此接口（与 /api/ai/router 功能相同）
+app.post('/api/agents/router', auth, async (req, res) => {
+    const { message, conversationId } = req.body;
+    if (!message) return res.status(400).json({ success: false, error: '缺少 message' });
+    if (!aiAgents) return res.status(500).json({ success: false, error: '智能体系统未启用' });
+
+    try {
+        const user = dbHelper ? dbHelper.getUserById(req.userId) :
+            query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
+
+        const context = {
+            userId: req.userId,
+            userName: user ? user.name : '用户#' + req.userId,
+            userRole: user ? user.role : 'STUDENT',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            conversationId: conversationId || ('web_' + req.userId)
+        };
+
+        console.log(`[Agents Router] 用户=${context.userName} 角色=${context.userRole} 消息="${message.slice(0, 60)}"`);
+        const result = await aiAgents.routerAgentProcess(message, context);
+
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(500).json(result);
+        }
+    } catch (err) {
+        console.error('[Agents Router] 错误:', err.message);
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -1635,7 +1786,8 @@ app.post('/api/ai/feishu-router', async (req, res) => {
         const context = {
             userId: user ? user.id : 1,
             userName: user ? user.name : '飞书用户',
-            isAdmin: user ? user.role === 'ADMIN' : false,
+            userRole: user ? user.role : 'STUDENT',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
             feishuChatId: chatId || '',
             feishuMsgId: msgId || '',
             feishuOpenId: openId || '',
@@ -1667,7 +1819,9 @@ app.post('/api/ai/leave', auth, async (req, res) => {
 
         const result = await aiAgents.leaveAgentProcess(message, {
             userId: req.userId,
-            userName: user ? user.name : '用户#' + req.userId
+            userName: user ? user.name : '用户#' + req.userId,
+            userRole: user ? user.role : 'STUDENT',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false
         });
 
         res.json(result);
@@ -1737,7 +1891,7 @@ app.post('/api/agents/chat', auth, async (req, res) => {
             const user = query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
             if (!user) return res.status(401).json({ success: false, error: '用户不存在' });
 
-            const isAdmin = user.role === 'ADMIN';
+            const isAdmin = ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
             const text = message;
 
             // ---- 解析查询类型 ----
@@ -2065,7 +2219,7 @@ async function start() {
         // 建表
         console.log('[启动] 检查数据表结构...');
         const tables = [
-            { name: 'users', sql: `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT NOT NULL, role TEXT DEFAULT 'EMPLOYEE', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'users', sql: `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT DEFAULT '', name TEXT NOT NULL, role TEXT DEFAULT 'STUDENT', department TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
             { name: 'documents', sql: `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, type TEXT DEFAULT 'NORMAL', priority TEXT DEFAULT 'NORMAL', status TEXT DEFAULT 'PENDING', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
@@ -2077,29 +2231,7 @@ async function start() {
         tables.forEach(t => { if (safeRun(t.sql, t.name)) createdCount++; });
         console.log(`[OK] 数据表检查完成 (${createdCount}/${tables.length})`);
 
-        // 初始化默认数据（仅当 users 表为空时）
-        try {
-            if (query('SELECT COUNT(*) as c FROM users')[0].c === 0) {
-                console.log('[初始化] 正在创建默认数据...');
-                function insert(sql, params = []) { try { run(sql, params); } catch (e) {} }
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('admin', 'admin123', '管理员', 'ADMIN')`);
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('zhangsan', '123456', '张三', 'EMPLOYEE')`);
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('lisi', '123456', '李四', 'EMPLOYEE')`);
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('wangwu', '123456', '王五', 'EMPLOYEE')`);
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('zhaoliu', '123456', '赵六', 'EMPLOYEE')`);
-                insert(`INSERT INTO users (username, password, name, role) VALUES ('sunqi', '123456', '孙七', 'EMPLOYEE')`);
-                insert(`INSERT INTO wechat_config (provider, api_key, enabled) VALUES ('serverchan', 'SCT359275Tkk3wftrQnVAwazPBPOAWaMIR', 1)`);
-                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于2024年度工作计划的通知', '请各部门于本周五前提交年度工作计划草案。', 'NOTICE', 'APPROVED', 'HIGH', 1)`);
-                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于员工福利调整的申请', '建议提高员工餐补标准至每日50元。', 'PROPOSAL', 'PENDING', 'NORMAL', 2)`);
-                insert(`INSERT INTO documents (title, content, type, status, priority, applicant_id) VALUES ('关于办公室搬迁的通知', '市场部将于下周一搬迁至新办公区。', 'NOTICE', 'PENDING', 'LOW', 1)`);
-                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (2, '年假', '2024-06-10', '2024-06-12', 3, '计划带家人去旅游', 'APPROVED', 1)`);
-                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, approver_id) VALUES (3, '病假', '2024-06-05', '2024-06-05', 1, '发烧感冒', 'APPROVED', 1)`);
-                insert(`INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) VALUES (4, '事假', '2024-06-15', '2024-06-16', 2, '家中装修需要监工', 'PENDING')`);
-                console.log('[初始化] 默认数据创建完成');
-            }
-        } catch (e) {
-            console.error('[WARN] 初始化数据失败:', e.message);
-        }
+        // （已移除：默认测试数据初始化。仅保留管理员账号，由 initDB 创建）
 
         try { saveDB(); } catch (e) { console.error('[WARN] 保存数据库失败:', e.message); }
         try { await initLark(); } catch (e) { /* initLark 已有处理 */ }
@@ -2143,8 +2275,13 @@ async function start() {
         // 注册 Auth 路由
         if (authModule) {
             try {
-                const { addRoutes } = authModule(db, query, run, crypto);
+                const { addRoutes, auth: authMiddleware } = authModule(db, query, run, crypto);
                 addRoutes(app);
+                // 重新注册所有需要 auth 的路由（因为 auth 中间件是在 initAuth 中创建的）
+                // 注意：auth 变量在文件顶层未定义，这里通过重新注册来修复
+                // 方案：在 app 上挂载 auth 中间件引用，供后续使用
+                app._authMiddleware = authMiddleware;
+                console.log('[OK] Auth 中间件已注册');
             } catch (e) { console.error('[WARN] Auth 路由注册失败:', e.message); }
         }
 
@@ -2160,7 +2297,6 @@ async function start() {
             console.log(`📢 Notify API: POST /api/ai/notify`);
             console.log(`💊 健康检查:   http://localhost:${PORT}/health`);
             console.log(`🔐 登录账号:   admin / admin123`);
-            console.log(`               zhangsan / 123456`);
             console.log(`========================================================\n`);
         });
     } catch (err) {

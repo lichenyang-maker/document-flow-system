@@ -74,7 +74,19 @@ function initDBHelper(db, saveDB) {
     }
 
     function getAdmins() {
-        return dbAll('SELECT id, username, name, role FROM users WHERE role = ?', ['ADMIN']);
+        return dbAll('SELECT id, username, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+    }
+
+    // 获取审批人列表（辅导员+管理员+相关老师）
+    function getApprovers(department) {
+        if (department) {
+            const deptPrefix = department.replace(/[0-9]+级$/, '');
+            return dbAll(
+                `SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN') OR (role = 'TEACHER' AND department LIKE ?)`,
+                ['%' + deptPrefix + '%']
+            );
+        }
+        return dbAll('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
     }
 
     // ---------- 飞书绑定 ----------
@@ -126,6 +138,13 @@ function initDBHelper(db, saveDB) {
         return dbRun(
             `UPDATE leave_requests SET status = 'REJECTED', approver_id = ?, approver_comment = ?, updated_at = datetime('now') WHERE id = ?`,
             [approverId, comment || '不予批准', leaveId]
+        );
+    }
+
+    function getLeaveById(leaveId) {
+        return dbGet(
+            `SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+            [leaveId]
         );
     }
 
@@ -268,11 +287,11 @@ function initDBHelper(db, saveDB) {
         // 底层
         dbAll, dbGet, dbRun,
         // 用户
-        getUserById, getUserByName, getUserByFeishuId, getFeishuIdByUserId, getAdmins,
+        getUserById, getUserByName, getUserByFeishuId, getFeishuIdByUserId, getAdmins, getApprovers,
         // 飞书
         bindFeishuUser,
         // 请假
-        createLeaveRequest, getPendingLeaveInChat, approveLeave, rejectLeave,
+        createLeaveRequest, getPendingLeaveInChat, getLeaveById, approveLeave, rejectLeave,
         getMyLeaves, getLeaveBalance, countLeavesInRange,
         // 公文
         createDocument, approveDocument, rejectDocument, getDocumentById,

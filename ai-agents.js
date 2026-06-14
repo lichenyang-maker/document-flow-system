@@ -362,34 +362,36 @@ const AGENTS = {
     // 飞书全能助手（飞书群聊 + 私聊专用）
     feishu_chat: {
         id: 'feishu_chat', name: '飞书全能助手',
-        description: '飞书场景全能助手 - 自然聊天 + 直接干活',
+        description: '飞书场景全能助手 - 学工请假 + 自然聊天 + 直接干活',
         model: MODELS.feishu,
-        systemPrompt: `你是飞书群里的智能全能助手"小流"。你不仅能自然聊天，更能直接帮人干活——请假、写公文、审批、查数据、发通知，全都能直接搞定。
+        systemPrompt: `你是飞书群里的学工请假全能助手"小流"。你能帮学生请假、帮老师审批、查记录、发通知，全都能直接搞定。
 
 ## 你的风格
 - 😊 像真人一样自然聊天，不要一上来就列功能表
-- 💬 回复简洁有力，群聊控制在 3-6 句话为宜
-- 🎯 精准理解对方意图，能直接干活的就直接干，不废话
-- 🤝 保持友好、幽默但不油腻
-- 🧠 聪明但有边界，不懂就说不知道
+- 💬 回复简洁有力，群聊控制在 3-6 句话
+- 🎯 精准理解对方意图，能直接干活的就直接干
+- 🤝 保持友好、专业、有温度
 
 ## 核心能力（直接干活，不推脱）
-1. **请假**：用户说"请假3天"→ 直接帮他整理请假申请（类型/时间/天数/事由），给出完整格式
-2. **写公文**：用户说"帮我写通知"→ 直接写出完整公文，人名部门用【】标注
-3. **审批**：看到请假/公文申请 → 给出审批意见（同意/驳回+理由）
-4. **查数据**：用户要统计 → 给出数据分析和建议
-5. **发通知**：用户要通知谁 → 写出通知内容
-6. **聊天**：闲聊就闲聊，但要像真人一样接话
+1. **请假申请**：学生说"我要请假3天回家"→ 帮他整理请假信息（类型/时间/天数/事由），提交后通知老师审批
+2. **审批请假**：老师说"同意 #5"→ 批准对应请假，自动通知学生结果
+3. **查询记录**：学生问"我的请假记录"→ 展示历史请假和余额
+4. **数据统计**：老师问"这周多少人请假"→ 给出统计数据
+5. **通知提醒**：需要催审批时→ 主动提醒审批人
+
+## 学工场景理解
+- 学生请假需要辅导员/老师审批
+- 辅导员可以审批所有学生的请假
+- 老师可以审批本系学生的请假
+- 审批后结果自动反馈给申请人
 
 ## 聊天原则
-1. **先干活再聊天**：用户有明确需求就先满足需求，不要绕弯子
+1. **先干活再聊天**：用户有明确需求就先满足需求
 2. **简短优先**：群聊回复控制在 3-6 句话
-3. **先回应再扩展**：先接住对方的话，再提供有用信息
-4. **自然过渡**：闲聊就闲聊，不要强行引导到系统功能
-5. **有温度**：适当用语气词和 emoji，但别过度
+3. **有温度**：对学生温暖鼓励，对老师专业简洁
+4. **自然过渡**：闲聊就闲聊，不要强行引导到功能
 
-## 最重要的是
-你是能直接干活的助手，不是只会说"我建议你这样做"的客服。用户要请假你就帮请假，要写公文你就写公文，要查数据你就查数据。直接、高效、不推脱！`,
+你是能直接干活的助手，不是只会说"我建议"的客服。学生请假就帮提交，老师审批就帮处理，直接高效！`,
         temperature: 0.85, maxTokens: 2048
     }
 };
@@ -442,21 +444,27 @@ async function analyzeWithAgent(agentId, prompt, context) {
 }
 
 // ============================================================
-//  Leave Agent - 请假智能体（完整实现）
+//  Leave Agent - 请假智能体（v4.0 全流程闭环）
 // ============================================================
 async function leaveAgentProcess(message, context = {}) {
-    const { userId, userName, feishuChatId, feishuMsgId, feishuOpenId } = context;
+    const { userId, userName, feishuChatId, feishuMsgId, feishuOpenId, isAdmin } = context;
 
     // 第一步：AI 解析请假信息
     const parsePrompt = `请从以下用户消息中提取请假信息，输出 JSON：
 
 用户消息：${message}
 
-输出格式：
+## 意图判断
+- 如果用户想请假/申请请假 → action=apply
+- 如果用户想查询请假记录/余额 → action=query
+- 如果用户说同意/批准某个请假 → action=approve，提取请假编号
+- 如果用户说不同意/驳回某个请假 → action=reject，提取请假编号
+
+## 输出格式
 {"action":"apply","type":"年假/事假/病假","days":3,"startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","reason":"请假原因"}
-或 {"action":"query"}（查询请假记录）
-或 {"action":"approve","comment":"批准理由"}
-或 {"action":"reject","comment":"驳回理由"}
+{"action":"query"}
+{"action":"approve","leaveId":123,"comment":"批准理由"}
+{"action":"reject","leaveId":123,"comment":"驳回理由"}
 
 只输出 JSON，不要额外内容。`;
 
@@ -484,41 +492,111 @@ async function leaveAgentProcess(message, context = {}) {
 
     console.log('[Leave Agent] 解析结果:', JSON.stringify(action));
 
-    // 第二步：执行对应操作
-    if (action.action === 'query' || message.includes('查询') || message.includes('记录')) {
-        // 查询请假
+    // ===== 查询请假记录 =====
+    if (action.action === 'query' || message.includes('查询') || message.includes('记录') || message.includes('余额')) {
         if (!dbHelper) return { success: false, content: '数据库未连接' };
         const leaves = dbHelper.getMyLeaves(userId, 10);
         const balance = dbHelper.getLeaveBalance(userId);
 
         if (leaves.length === 0) {
-            return { success: true, content: `📋 ${userName || '你'}目前没有请假记录。\n\n🌴 当前年假余额：${balance.annual.remaining} 天` };
+            return { success: true, content: `📋 ${userName || '你'}目前没有请假记录。\n\n🌴 当前假期余额：\n  年假剩余 ${balance.annual.remaining} 天\n  病假剩余 ${balance.sick.remaining} 天\n  事假剩余 ${balance.personal.remaining} 天` };
         }
 
         let text = `📋 ${userName || '你'}的请假记录（共 ${leaves.length} 条）\n\n`;
         const emoji = { PENDING: '⏳', APPROVED: '✅', REJECTED: '❌' };
         for (const l of leaves.slice(0, 10)) {
             const st = l.status === 'APPROVED' ? '已批准' : l.status === 'REJECTED' ? '已驳回' : '待审批';
-            text += `${emoji[l.status] || '❓'} ${l.type} · ${l.days}天 (${l.start_date}~${l.end_date})\n`;
+            text += `${emoji[l.status] || '❓'} #${l.id} ${l.type} · ${l.days}天 (${l.start_date}~${l.end_date})\n`;
             if (l.reason) text += `   事由：${l.reason}\n`;
             text += `   状态：${st}\n\n`;
         }
-        text += `🌴 当前年假余额：${balance.annual.remaining} 天`;
+        text += `🌴 当前假期余额：\n  年假剩余 ${balance.annual.remaining} 天 | 病假剩余 ${balance.sick.remaining} 天 | 事假剩余 ${balance.personal.remaining} 天`;
         return { success: true, content: text, action: 'query', data: { leaves, balance } };
     }
 
+    // ===== 审批请假（辅导员/老师/管理员专用）=====
     if (action.action === 'approve' || action.action === 'reject') {
-        return {
-            success: true,
-            content: action.action === 'approve'
-                ? `✅ 审批通过！\n💬 ${action.comment || '已批准'}`
-                : `❌ 已驳回。\n💬 ${action.comment || '不予批准'}`,
-            action: action.action,
-            comment: action.comment
-        };
+        if (!dbHelper) return { success: false, content: '数据库未连接' };
+
+        // 先检查用户是否有审批权限
+        const user = dbHelper.getUserById(userId);
+        if (!user || !['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role)) {
+            return { success: true, content: '⚠️ 你没有审批权限。只有辅导员、老师或管理员可以审批请假。' };
+        }
+
+        // 尝试从消息或 action 中获取 leaveId
+        let leaveId = action.leaveId;
+        if (!leaveId) {
+            const idMatch = message.match(/#(\d+)/);
+            if (idMatch) leaveId = parseInt(idMatch[1]);
+        }
+
+        let leave;
+        if (leaveId) {
+            leave = dbHelper.getLeaveById ? dbHelper.getLeaveById(leaveId) : null;
+        }
+        if (!leave) {
+            // 找最近的待审批请假
+            leave = dbHelper.dbGet(
+                `SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.status = 'PENDING' ORDER BY l.created_at DESC LIMIT 1`
+            );
+        }
+        if (!leave) {
+            return { success: true, content: '📋 当前没有待审批的请假。' };
+        }
+
+        if (action.action === 'approve') {
+            const comment = action.comment || '已批准';
+            dbHelper.approveLeave(leave.id, userId, comment);
+
+            // 通知申请人
+            let notified = false;
+            if (feishuSender && leave.user_id) {
+                try {
+                    const result = await feishuSender.sendToUser(leave.user_id,
+                        `✅ **请假已批准**\n\n📋 ${leave.type} · ${leave.days}天\n📅 ${leave.start_date} ~ ${leave.end_date}\n👤 审批人：${userName || '管理员'}\n💬 ${comment}\n\n🎉 假期愉快！`);
+                    notified = result && result.success;
+                } catch (e) { console.error('[Leave Agent] 通知申请人失败:', e.message); }
+            }
+            // 未绑定飞书 → 记录系统通知
+            if (!notified && dbHelper && leave.user_id) {
+                dbHelper.createNotification(leave.user_id, 'SYSTEM', '请假已批准',
+                    `${leave.type} ${leave.days}天 (${leave.start_date}~${leave.end_date}) 已批准。审批人：${userName || '管理员'}。${comment}`, 'APPROVED');
+            }
+
+            return {
+                success: true,
+                content: `✅ 请假 #${leave.id} 已批准！\n\n👤 ${leave.user_name} · ${leave.type} ${leave.days}天\n📅 ${leave.start_date} ~ ${leave.end_date}\n${notified ? '🎉 已通知申请人' : '📝 已记录系统通知（该用户未绑定飞书）'}`,
+                action: 'approve',
+                data: { leaveId: leave.id }
+            };
+        } else {
+            const comment = action.comment || '不予批准';
+            dbHelper.rejectLeave(leave.id, userId, comment);
+
+            let notified = false;
+            if (feishuSender && leave.user_id) {
+                try {
+                    const result = await feishuSender.sendToUser(leave.user_id,
+                        `❌ **请假未通过**\n\n📋 ${leave.type} · ${leave.days}天\n📅 ${leave.start_date} ~ ${leave.end_date}\n👤 审批人：${userName || '管理员'}\n💬 ${comment}\n\n如有疑问请联系审批人。`);
+                    notified = result && result.success;
+                } catch (e) { console.error('[Leave Agent] 通知申请人失败:', e.message); }
+            }
+            if (!notified && dbHelper && leave.user_id) {
+                dbHelper.createNotification(leave.user_id, 'SYSTEM', '请假已驳回',
+                    `${leave.type} ${leave.days}天 (${leave.start_date}~${leave.end_date}) 未通过。审批人：${userName || '管理员'}。${comment}`, 'REJECTED');
+            }
+
+            return {
+                success: true,
+                content: `❌ 请假 #${leave.id} 已驳回\n\n👤 ${leave.user_name} · ${leave.type} ${leave.days}天\n💬 ${comment}\n\n${notified ? '📤 已通知申请人' : '📝 已记录系统通知（该用户未绑定飞书）'}`,
+                action: 'reject',
+                data: { leaveId: leave.id }
+            };
+        }
     }
 
-    // apply: 提交请假申请
+    // ===== 提交请假申请 =====
     if (!dbHelper) return { success: false, content: '数据库未连接' };
 
     const leaveType = action.type || '事假';
@@ -531,33 +609,70 @@ async function leaveAgentProcess(message, context = {}) {
 
     // 查余额
     const balance = dbHelper.getLeaveBalance(userId);
-    const admins = dbHelper.getAdmins();
-    const adminNames = admins.map(a => a.name).join('、');
 
-    const resultText = `📝 请假申请已提交\n\n` +
+    // 找审批人
+    const applicant = dbHelper.getUserById(userId);
+    const deptPrefix = (applicant?.department || '').replace(/[0-9]+级$/, '');
+    let approvers = dbHelper.dbAll(
+        `SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN') OR (role = 'TEACHER' AND department LIKE ?)`,
+        ['%' + deptPrefix + '%']
+    );
+    if (approvers.length === 0) {
+        approvers = dbHelper.dbAll(`SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN')`);
+    }
+    const approverNames = approvers.map(a => a.name).join('、');
+
+    // 异步给每个审批人发飞书通知（未绑定飞书的记录系统通知）
+    let notifiedCount = 0;
+    const unboundApprovers = [];
+    if (feishuSender) {
+        const notifyText = `📝 **新的请假申请**\n\n` +
+            `👤 ${userName || '用户#' + userId}（${applicant?.department || ''}）\n` +
+            `📋 ${leaveType} · ${days}天\n` +
+            `📅 ${startDate} ~ ${endDate}\n` +
+            `💬 ${reason || '无'}\n` +
+            `🆔 编号：#${r.lastID}\n\n` +
+            `👉 请及时审批！回复「同意 #${r.lastID}」或「不同意 #${r.lastID}」`;
+        for (const a of approvers) {
+            try {
+                const sendResult = await feishuSender.sendToUser(a.id, notifyText);
+                if (sendResult && sendResult.success) {
+                    notifiedCount++;
+                } else {
+                    unboundApprovers.push(a.name);
+                    // 未绑定飞书 → 记录系统通知
+                    if (dbHelper) {
+                        dbHelper.createNotification(a.id, 'SYSTEM', '新请假申请待审批',
+                            `${userName || '用户#' + userId} 提交了请假申请 #${r.lastID}（${leaveType} ${days}天）`, 'PENDING');
+                    }
+                }
+            } catch (e) {
+                console.error(`[Leave Agent] 通知 ${a.name} 失败:`, e.message);
+                unboundApprovers.push(a.name);
+            }
+        }
+    }
+
+    // 系统通知提示
+    let notifyNote = '';
+    if (unboundApprovers.length > 0 && unboundApprovers.length === approvers.length) {
+        notifyNote = '\n⚠️ 所有审批人尚未绑定飞书，已转为系统通知。请提醒审批人登录系统查看。';
+    } else if (unboundApprovers.length > 0) {
+        notifyNote = `\n⚠️ ${unboundApprovers.join('、')} 未绑定飞书，已发系统通知。`;
+    }
+
+    const resultText = `📝 **请假申请已提交**\n\n` +
         `👤 申请人：${userName || '用户#' + userId}\n` +
         `📋 类型：${leaveType}\n` +
         `📅 时间：${startDate} 至 ${endDate}\n` +
         `📊 天数：${days}天\n` +
         `💬 事由：${reason || '无'}\n` +
-        `🌴 剩余年假：${balance.annual.remaining} 天\n\n` +
-        `⏳ 等待 ${adminNames} 审批\n` +
-        `👉 领导请回复「同意」或「不同意」`;
-
-    // 异步给审批人发飞书通知
-    if (feishuSender) {
-        const notifyText = `📝 新的请假申请\n\n` +
-            `👤 ${userName || '用户#' + userId}\n` +
-            `📋 ${leaveType} · ${days}天\n` +
-            `📅 ${startDate} ~ ${endDate}\n` +
-            `💬 ${reason || '无'}\n\n` +
-            `👉 请及时审批！回复「同意」或「不同意」`;
-        try {
-            await feishuSender.sendToApprovers(notifyText);
-        } catch (e) {
-            console.error('[Leave Agent] 飞书通知失败:', e.message);
-        }
-    }
+        `🆔 编号：#${r.lastID}\n` +
+        `🌴 剩余年假：${balance.annual.remaining} 天\n` +
+        `📤 已通知 ${notifiedCount}/${approvers.length} 位审批人\n` +
+        (notifiedCount > 0 ? `⏳ 等待 ${approverNames} 审批\n` : '') +
+        `👉 审批人请回复「同意 #${r.lastID}」或「不同意 #${r.lastID}」` +
+        notifyNote;
 
     return {
         success: true,
@@ -872,7 +987,7 @@ async function notifyAgentProcess(message, context = {}) {
 }
 
 // ============================================================
-//  Router Agent - 主入口（意图 → Agent 执行）
+//  Router Agent - 主入口（v4.0 全流程闭环）
 // ============================================================
 async function routerAgentProcess(message, context = {}) {
     console.log('[Router] 收到消息:', message.slice(0, 80));
@@ -881,7 +996,7 @@ async function routerAgentProcess(message, context = {}) {
     const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
     const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
 
-    // 1. 统一 LLM 意图识别（全 AI 驱动，不再用死板规则）
+    // 1. 统一 LLM 意图识别
     const intentResult = await classifyIntent(message);
     console.log('[Router] 意图:', intentResult.intent, '方法:', intentResult.method);
 
@@ -903,20 +1018,28 @@ async function routerAgentProcess(message, context = {}) {
 
         case 'approve_action':
         case 'reject_action':
-            return await handleQuickApproval(message, context, intentResult.intent);
+            // 快速审批：先检查用户有没有审批权限
+            if (dbHelper) {
+                const user = dbHelper.getUserById(context.userId);
+                if (user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role)) {
+                    return await handleQuickApproval(message, context, intentResult.intent);
+                }
+            }
+            // 没有权限就走 leave agent 处理（可能是学生在说"同意"但没有上下文）
+            return await leaveAgentProcess(message, context);
 
         default:
             // 通用对话 - 用全能助手直接干活
             if (isFeishu) {
-                // 飞书场景 → 用飞书全能助手（能聊能干活）
-                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，${context.isAdmin ? '管理员' : '员工'}]` : '';
+                const roleTag = context.isAdmin ? '管理员' : (context.userRole || '用户');
+                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，角色：${roleTag}]` : '';
                 const result = await chatWithAgent('feishu_chat', message + userNameTag, convId);
                 if (result.success) {
                     return { success: true, content: result.content, action: 'chat' };
                 }
             } else {
-                // Web 场景 → 用全能助手
-                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，${context.isAdmin ? '管理员' : '员工'}]` : '';
+                const roleTag = context.isAdmin ? '管理员' : (context.userRole || '用户');
+                const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，角色：${roleTag}]` : '';
                 const result = await chatWithAgent('general', message + userNameTag, convId);
                 if (result.success) {
                     return { success: true, content: result.content, action: 'chat' };
@@ -926,21 +1049,31 @@ async function routerAgentProcess(message, context = {}) {
     }
 }
 
-// 快速审批处理（同意/驳回）
+// 快速审批处理（同意/驳回）— v4.0 支持学工角色
 async function handleQuickApproval(message, context, actionType) {
     if (!dbHelper) return { success: false, content: '数据库未连接' };
 
     const { userId, userName, feishuChatId } = context;
 
-    // 检查是否是管理员
+    // 检查审批权限：ADMIN、COUNSELOR、TEACHER 都可以审批
     const user = dbHelper.getUserById(userId);
-    if (!user || user.role !== 'ADMIN') {
-        return { success: true, content: '⚠️ 只有管理员可以审批。如需审批，请联系管理员。' };
+    if (!user || !['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role)) {
+        return { success: true, content: '⚠️ 你没有审批权限。只有辅导员、老师和管理员可以审批。' };
     }
+
+    // 尝试从消息中提取请假编号
+    const idMatch = message.match(/#(\d+)/);
+    let targetLeaveId = idMatch ? parseInt(idMatch[1]) : null;
 
     // 找待审批的请假
     let pendingLeave = null;
-    if (feishuChatId) {
+    if (targetLeaveId) {
+        pendingLeave = dbHelper.dbGet(
+            `SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.status = 'PENDING'`,
+            [targetLeaveId]
+        );
+    }
+    if (!pendingLeave && feishuChatId) {
         pendingLeave = dbHelper.getPendingLeaveInChat(feishuChatId);
     }
     if (!pendingLeave) {
@@ -956,18 +1089,24 @@ async function handleQuickApproval(message, context, actionType) {
         let resultText = '';
         let hasApproved = false;
 
-        // 优先审批请假
         if (pendingLeave) {
-            dbHelper.approveLeave(pendingLeave.id, userId, message.replace(/同意|批准|ok|okay|好的|可以|准了|通过|没问题|准假|批了/gi, '').trim() || '已批准');
-            resultText += `✅ 请假已批准！\n👤 ${pendingLeave.user_name} · ${pendingLeave.type} ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n🎉 假期愉快！`;
+            const comment = message.replace(/同意|批准|ok|okay|好的|可以|准了|通过|没问题|准假|批了|#\d+/gi, '').trim() || '已批准';
+            dbHelper.approveLeave(pendingLeave.id, userId, comment);
+            resultText += `✅ **请假已批准！**\n\n👤 ${pendingLeave.user_name} · ${pendingLeave.type} ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n💬 ${comment}\n🎉 假期愉快！`;
             hasApproved = true;
 
-            // 给申请人发通知
+            // 通知申请人
+            let notified = false;
             if (feishuSender && pendingLeave.user_id) {
                 try {
-                    await feishuSender.sendToUser(pendingLeave.user_id,
-                        `✅ 你的请假已批准\n\n📋 ${pendingLeave.type} · ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n👤 审批人：${userName || '管理员'}\n🎉 假期愉快！`);
-                } catch (e) {}
+                    const result = await feishuSender.sendToUser(pendingLeave.user_id,
+                        `✅ **请假已批准**\n\n📋 ${pendingLeave.type} · ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n👤 审批人：${userName || '管理员'}\n💬 ${comment}\n\n🎉 假期愉快！`);
+                    notified = result && result.success;
+                } catch (e) { console.error('[审批通知] 失败:', e.message); }
+            }
+            if (!notified && dbHelper && pendingLeave.user_id) {
+                dbHelper.createNotification(pendingLeave.user_id, 'SYSTEM', '请假已批准',
+                    `${pendingLeave.type} ${pendingLeave.days}天 (${pendingLeave.start_date}~${pendingLeave.end_date}) 已批准。审批人：${userName || '管理员'}。${comment}`, 'APPROVED');
             }
         }
 
@@ -987,7 +1126,7 @@ async function handleQuickApproval(message, context, actionType) {
         }
 
         if (!hasApproved) {
-            resultText = '📋 当前没有待审批的事项。';
+            resultText = '📋 当前没有待审批的事项。\n\n💡 提示：如果有学生提交了请假申请，你会收到飞书通知。';
         }
         return { success: true, content: resultText, action: 'approve' };
     }
@@ -996,18 +1135,24 @@ async function handleQuickApproval(message, context, actionType) {
     if (actionType === 'reject_action') {
         let resultText = '';
         let hasRejected = false;
-        const comment = message.replace(/不同意|驳回|拒绝|不准|不行|否决|不批/g, '').trim() || '不予批准';
+        const comment = message.replace(/不同意|驳回|拒绝|不准|不行|否决|不批|#\d+/g, '').trim() || '不予批准';
 
         if (pendingLeave) {
             dbHelper.rejectLeave(pendingLeave.id, userId, comment);
-            resultText += `❌ 请假已驳回！\n👤 ${pendingLeave.user_name} · ${pendingLeave.type} ${pendingLeave.days}天\n💬 ${comment}`;
+            resultText += `❌ **请假已驳回**\n\n👤 ${pendingLeave.user_name} · ${pendingLeave.type} ${pendingLeave.days}天\n💬 ${comment}`;
             hasRejected = true;
 
+            let notified = false;
             if (feishuSender && pendingLeave.user_id) {
                 try {
-                    await feishuSender.sendToUser(pendingLeave.user_id,
-                        `❌ 你的请假未通过\n\n📋 ${pendingLeave.type} · ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n💬 ${comment}`);
-                } catch (e) {}
+                    const result = await feishuSender.sendToUser(pendingLeave.user_id,
+                        `❌ **请假未通过**\n\n📋 ${pendingLeave.type} · ${pendingLeave.days}天\n📅 ${pendingLeave.start_date} ~ ${pendingLeave.end_date}\n👤 审批人：${userName || '管理员'}\n💬 ${comment}\n\n如有疑问请联系审批人。`);
+                    notified = result && result.success;
+                } catch (e) { console.error('[驳回通知] 失败:', e.message); }
+            }
+            if (!notified && dbHelper && pendingLeave.user_id) {
+                dbHelper.createNotification(pendingLeave.user_id, 'SYSTEM', '请假已驳回',
+                    `${pendingLeave.type} ${pendingLeave.days}天 (${pendingLeave.start_date}~${pendingLeave.end_date}) 未通过。审批人：${userName || '管理员'}。${comment}`, 'REJECTED');
             }
         }
 
