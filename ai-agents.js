@@ -1,4 +1,14 @@
-﻿// ============================================================
+var leaveFormStates = new Map();
+var FIELD_PROMPTS = {
+  type: "请问想请什么类别的假？（年假 / 事假 / 病假）",
+  reason: "请假原因是什么？",
+  startDate: "从哪天开始？（格式：YYYY-MM-DD）",
+  endDate: "什么时候结束？（格式：YYYY-MM-DD）",
+  days: "请几天？",
+  course: "涉及哪门课程？（如果有）"
+};
+
+// ============================================================
 //  ai-agents.js - 多智能体系统（完整版）
 //  Router Agent + Leave Agent + Document Agent
 //  + Notify Agent + Stats Agent
@@ -484,8 +494,138 @@ async function analyzeWithAgent(agentId, prompt, context) {
 // ============================================================
 //  Leave Agent - 请假智能体（v4.0 全流程闭环）
 // ============================================================
+
+
+// ===== 多轮对话状态机处理 =====
+async function startForm(convId, msg, ctx) {
+  var f = {};
+  try {
+    var r = await callAI(MODELS.fast, [
+      {role:"system",content:"从下面的消息中提取请假信息，输出 JSON。格式：{\"type\":\"\u5e74假/\u4e8b\u5047/\u75c5\u5047\",\"days\":\"\",\"startDate\":\"YYYY-MM-DD\",\"endDate\":\"\",\"reason\":\"\u539f因\",\"course\":\"\"}"},
+      {role:"user",content:msg}
+    ], {temperature:0.1, max_tokens:400});
+    if (r && r.success && r.content) {
+      var j = JSON.parse(r.content.replace(/```[\s\S]*?```/g,"").trim());
+      for (var k in j) { if (j[k]) f[k] = String(j[k]).trim(); }
+    }
+  } catch(e){}
+
+  var state = {state:"COLLECTING", fields:f, convId:convId, userId:ctx.userId, userName:ctx.userName, createdAt:Date.now()};
+  var missing = ["type","reason","startDate","endDate","days"].filter(function(x){return !f[x] || !String(f[x]).trim()});
+  leaveFormStates.set(convId, state);
+  if (missing.length === 0) {
+    state.state = "CONFIRMING";
+    leaveFormStates.set(convId, state);
+    return {success:true, content:buildConfirmMsg(f), action:"leave_form_confirm"};
+  }
+  return {success:true, content:FIELD_PROMPTS[missing[0]], action:"leave_form_collect"};
+}
+
+async function handleCollect(st, convId, msg, ctx) {
+  var f = st.fields;
+  // 检测修改命令
+  if (/改|修改|变更|换成|调整|不对|等一下/i.test(msg)) {
+    try {
+      var r = await callAI(MODELS.fast, [
+        {role:"system",content:"当前已有信息：" + JSON.stringify(f) + "\n用户要修改。输出修改后的完整 JSON。只输出 JSON。"},
+        {role:"user",content:msg}
+      ], {temperature:0.1, max_tokens:400});
+      if (r && r.success && r.content) {
+        var j = JSON.parse(r.content.replace(/```[\s\S]*?```/g,"").trim());
+        for (var k in j) { if (j[k]) f[k] = String(j[k]).trim(); }
+      }
+    } catch(e){}
+  } else {
+    // 尝试提取信息
+    try {
+      var r = await callAI(MODELS.fast, [
+        {role:"system",content:"提取请假信息 JSON。格式：{\"type\":\"\u5e74\u5047/\u4e8b\u5047/\u75c5\u5047\",\"days\":\"\",\"startDate\":\"\",\"endDate\":\"\",\"reason\":\"\",\"course\":\"\"}\u3002缺少的用空字符串。只输出 JSON。"},
+        {role:"user",content:msg}
+      ], {temperature:0.1, max_tokens:400});
+      if (r && r.success && r.content) {
+        var j = JSON.parse(r.content.replace(/```[\s\S]*?```/g,"").trim());
+        for (var k in j) { if (j[k]) f[k] = String(j[k]).trim(); }
+      }
+    } catch(e){}
+  }
+
+  var missing = ["type","reason","startDate","endDate","days"].filter(function(x){return !f[x] || !String(f[x]).trim()});
+  if (missing.length === 0) {
+    st.state = "CONFIRMING";
+    leaveFormStates.set(convId, st);
+    return {success:true, content:buildConfirmMsg(f), action:"leave_form_confirm"};
+  }
+  leaveFormStates.set(convId, st);
+  return {success:true, content:FIELD_PROMPTS[missing[0]], action:"leave_form_collect"};
+}
+
+async function handleConfirm(st, convId, msg, ctx) {
+  if (/确认|提交|发送|发出|好的|可以|ok|yes|submit|confirm|确定|就这样|没问题/i.test(msg)) {
+    // 提交请假
+    var f = st.fields;
+    if (!f.endDate && f.startDate && f.days) {
+      var dd = new Date(f.startDate); dd.setDate(dd.getDate() + parseInt(f.days) - 1);
+      f.endDate = dd.toISOString().slice(0,10);
+    }
+    if (!f.days && f.startDate && f.endDate) {
+      f.days = String(Math.round((new Date(f.endDate) - new Date(f.startDate)) / 86400000) + 1);
+    }
+    var submitResult = await doSubmit(st, ctx);
+    st.state = "SUBMITTED";
+    leaveFormStates.set(convId, st);
+    setTimeout(function(){leaveFormStates.delete(convId)}, 120000);
+    return submitResult;
+  }
+  if (/不|取消|算了|不要|cancel/i.test(msg)) {
+    st.state = "COLLECTING";
+    leaveFormStates.set(convId, st);
+    return {success:true, content:"想修改哪个？直接告诉我新的值。", action:"leave_form_collect"};
+  }
+  return {success:true, content:buildConfirmMsg(st.fields) + "\n\n→ 回复“确认”提交，或“修改”调整", action:"leave_form_confirm"};
+}
+
+function buildConfirmMsg(f) {
+  var t = "请确认请假信息：\n\n";
+  if (f.type) t += "📋 类别：" + f.type + "\n";
+  if (f.reason) t += "💬 原因：" + f.reason + "\n";
+  if (f.startDate) t += "📅 开始：" + f.startDate + "\n";
+  if (f.endDate) t += "📅 结束：" + f.endDate + "\n";
+  if (f.days) t += "⏰ 天数：" + f.days + "天\n";
+  if (f.course) t += "📚 课程：" + f.course + "\n";
+  t += "\n→ 回复“确认”提交，或“修改”调整";
+  return t;
+}
+
+async function doSubmit(st, ctx) {
+  var f = st.fields;
+  if (!dbHelper) return {success:false, content:"数据库未连接"};
+  try {
+    var t = f.type||"事假", d = parseInt(f.days)||1, s = f.startDate||new Date().toISOString().slice(0,10), e = f.endDate||s, r = f.reason||"", c = f.course||"";
+    var rr = dbHelper.createLeaveRequest(ctx.userId, t, s, e, d, r, ctx.feishuChatId||"", ctx.feishuMsgId||"", c);
+    var bal = dbHelper.getLeaveBalance(ctx.userId);
+    return {success:true, content:"✅ **请假申请已提交！**\n\n📋 类别：" + t + "\n📅 " + s + " ~ " + e + "\n⏰ " + d + "天\n💬 " + r + "\n🔙 #" + rr.lastID + "\n🌴 剩余年假：" + (bal?.annual?.remaining||"?") + "天\n\n⏳ 等待审批人审批..."};
+  } catch(err) {
+    return {success:false, content:"提交失败：" + err.message};
+  }
+}
+
 async function leaveAgentProcess(message, context = {}) {
     const { userId, userName, feishuChatId, feishuMsgId, feishuOpenId, isAdmin } = context;
+
+
+    // ===== 检查多轮对话状态 =====
+    var convId = userId ? "leave_" + userId : "leave_anon";
+    var st = leaveFormStates.get(convId);
+    if (st) {
+      if (st.state === "COLLECTING") return await handleCollect(st, convId, message, context);
+      if (st.state === "CONFIRMING") return await handleConfirm(st, convId, message, context);
+      if (st.state === "SUBMITTED") leaveFormStates.delete(convId);
+    }
+
+    // 识别“我要请假”
+    if (/\u6211\u8981\u8bf7\u5047|\u60f3\u8bf7\u5047|\u7533\u8bf7\u8bf7\u5047|\u8bf7\u5047\u7533\u8bf7/i.test(message) && !/\u67e5\u8be2|\u8bb0\u5f55|\u5ba1\u6279|\u540c\u610f|\u62d2\u7edd|\u7edf\u8ba1|\u901a\u77e5|\u516c\u6587|\u521b\u5efa/.test(message)) {
+      return await startForm(convId, message, context);
+    }
 
     // 第一步：AI 解析请假信息
     const parsePrompt = `请从以下用户消息中提取请假信息，输出 JSON：
@@ -1144,7 +1284,14 @@ async function routerAgentProcess(message, context = {}) {
     const isFeishu = !!(context.feishuChatId || context.feishuOpenId);
     const convId = context.conversationId || ('user_' + (context.userId || 'anon'));
 
-    // 0. 图表关键词快速匹配（跳过LLM）
+    // 0a. 请假关键词快速匹配
+    if (/\u6211\u8981\u8bf7\u5047|\u60f3\u8bf7\u5047|\u7533\u8bf7\u8bf7\u5047|\u8bf7\u5047\u7533\u8bf7/i.test(message) && !/\u67e5\u8be2|\u8bb0\u5f55|\u5ba1\u6279|\u540c\u610f|\u62d2\u7edd|\u7edf\u8ba1|\u901a\u77e5|\u516c\u6587|\u521b\u5efa|\u6279\u51c6/.test(message)) {
+        console.log('[Router] \u8bf7\u5047\u8bf7\u6c42 -> leaveAgent');
+        var leaveResult = await leaveAgentProcess(message, context);
+        if (leaveResult) return leaveResult;
+    }
+
+    // 0b. 图表关键词快速匹配（跳过LLM）
     if (/图表|趋势图|柱状图|饼图|折线图|统计图|统计图表|生成.*图|chart/i.test(message)) {
         console.log('[Router] \u56fe\u8868\u8bf7\u6c42 -> statsAgent');
         var chartResult = await statsAgentProcess(message, context);
