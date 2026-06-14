@@ -815,7 +815,7 @@ async function changePassword() {
 
 <script>
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-let token = '', currentUser = null, userRole = '';
+let token = '', currentUser = null, userRole = '', isAdmin = false;
 
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() });
 
@@ -830,6 +830,7 @@ async function doLogin() {
     if (!res.ok) { const d = await res.json(); err.textContent = d.message || '登录失败'; return; }
     const data = await res.json();
     token = data.token;
+    isAdmin = data.user && (data.user.role === 'ADMIN' || data.user.role === 'COUNSELOR');
     localStorage.setItem('token', token);
     if (data.user) localStorage.setItem('currentUser', JSON.stringify(data.user));
     await initApp();
