@@ -2236,6 +2236,15 @@ async function start() {
         try { saveDB(); } catch (e) { console.error('[WARN] 保存数据库失败:', e.message); }
         try { await initLark(); } catch (e) { /* initLark 已有处理 */ }
         try { startScheduledTasks(); } catch (e) { console.error('[WARN] 启动定时任务失败:', e.message); }
+        // 启动5秒后发送每日简报测试（验证飞书发送通道是否正常）
+        setTimeout(async () => {
+            try {
+                await sendDailyBriefing();
+                console.log('[启动] 每日简报测试发送完成');
+            } catch(e) {
+                console.error('[启动] 每日简报测试发送失败:', e.message);
+            }
+        }, 5000);
 
         // 启动后发一条上线通知到飞书群聊
         setTimeout(async () => {
