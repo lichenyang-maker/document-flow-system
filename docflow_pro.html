@@ -688,7 +688,7 @@ async function login() {
   }
   
   try {
-    const d = await api('/api/auth/login', {
+    const d = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
@@ -1077,7 +1077,7 @@ async function submitNewDoc() {
   if (!title) return alert('请输入公文标题');
   try {
     const btn = event.target; btn.disabled = true; btn.textContent = '提交中...';
-    const res = await api('/api/docs', { method: 'POST', body: JSON.stringify({ title, type, priority, content }) });
+    const res = await api('/docs', { method: 'POST', body: JSON.stringify({ title, type, priority, content }) });
     if (res.success) {
       alert('✅ 公文已提交审批！编号 #' + res.id);
       navigateTo('docs');
