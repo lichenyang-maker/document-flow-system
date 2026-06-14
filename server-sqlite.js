@@ -1353,27 +1353,53 @@ app.get('/api/docs', auth, (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/docs', auth, (req, res) => {
+app.post('/api/docs', auth, async (req, res) => {
     try {
         const { title, content, type, priority } = req.body;
         const r = run(`INSERT INTO documents (title, content, type, priority, status, applicant_id) VALUES (?, ?, ?, ?, 'PENDING', ?)`,
             [title, content, type || 'NORMAL', priority || 'NORMAL', req.userId]);
-        res.json({ success: true, id: r.lastID });
+        const docId = r.lastID;
+        try {
+            const applicant = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+            const typeNames = { NOTICE: '通知', PROPOSAL: '请示', REPORT: '报告', MINUTES: '会议纪要', POLICY: '制度', NORMAL: '普通' };
+            const notifyText = `📄 **新公文待审批**\n\n` +
+                `📌 标题：${title}\n` +
+                `📝 类型：${typeNames[type] || type}\n` +
+                `🔥 优先级：${priority === 'HIGH' ? '紧急' : priority === 'LOW' ? '普通' : '一般'}\n` +
+                `👤 申请人：${applicant?.name || '用户#' + req.userId}\n` +
+                `🆔 编号：#${docId}\n\n` +
+                `👉 请及时审批！回复「同意 #${docId}」或「不同意 #${docId}」`;
+            await sendFeishuToApprovers(notifyText);
+            await sendFeishuToGroup(notifyText);
+        } catch (e) { console.warn('[公文] 通知失败:', e.message); }
+        res.json({ success: true, id: docId });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/docs/:id/approve', auth, (req, res) => {
+app.post('/api/docs/:id/approve', auth, async (req, res) => {
     try {
-        run(`UPDATE documents SET status = 'APPROVED', updated_at = datetime('now') WHERE id = ?`, [req.params.id]);
-        run(`INSERT INTO approvals (doc_id, approver_id, action, comment) VALUES (?, ?, 'APPROVE', ?)`, [req.params.id, req.userId, req.body.comment || '']);
+        const docId = req.params.id;
+        const approver = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+        const doc = query('SELECT d.*, u.name as applicant_name, u.id as applicant_id FROM documents d LEFT JOIN users u ON d.applicant_id = u.id WHERE d.id = ?', [docId])[0];
+        run(`UPDATE documents SET status = 'APPROVED', updated_at = datetime('now') WHERE id = ?`, [docId]);
+        run(`INSERT INTO approvals (doc_id, approver_id, action, comment) VALUES (?, ?, 'APPROVE', ?)`, [docId, req.userId, req.body.comment || '']);
+        if (doc && doc.applicant_id) {
+            try { await sendFeishuToUser(doc.applicant_id, `✅ **公文已批准**\n\n📌 ${doc.title}\n👤 审批人：${approver?.name || '管理员'}\n💬 ${req.body.comment || '已批准'}`); } catch(e) {}
+        }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-app.post('/api/docs/:id/reject', auth, (req, res) => {
+app.post('/api/docs/:id/reject', auth, async (req, res) => {
     try {
-        run(`UPDATE documents SET status = 'REJECTED', updated_at = datetime('now') WHERE id = ?`, [req.params.id]);
-        run(`INSERT INTO approvals (doc_id, approver_id, action, comment) VALUES (?, ?, 'REJECT', ?)`, [req.params.id, req.userId, req.body.comment || '']);
+        const docId = req.params.id;
+        const approver = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+        const doc = query('SELECT d.*, u.name as applicant_name, u.id as applicant_id FROM documents d LEFT JOIN users u ON d.applicant_id = u.id WHERE d.id = ?', [docId])[0];
+        run(`UPDATE documents SET status = 'REJECTED', updated_at = datetime('now') WHERE id = ?`, [docId]);
+        run(`INSERT INTO approvals (doc_id, approver_id, action, comment) VALUES (?, ?, 'REJECT', ?)`, [docId, req.userId, req.body.comment || '']);
+        if (doc && doc.applicant_id) {
+            try { await sendFeishuToUser(doc.applicant_id, `❌ **公文已驳回**\n\n📌 ${doc.title}\n👤 审批人：${approver?.name || '管理员'}\n💬 ${req.body.comment || '不符合要求'}`); } catch(e) {}
+        }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
