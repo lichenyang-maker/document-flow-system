@@ -2143,15 +2143,6 @@ app.post('/api/feishu/webhook', async (req, res) => {
     // 打印收到的完整事件结构（调试用）
     console.log('[飞书Webhook] 收到事件: type=' + (body.header?.event_type || body.type || 'unknown'));
     
-    // 异步处理消息
-    try {
-        if (body.header?.event_type === 'im.message.receive_v1') {
-        return res.json({ challenge: body.challenge });
-    }
-    
-    // 快速响应飞书（20ms 内，否则飞书重试）
-    res.json({ success: true });
-    
     // 异步处理消息（WS无法接收消息，用Webhook处理）
     try {
         if (body.header?.event_type === 'im.message.receive_v1') {
