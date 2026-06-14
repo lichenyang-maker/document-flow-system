@@ -153,7 +153,7 @@ ${intentList}
 ## 重要
 请只输出意图名称（一个英文词），不要任何其他内容。
 
-用户输入：（请查看对话内容）`;
+用户输入：${message}`;
 
     const result = await callAI(MODELS.intent, [
         { role: 'system', content: '你只返回意图名称，不要解释。' },
@@ -657,7 +657,7 @@ async function leaveAgentProcess(message, context = {}) {
     // 第一步：AI 解析请假信息
     const parsePrompt = `请从以下用户消息中提取请假信息，输出 JSON：
 
-用户消息：（请查看对话内容）
+用户消息：${message}
 
 ## 意图判断
 - 如果用户想请假/申请请假 → action=apply
@@ -957,7 +957,7 @@ async function documentAgentProcess(message, context = {}) {
     if (isCreate) {
         // 第一步：AI 提取公文要素
         const extractPrompt = `从用户消息中提取公文信息，输出 JSON：
-用户消息：（请查看对话内容）
+用户消息：${message}
 
 {"title":"公文标题","type":"NOTICE/PROPOSAL/REPORT","priority":"NORMAL/HIGH/LOW","content":"公文正文内容"}
 
@@ -1107,10 +1107,10 @@ async function statsAgentProcess(message, context = {}) {
     // 本周统计
     if (/本周|这周|this week/i.test(message)) {
         const week = dbHelper.getWeekRange();
-        const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_week.start, c_week.end, false);
+        const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, week.start, week.end, false);
         return {
             success: true,
-            content: `📅 本周请假统计（${c_week.start} ~ ${c_week.end}）\n\n📝 请假单：${c_wl.count} 份\n📊 请假天数：${c_wl.days} 天`,
+            content: `📅 本周请假统计（${week.start} ~ ${week.end}）\n\n📝 请假单：${weekLeave.count} 份\n📊 请假天数：${weekLeave.days} 天`,
             action: 'week_stats', data: { week, weekLeave }
         };
     }
@@ -1118,10 +1118,10 @@ async function statsAgentProcess(message, context = {}) {
     // 本月统计
     if (/本月|这个月/.test(message)) {
         const month = dbHelper.getMonthRange();
-        const monthLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_month.start, c_month.end, false);
+        const monthLeave = dbHelper.countLeavesInRange(adminView ? null : userId, month.start, month.end, false);
         return {
             success: true,
-            content: `📅 本月请假统计（${c_month.start} ~ ${c_month.end}）\n\n📝 请假单：${c_ml.count} 份\n📊 请假天数：${c_ml.days} 天`,
+            content: `📅 本月请假统计（${month.start} ~ ${month.end}）\n\n📝 请假单：${monthLeave.count} 份\n📊 请假天数：${monthLeave.days} 天`,
             action: 'month_stats', data: { month, monthLeave }
         };
     }
@@ -1212,7 +1212,7 @@ async function statsAgentProcess(message, context = {}) {
     const overview = dbHelper.getSystemOverview();
     const balance = dbHelper.getLeaveBalance(userId);
     const week = dbHelper.getWeekRange();
-    const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, c_week.start, c_week.end, false);
+    const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, week.start, week.end, false);
 
     let text = `📊 系统数据概览\n\n`;
     text += `👥 用户总数：${overview.totalUsers} 人\n`;
@@ -1220,7 +1220,7 @@ async function statsAgentProcess(message, context = {}) {
     text += `📝 请假申请：${overview.totalLeave} 份\n`;
     text += `⏳ 待审批公文：${overview.pendingDocs} 份\n`;
     text += `⏳ 待审批请假：${overview.pendingLeave} 份\n`;
-    text += `📅 本周请假：${c_wl.count} 份 (${c_wl.days} 天)\n\n`;
+    text += `📅 本周请假：${weekLeave.count} 份 (${weekLeave.days} 天)\n\n`;
     text += `${user.name || userName}的个人信息：\n`;
     text += `🌴 剩余年假：${balance.annual.remaining} 天`;
     if (overview.admins.length > 0) {
@@ -1240,7 +1240,7 @@ async function notifyAgentProcess(message, context = {}) {
 
     // AI 解析通知意图
     const parsePrompt = `从用户消息中提取通知信息，输出 JSON：
-用户消息：（请查看对话内容）
+用户消息：${message}
 
 可选操作：
 - notify_user: 给指定用户发消息 → {"action":"notify_user","targetName":"张三","content":"消息内容"}
