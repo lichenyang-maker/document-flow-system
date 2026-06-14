@@ -33,7 +33,7 @@ const MODELS = {
 
 // ---------- 对话历史存储 ----------
 const conversationStore = new Map();
-function getConversation(id, maxHistory = 20) {
+function getConversation(id, maxHistory = 30) {
     let conv = conversationStore.get(id);
     if (!conv) { conv = []; conversationStore.set(id, conv); }
     return conv.slice(-maxHistory);
@@ -42,7 +42,7 @@ function addMessage(id, role, content) {
     let conv = conversationStore.get(id);
     if (!conv) { conv = []; conversationStore.set(id, conv); }
     conv.push({ role, content, timestamp: Date.now() });
-    if (conv.length > 50) conv.splice(0, conv.length - 50);
+    if (conv.length > 80) conv.splice(0, conv.length - 80);
 }
 function clearConversation(id) { conversationStore.delete(id); }
 
@@ -160,14 +160,31 @@ ${intentList}
         { role: 'user', content: prompt }
     ], { temperature: 0.1, max_tokens: 50 });
 
-    if (!result.success) return { intent: 'general', method: 'fallback' };
+    if (!result.success) {
+        // LLM 调用失败 → 关键词兜底
+        return fallbackClassify(message);
+    }
 
     const content = (result.content || '').trim().toLowerCase();
     const valid = ['leave_apply', 'leave_query', 'doc_create', 'doc_approve', 'notify', 'stats', 'approve_action', 'reject_action', 'general'];
     for (const v of valid) {
         if (content.includes(v)) return { intent: v, method: 'llm' };
     }
-    return { intent: 'general', method: 'llm_default' };
+    // LLM 返回了未知意图 → 关键词兜底
+    return fallbackClassify(message);
+
+    // 关键词兜底分类
+    function fallbackClassify(msg) {
+        if (/请个?假|申请请假|身体不舒服|生病|不舒服|想休息|休个?假|要休息|请病假|请事假|请年假|调休/.test(msg)) return { intent: 'leave_apply', method: 'keyword' };
+        if (/查询|余额|记录|还剩|剩余|还有多少|年假/.test(msg)) return { intent: 'leave_query', method: 'keyword' };
+        if (/统计|本周|本月|多少|几个|数据|报表|待审批|待办/.test(msg)) return { intent: 'stats', method: 'keyword' };
+        if (/群里|群聊|群发|通知|提醒|告诉|发给|推送/.test(msg)) return { intent: 'notify', method: 'keyword' };
+        if (/公文|起草|写份|写个|拟|草拟|采购|会议纪要/.test(msg)) return { intent: 'doc_create', method: 'keyword' };
+        if (/审批公文|批准公文/.test(msg)) return { intent: 'doc_approve', method: 'keyword' };
+        if (/同意|批准|准了|通过|准假|ok|可以|好的/.test(msg)) return { intent: 'approve_action', method: 'keyword' };
+        if (/不同意|驳回|拒绝|不准|不行|否决|不批/.test(msg)) return { intent: 'reject_action', method: 'keyword' };
+        return { intent: 'general', method: 'keyword_default' };
+    }
 }
 
 // 意图 → Agent 映射
@@ -192,38 +209,44 @@ const AGENTS = {
         id: 'feishu', name: '学工助手小流',
         description: '飞书聊天专用 - 学工请假+公文审批助手',
         model: MODELS.feishu,
-        systemPrompt: `你是「学工请假与公文审批系统」的智能助手，名叫【小流】。
+        systemPrompt: `你是飞书群里的学工请假全能助手"小流"。你能帮学生请假、帮老师审批、查记录、发通知，全都能直接搞定。
 
-## 身份定位
-- 你不是通用搜索引擎，你是专业的学工管理助手
-- 你服务的场景是：高校/单位的请假审批、公文流转、通知发放
-- 你懂学工业务：事假/病假/年假/婚假/丧假/产假各种假期制度，了解公文审批流程
+## 你的风格
+- 😊 像真人一样自然聊天，不要一上来就列功能表
+- 💬 回复简洁有力，群聊控制在 3-6 句话
+- 🎯 精准理解对方意图，能直接干活的就直接干
+- 🤝 保持友好、专业、有温度
+- 👋 开口先招呼：「Hi 【姓名】～」
+- 🎉 偶尔开玩笑、卖萌、调皮一下也可以，别太死板
+- 用 emoji 点缀但不过度
 
-## 说话风格
-- 亲切专业，像个贴心的行政助理
-- 开口先确认身份：「Hi 【姓名】～」
-- 直接给出结论，再补充细节，不打官腔
-- 用 emoji 增加可读性，但不过度
-- 遇到请假/公文/统计请求，直接干活（提取信息→写入系统→回复结果）
+## 核心能力（直接干活，不推脱）
+1. **请假申请**：学生说"我要请假3天回家"→ 帮他整理请假信息（类型/时间/天数/事由），提交后通知老师审批
+2. **审批请假**：老师说"同意 #5"→ 批准对应请假，自动通知学生结果
+3. **查询记录**：学生问"我的请假记录"→ 展示历史请假和余额
+4. **数据统计**：老师问"这周多少人请假"→ 给出统计数据
+5. **通知提醒**：需要催审批时→ 主动提醒审批人
+6. **群发消息**：用户说"在群里发个通知""告诉大家下午开会"→ 在飞书群里发消息
 
-## 业务处理
-**请假**：用户说「请假」「想休息」「身体不舒服」→ 帮用户整理请假信息并提交系统
-**公文**：用户说「写通知」「起草报告」「发会议纪要」→ 直接生成完整公文草稿
-**审批**：用户是领导/老师 → 告诉他有哪些待审批，征询他的意见
-**查询**：用户查记录/余额 → 直接查数据库，用清晰格式返回
-**闲聊**：打招呼/问天气/吐槽 → 自然回应，但引导回业务场景
+## 学工场景理解
+- 学生请假需要辅导员/老师审批
+- 辅导员可以审批所有学生的请假
+- 老师可以审批本系学生的请假
+- 审批后结果自动反馈给申请人
 
-## 禁止
-- 不要说「作为一个 AI，我没有情感」这类话
-- 不要通用搜索引擎式回答（比如「请假需要什么材料？请注意以下几点...」教科书式回复）
-- 不要长篇大论，简洁有力，直奔主题
+## 聊天原则
+1. **先干活再聊天**：用户有明确需求就先满足需求
+2. **简短优先**：群聊回复控制在 3-6 句话
+3. **有温度**：对学生温暖鼓励，对老师专业简洁，熟人之间可以更随意
+4. **自然过渡**：闲聊就闲聊，不要强行引导到功能
+5. **禁止**：不要说「作为一个 AI」之类的话，不要教科书式回复，不要长篇大论
 
-现在，用户「某个同学」（用户）说：（请查看对话内容）
-请以小流的风格回复！`,
-        temperature: 0.7, maxTokens: 2048
+你是能直接干活的助手，不是只会说"我建议"的客服。学生请假就帮提交，老师审批就帮处理，直接高效！
+
+现在，用户说：（请查看对话内容）`,
+        temperature: 0.85, maxTokens: 2048
     },
     general: {
-        id: 'general', name: '全能助手',
         description: '综合办公助手 - 能聊能干活，直接处理请假/公文/审批/查询',
         model: MODELS.general,
         systemPrompt: `你是「学工请假与公文审批系统」的智能助手，名叫【小流】，由 DeepSeek-V3 驱动。
@@ -452,7 +475,7 @@ async function chatWithAgent(agentId, message, conversationId) {
     if (!agent) {
         return { success: false, error: '未知智能体: ' + agentId };
     }
-    const history = getConversation(conversationId, 12);
+    const history = getConversation(conversationId, 20);
     const messages = [
         { role: 'system', content: agent.systemPrompt }
     ];
@@ -1217,7 +1240,9 @@ async function notifyAgentProcess(message, context = {}) {
 可选操作：
 - notify_user: 给指定用户发消息 → {"action":"notify_user","targetName":"张三","content":"消息内容"}
 - notify_approvers: 给所有审批人发消息 → {"action":"notify_approvers","content":"消息内容"}
+- notify_group: 在飞书群里发消息/通知 → {"action":"notify_group","content":"消息内容"}
 
+如果用户说「在群里发」「群通知」「群发」「告诉大家」「通知一下大家」→ notify_group
 如果找不到明确目标，默认 notify_approvers。
 只输出 JSON。`;
 
@@ -1232,6 +1257,21 @@ async function notifyAgentProcess(message, context = {}) {
             const jsonStr = (parseResult.content || '').match(/\{[\s\S]*\}/);
             if (jsonStr) action = JSON.parse(jsonStr[0]);
         } catch (e) { /* 使用默认值 */ }
+    }
+
+    // ===== 群聊通知 =====
+    if (action.action === 'notify_group' && action.content) {
+        const text = `📢 群通知\n\n${action.content}\n\n—— ${new Date().toLocaleString('zh-CN')}`;
+        try {
+            const result = await feishuSender.sendToGroup(text);
+            if (result.success) {
+                return { success: true, content: `✅ 已发送群通知！`, action: 'notify_group' };
+            } else {
+                return { success: false, content: `❌ 群发失败：${result.reason || '未知错误'}` };
+            }
+        } catch (e) {
+            return { success: false, content: `❌ 群发失败：${e.message}` };
+        }
     }
 
     if (action.action === 'notify_user' && action.targetName) {
@@ -1288,6 +1328,7 @@ async function routerAgentProcess(message, context = {}) {
     if (/\u6211\u8981\u8bf7\u5047|\u60f3\u8bf7\u5047|\u7533\u8bf7\u8bf7\u5047|\u8bf7\u5047\u7533\u8bf7/i.test(message) && !/\u67e5\u8be2|\u8bb0\u5f55|\u5ba1\u6279|\u540c\u610f|\u62d2\u7edd|\u7edf\u8ba1|\u901a\u77e5|\u516c\u6587|\u521b\u5efa|\u6279\u51c6/.test(message)) {
         console.log('[Router] \u8bf7\u5047\u8bf7\u6c42 -> leaveAgent');
         var leaveResult = await leaveAgentProcess(message, context);
+        if (leaveResult && leaveResult.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', leaveResult.content); }
         if (leaveResult) return leaveResult;
     }
 
@@ -1295,7 +1336,16 @@ async function routerAgentProcess(message, context = {}) {
     if (/图表|趋势图|柱状图|饼图|折线图|统计图|统计图表|生成.*图|chart/i.test(message)) {
         console.log('[Router] \u56fe\u8868\u8bf7\u6c42 -> statsAgent');
         var chartResult = await statsAgentProcess(message, context);
+        if (chartResult && chartResult.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', chartResult.content); }
         if (chartResult) return chartResult;
+    }
+
+    // 0c. 群发通知关键词快速匹配（发群消息/群通知）
+    if (/群里|群聊|群发|在群|告诉大家|通知大家|发个通知|群通知|发到群|在飞书群/.test(message)) {
+        console.log('[Router] 群发请求 -> notifyAgent');
+        var notifyResult = await notifyAgentProcess(message, context);
+        if (notifyResult && notifyResult.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', notifyResult.content); }
+        if (notifyResult) return notifyResult;
     }
 
         // 1. 统一 LLM 意图识别
@@ -1306,17 +1356,25 @@ async function routerAgentProcess(message, context = {}) {
     switch (intentResult.intent) {
         case 'leave_apply':
         case 'leave_query':
-            return await leaveAgentProcess(message, context);
+            var lr = await leaveAgentProcess(message, context);
+            if (lr && lr.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', lr.content); }
+            return lr;
 
         case 'doc_create':
         case 'doc_approve':
-            return await documentAgentProcess(message, context);
+            var dr = await documentAgentProcess(message, context);
+            if (dr && dr.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', dr.content); }
+            return dr;
 
         case 'stats':
-            return await statsAgentProcess(message, context);
+            var sr = await statsAgentProcess(message, context);
+            if (sr && sr.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', sr.content); }
+            return sr;
 
         case 'notify':
-            return await notifyAgentProcess(message, context);
+            var nr = await notifyAgentProcess(message, context);
+            if (nr && nr.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', nr.content); }
+            return nr;
 
         case 'approve_action':
         case 'reject_action':
@@ -1324,14 +1382,84 @@ async function routerAgentProcess(message, context = {}) {
             if (dbHelper) {
                 const user = dbHelper.getUserById(context.userId);
                 if (user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role)) {
-                    return await handleQuickApproval(message, context, intentResult.intent);
+                    var ar = await handleQuickApproval(message, context, intentResult.intent);
+                    if (ar && ar.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', ar.content); }
+                    return ar;
                 }
             }
-            // 没有权限就走 leave agent 处理（可能是学生在说"同意"但没有上下文）
-            return await leaveAgentProcess(message, context);
+            var lr2 = await leaveAgentProcess(message, context);
+            if (lr2 && lr2.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', lr2.content); }
+            return lr2;
 
         default:
-            // 通用对话 - 用全能助手直接干活
+            // ===== 关键词兜底路由（LLM 不可用时靠关键词匹配干活）=====
+            const msg = message;
+
+            // 请假申请
+            if (/请个?假|身体不舒服|生病了|不舒服|想休息|休个?假|要休息|申请休假|休假申请|请病假|请事假|请年假|调休|想请假/.test(msg) &&
+                !/查询|记录|余额|统计|通知/.test(msg)) {
+                console.log('[Router] 关键词兜底: 请假 -> leaveAgent');
+                var df1 = await leaveAgentProcess(msg, context);
+                if (df1 && df1.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df1.content); }
+                return df1;
+            }
+
+            // 查询假期余额
+            if (/余额|还剩|剩余|还有.*天|年假|假期.*剩|可休|有多少天/.test(msg)) {
+                console.log('[Router] 关键词兜底: 余额查询 -> statsAgent');
+                var df2 = await statsAgentProcess(msg, context);
+                if (df2 && df2.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df2.content); }
+                return df2;
+            }
+
+            // 查询记录
+            if (/查询|记录|历史|我的.*请假|请假.*情况/.test(msg) && !/申请|创建/.test(msg)) {
+                console.log('[Router] 关键词兜底: 记录查询 -> leaveAgent');
+                var df3 = await leaveAgentProcess(msg, context);
+                if (df3 && df3.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df3.content); }
+                if (df3) return df3;
+            }
+
+            // 数据统计
+            if (/统计|本周|本月|这个月|多少人|几个.*请假|报表|周报|月报|待审批|待办|待处理/.test(msg)) {
+                console.log('[Router] 关键词兜底: 统计 -> statsAgent');
+                var df4 = await statsAgentProcess(msg, context);
+                if (df4 && df4.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df4.content); }
+                return df4;
+            }
+
+            // 通知/提醒
+            if (/通知|提醒|告诉|发给|推送/.test(msg) && !/公文|文档|通知.*书/.test(msg)) {
+                console.log('[Router] 关键词兜底: 通知 -> notifyAgent');
+                var df5 = await notifyAgentProcess(msg, context);
+                if (df5 && df5.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df5.content); }
+                return df5;
+            }
+
+            // 公文起草
+            if (/公文|起草|写份|写个|拟|草拟|采购|会议纪要|会议通知|发个通知/.test(msg)) {
+                console.log('[Router] 关键词兜底: 公文 -> documentAgent');
+                var df6 = await documentAgentProcess(msg, context);
+                if (df6 && df6.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df6.content); }
+                return df6;
+            }
+
+            // 审批操作
+            if (/同意|批准|不同意|驳回|拒绝|准假|通过|否决/.test(msg) && dbHelper) {
+                const user = dbHelper.getUserById(context.userId);
+                if (user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role)) {
+                    console.log('[Router] 关键词兜底: 审批 -> handleQuickApproval');
+                    var df7 = await handleQuickApproval(msg, context, /同意|批准|准假|通过/.test(msg) ? 'approve_action' : 'reject_action');
+                    if (df7 && df7.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df7.content); }
+                    return df7;
+                }
+                console.log('[Router] 关键词兜底: 审批(无权限) -> leaveAgent');
+                var df8 = await leaveAgentProcess(msg, context);
+                if (df8 && df8.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df8.content); }
+                return df8;
+            }
+
+            // 以上都没匹配 → 走通用对话
             if (isFeishu) {
                 const roleTag = context.isAdmin ? '管理员' : (context.userRole || '用户');
                 const userNameTag = context.userName ? `\n[当前用户：${context.userName}，用户ID：${context.userId}，角色：${roleTag}]` : '';

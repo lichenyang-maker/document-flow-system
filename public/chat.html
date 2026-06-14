@@ -83,7 +83,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
 .msg-avatar{width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:600}
 .msg.user .msg-avatar{background:var(--primary);color:#fff}
 .msg .msg-avatar{font-size:14px}
-.msg-bubble{max-width:calc(100% - 48px);padding:8px 13px;border-radius:var(--radius-sm);font-size:13.5px;line-height:1.65;word-wrap:break-word;white-space:pre-wrap}
+.msg-content{flex:1;min-width:0}.msg-bubble{padding:8px 13px;border-radius:var(--radius-sm);font-size:13.5px;line-height:1.65;word-wrap:break-word;white-space:pre-wrap}
 .msg.user .msg-bubble{background:var(--primary);color:#fff}
 .msg.assistant .msg-bubble{background:var(--card);border:1px solid var(--border);color:var(--text)}
 .msg-agent{display:inline-block;font-size:9.5px;font-weight:500;padding:1px 7px;border-radius:8px;margin-right:5px;margin-bottom:2px}
@@ -217,7 +217,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
       <a href="/" class="topbar-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a>
       <div class="topbar-status"><span>智能助手</span><span class="topbar-status-dot" id="dot" style="display:none"></span><span id="statusLabel" style="font-size:11px;color:var(--text-muted)">Router 自动调度</span></div>
     </div>
-    <div class="topbar-right"><button class="topbar-btn" onclick="clearChat()">清空对话</button></div>
+    <div class="topbar-right">
+      <button class="topbar-btn" id="syncBtn" onclick="toggleSync()" style="border-color:var(--primary);color:var(--primary)">🔔 飞书同步中</button>
+      <button class="topbar-btn" onclick="clearChat()">清空对话</button>
+    </div>
   </div>
 
   <div class="msgs" id="msgs">
@@ -268,8 +271,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
 <div class="drag-overlay" id="dragOverlay"><div class="drag-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>释放文件，AI 将自动分析</div></div>
 
 <script>
-var token=localStorage.getItem('token'),conversationId='web_'+Date.now(),selectedFile=null;
+var token=localStorage.getItem('token'),conversationId='web_'+Date.now(),selectedFile=null,feishuSync=localStorage.getItem('feishuSync')!=='off';
 var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{name:'请假管理',icon:'📋',color:'#7c3aed'},document:{name:'公文管理',icon:'📄',color:'#2563eb'},data:{name:'数据分析',icon:'📊',color:'#059669'},notify:{name:'消息通知',icon:'🔔',color:'#d97706'},approval:{name:'审批处理',icon:'✅',color:'#dc2626'}};
+
+// 页面加载时自动加载历史对话
+document.addEventListener('DOMContentLoaded',function(){loadConversations();});
 
 function escapeHTML(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
 function renderContent(text){
@@ -342,6 +348,34 @@ function readFile(f){
     r.onerror=function(){no(new Error('读取文件失败'))};
     r.readAsDataURL(f);
   });
+}
+
+// 加载历史对话（跨平台同步）
+async function loadConversations(){
+  if(!checkAuth())return;
+  try{
+    var res=await fetch('/api/conversations?limit=30',{headers:{'Authorization':'Bearer '+token}});
+    var data=await res.json();
+    if(data.success&&data.conversations&&data.conversations.length>0){
+      var welcome=g('welcome');if(welcome)welcome.style.display='none';
+      var inner=document.querySelector('.msgs-inner');
+      for(var i=0;i<data.conversations.length;i++){
+        var c=data.conversations[i];
+        var icon=c.source==='feishu'?'💬 ':'';
+        inner.insertAdjacentHTML('beforeend',msgHTML(c.role,icon+c.content,c.agent||''));
+      }
+      g('msgs').scrollTop=g('msgs').scrollHeight;
+    }
+  }catch(e){console.warn('[对话加载]',e.message);}
+}
+
+// 切换飞书同步
+function toggleSync(){
+  feishuSync=!feishuSync;
+  localStorage.setItem('feishuSync',feishuSync?'on':'off');
+  g('syncBtn').textContent=feishuSync?'🔔 飞书同步中':'🔕 飞书不同步';
+  g('syncBtn').style.borderColor=feishuSync?'var(--primary)':'var(--border)';
+  g('syncBtn').style.color=feishuSync?'var(--primary)':'var(--text-sub)';
 }
 
 async function send(){
