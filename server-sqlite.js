@@ -2036,6 +2036,59 @@ app.post('/api/ai/router', auth, async (req, res) => {
 });
 
 // Web Chat 入口 - chat.html 调用此接口（与 /api/ai/router 功能相同）
+// 文件上传 + AI 处理（网页版）
+app.post('/api/ai/upload', auth, async (req, res) => {
+    try {
+        var message = req.body.message || '';
+        var fileData = req.body.file;
+        if (!fileData && !message) return res.status(400).json({ success: false, error: '缺少消息或文件' });
+        if (!aiAgents) return res.status(500).json({ success: false, error: '智能体系统未启用' });
+
+        var user = dbHelper ? dbHelper.getUserById(req.userId) :
+            query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
+
+        var fileDesc = '';
+        if (fileData) {
+            try {
+                var buff = Buffer.from(fileData.content, 'base64');
+                var text = buff.toString('utf8');
+                var fileName = fileData.name || '未命名文件';
+                var fileSize = buff.length;
+                console.log('[上传] 收到文件: ' + fileName + ' (' + fileSize + ' bytes)');
+                fileDesc = '\n\n--- 用户上传的文件 ---\n文件名: ' + fileName + '\n文件大小: ' + fileSize + ' 字节\n文件内容:\n' + text.substring(0, 50000) + '\n--- 文件结束 ---';
+                // 也写入公文库
+                if (typeof createDocumentFromText === 'function') {
+                    try { createDocumentFromText(text, fileName, null); } catch(e) { console.error('[上传] 公文创建失败:', e.message); }
+                }
+            } catch (err) {
+                console.error('[上传] 文件解码失败:', err.message);
+                return res.status(400).json({ success: false, error: '文件解码失败: ' + err.message });
+            }
+        }
+
+        var fullMessage = message + fileDesc;
+        var context = {
+            userId: req.userId,
+            userName: user ? user.name : '用户#' + req.userId,
+            userRole: user ? user.role : 'STUDENT',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            conversationId: req.body.conversationId || ('web_' + req.userId)
+        };
+
+        console.log('[上传AI] 用户=' + context.userName + ' 文件=' + (fileData?.name || '无') + ' 消息=' + message.substring(0, 50));
+        var result = await aiAgents.routerAgentProcess(fullMessage, context);
+
+        if (result && result.success) {
+            res.json(result);
+        } else {
+            res.status(500).json(result || { success: false, error: 'AI处理失败' });
+        }
+    } catch (err) {
+        console.error('[上传AI] 错误:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.post('/api/agents/router', auth, async (req, res) => {
     const { message, conversationId } = req.body;
     if (!message) return res.status(400).json({ success: false, error: '缺少 message' });
