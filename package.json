@@ -1,31 +1,30 @@
-{
-  "name": "document-flow-system",
-  "version": "1.2.0",
-  "description": "公文流转与请假管理系统（支持 SQLite 和飞书集成）",
-  "main": "server-sqlite.js",
-  "scripts": {
-    "start": "node server-sqlite.js",
-    "init-db": "node init-db-sqlite.js",
-    "dev": "nodemon server-sqlite.js"
-  },
-  "dependencies": {
-    "@larksuiteoapi/node-sdk": "^1.35.0",
-    "axios": "^1.6.0",
-    "express": "^4.18.2",
-    "localtunnel": "^2.0.2",
-    "nodemailer": "^6.9.14",
-    "sql.js": "^1.10.3"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "keywords": [
-    "document-management",
-    "leave-management",
-    "feishu",
-    "lark",
-    "office-automation"
-  ],
-  "author": "lichenyang",
-  "license": "MIT"
+﻿{
+    "name":  "document-flow-system",
+    "version":  "1.2.0",
+    "description":  "公文流转与请假管理系统（支持 SQLite 和飞书集成）",
+    "main":  "server-sqlite.js",
+    "scripts":  {
+                    "start":  "node server-sqlite.js",
+                    "init-db":  "node init-db-sqlite.js",
+                    "dev":  "nodemon server-sqlite.js"
+                },
+    "dependencies":  {
+                         "@larksuiteoapi/node-sdk":  "^1.35.0",
+                         "axios":  "^1.6.0",
+                         "express":  "^4.18.2",
+                         "localtunnel":  "^2.0.2",
+                         "sql.js":  "^1.10.3"
+                     },
+    "engines":  {
+                    "node":  "\u003e=18.0.0"
+                },
+    "keywords":  [
+                     "document-management",
+                     "leave-management",
+                     "feishu",
+                     "lark",
+                     "office-automation"
+                 ],
+    "author":  "lichenyang",
+    "license":  "MIT"
 }
