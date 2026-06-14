@@ -6,8 +6,10 @@ let currentUser = null;
 let isAdmin = false;
 
 // ===================== 登录 =====================
-document.getElementById('loginBtn').addEventListener('click', doLogin);
-document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+const _loginBtn = document.getElementById('loginBtn');
+if (_loginBtn) _loginBtn.addEventListener('click', doLogin);
+const _loginPass = document.getElementById('loginPass');
+if (_loginPass) _loginPass.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 async function doLogin() {
   const u = document.getElementById('loginUser').value.trim();
@@ -29,7 +31,10 @@ async function doLogin() {
 }
 
 async function initApp() {
-  document.getElementById('loginOverlay').classList.add('hidden');
+  const lo = document.getElementById('loginOverlay');
+  if (lo) lo.classList.add('hidden');
+  const lp = document.getElementById('loginPage');
+  if (lp) lp.style.display = 'none';
   try {
     const res = await fetch(API + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
     if (!res.ok) return doLogout();
