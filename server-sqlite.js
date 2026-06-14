@@ -561,22 +561,69 @@ async function initLark() {
 // ============================================================
 //  飞书全流程消息处理（v3.0 - 全 AI 驱动）
 // ============================================================
+// 消息去重：避免WS和Webhook双通道重复处理
+var processedMsgIds = processedMsgIds || new Set();
+
 async function handleFeishuMessage(data) {
     try {
         const msg = data.message;
         const chatId = msg.chat_id;
         const msgId = msg.message_id;
-        const senderId = data.sender?.sender_id?.open_id || data.sender?.id?.open_id || '';
-        const chatType = msg.chat_type || 'p2p'; // 'p2p' 或 'group'
+        // **去重：同一msg_id 5秒内不处理两次**
+        if (msgId) {
+            if (processedMsgIds.has(msgId)) {
+                console.log('[飞书] ⏭️ 跳过重复消息 msgId=' + msgId.slice(0, 16));
+                return;
+            }
+            processedMsgIds.add(msgId);
+            setTimeout(function() { processedMsgIds.delete(msgId); }, 5000);
+        }
 
-        // 解析消息文本（飞书消息 content 是 JSON 字符串）
+        const senderId = data.sender?.sender_id?.open_id || data.sender?.id?.open_id || '';
+        const chatType = msg.chat_type || 'p2p';
+
+        // 解析消息
+        var messageType = msg.message_type || 'text';
         let content = '';
         try {
-            const parsed = JSON.parse(msg.content);
+            var parsed = JSON.parse(msg.content);
             content = (parsed.text || '').trim();
         } catch (_e) { content = (msg.content || '').trim(); }
 
-        // 去掉 @机器人 mention（飞书群聊 @ 机器人会带 @_user_1 等格式）
+        // ===== 文件消息处理（飞书传文件）=====
+        if (messageType === 'file' || messageType === 'media' || msg.file_key) {
+            try {
+                var fileKey = msg.file_key || (parsed && parsed.file_key) || '';
+                var fileName = (parsed && parsed.file_name) || '未命名文件';
+                var fileSize = (parsed && parsed.file_size) || 0;
+                console.log('[飞书] 📎 收到文件: ' + fileName + ' (' + fileSize + ' bytes) key=' + fileKey);
+
+                if (fileKey && larkClient) {
+                    var downloadResult = await downloadFeishuFile(fileKey);
+                    if (downloadResult && downloadResult.content) {
+                        var fileText = downloadResult.content;
+                        var newId = createDocumentFromText(fileText, fileName, senderId);
+                        if (newId) {
+                            await sendFeishuMsg(chatId,
+                                '📄 **公文上传成功**\n\n' +
+                                '📎 文件：' + fileName + '\n' +
+                                '📝 内容摘要：' + fileText.substring(0, 100).replace(/\n/g, ' ') + '...\n' +
+                                '🆔 文档编号：#' + newId + '\n\n' +
+                                '👉 可使用「查看公文」查看详情，或直接让AI处理');
+                            console.log('[飞书] 文件已转为公文 #' + newId);
+                        }
+                    } else {
+                        await sendFeishuMsg(chatId, '⚠️ 文件下载失败，请确认文件类型（支持 .txt / .md 文本文件）');
+                    }
+                }
+            } catch (fileErr) {
+                console.error('[飞书] 文件处理失败:', fileErr.message);
+                try { await sendFeishuMsg(chatId, '⚠️ 文件处理失败: ' + fileErr.message); } catch(e) {}
+            }
+            return;
+        }
+
+        // 去掉 @机器人 mention
         content = content.replace(/@_user_\d+\s*/g, '').replace(/@_all\s*/g, '').trim();
 
         // 忽略空消息
@@ -729,6 +776,69 @@ async function handleFeishuMessage(data) {
         }
     } catch (err) {
         console.error('[飞书] 处理失败:', err.message, err.stack);
+    }
+}
+
+// ---------- 飞书文件下载（用于处理飞书传的公文文件）----------
+async function downloadFeishuFile(fileKey) {
+    if (!larkClient) return null;
+    try {
+        var tokenRes = await axios.post('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
+            { app_id: FEISHU_APP_ID, app_secret: FEISHU_APP_SECRET },
+            { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+        );
+        var token = tokenRes.data?.tenant_access_token;
+        if (!token) { console.error('[飞书下载] 获取token失败'); return null; }
+        var fileRes = await axios.get('https://open.feishu.cn/open-apis/im/v1/messages/' + fileKey + '/download', {
+            headers: { Authorization: 'Bearer ' + token },
+            timeout: 30000,
+            responseType: 'arraybuffer'
+        });
+        var fileContent = Buffer.from(fileRes.data).toString('utf8');
+        if (fileContent && fileContent.length > 10) {
+            console.log('[飞书下载] 文件下载成功, 大小=' + fileContent.length + ' 字符');
+            return { success: true, content: fileContent };
+        }
+        return null;
+    } catch (err) {
+        console.error('[飞书下载] 失败:', err.message);
+        return null;
+    }
+}
+
+// ---------- 从文件内容创建公文记录 ----------
+function createDocumentFromText(text, fileName, feishuOpenId) {
+    if (!text || text.length < 5) return null;
+    try {
+        var lines = text.split('\n').filter(function(l) { return l.trim(); });
+        var title = fileName.replace(/\.(txt|md|doc|docx)$/i, '') || '文件_' + Date.now();
+        if (lines.length > 0 && lines[0].length < 50) {
+            title = lines[0].replace(/^#+\s*|^\*\*|\*\*$/g, '').trim() || title;
+        }
+        var type = 'NORMAL';
+        if (/通知|通告|公告/.test(text)) type = 'NOTICE';
+        else if (/请示|申请|报告/.test(text)) type = 'REQUEST';
+        else if (/纪要|记录/.test(text)) type = 'MINUTES';
+        else if (/制度|规定|办法/.test(text)) type = 'POLICY';
+        var userId = null;
+        if (feishuOpenId) {
+            var mapped = query('SELECT system_user_id FROM feishu_user_map WHERE feishu_open_id = ?', [feishuOpenId]);
+            if (mapped.length > 0) userId = mapped[0].system_user_id;
+        }
+        if (!userId) {
+            var admin = query('SELECT id FROM users WHERE role = ? LIMIT 1', ['ADMIN']);
+            if (admin.length > 0) userId = admin[0].id;
+        }
+        if (!userId) userId = 1;
+        var r = run(
+            "INSERT INTO documents (title, content, type, status, applicant_id, created_at) VALUES (?, ?, ?, 'PENDING', ?, datetime('now'))",
+            [title, text, type, userId]
+        );
+        console.log('[公文] 从文件创建公文 #' + r.lastID + ': ' + title + ' (' + type + ')');
+        return r.lastID;
+    } catch (err) {
+        console.error('[公文] 创建失败:', err.message);
+        return null;
     }
 }
 
@@ -1846,9 +1956,9 @@ app.post('/api/feishu/webhook', async (req, res) => {
     // 快速响应飞书（20ms 内，否则飞书重试）
     res.json({ success: true });
     
-    // 异步处理消息
+    // 异步处理消息：im.message.receive_v1 由 WS长连接处理，跳过避免重复
     try {
-        if (body.header?.event_type === 'im.message.receive_v1') {
+        if (body.header?.event_type !== 'im.message.receive_v1') {
             const event = body.event || {};
             const msg = event.message || {};
             const sender = event.sender || {};
