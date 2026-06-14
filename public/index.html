@@ -825,7 +825,7 @@ function logout() {
   if (saved) { token = saved; initApp(); }
 })();
 
--=SWITCHMARKER=-
+function switchPage(page, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => { p.style.display = 'none'; p.classList.remove('active'); });
   if (el) el.classList.add('active');
@@ -1036,7 +1036,7 @@ async function loadUsers() {
     var rc = {ADMIN:'#f56c6c',COUNSELOR:'#e6a23c',TEACHER:'#409eff',STUDENT:'#67c23a',EMPLOYEE:'#909399',MANAGER:'#7c3aed',HR:'#059669'};
     tbody.innerHTML = data.map(function(u) {
       var color = rc[u.role]||'#909399';
-      var del = u.id !== currentUser.id ? '<button class="table-btn table-btn-danger" onclick="deleteUser('+u.id+',''" style="padding:2px 8px;font-size:11px">\u5220\u9664</button>' : '<span style="color:var(--text-muted);font-size:11px">\u5f53\u524d\u7528\u6237</span>';
+      var del = u.id !== currentUser.id ? '<button class="table-btn table-btn-danger" onclick="deleteUser(' + u.id + ',\'' + (u.name||'').replace(/'/g, '\\\'') + '\')" style="padding:2px 8px;font-size:11px">\u5220\u9664</button>' : '<span style="color:var(--text-muted);font-size:11px">\u5f53\u524d\u7528\u6237</span>';
       return '<tr><td>'+u.id+'</td><td><strong>'+u.name+'</strong></td><td>'+u.username+'</td><td><span style="background:'+color+'15;color:'+color+';padding:2px 8px;border-radius:8px;font-size:11px">'+(rn[u.role]||u.role)+'</span></td><td>'+(u.department||'-')+'</td><td>'+(u.created_at||'-')+'</td><td>'+del+'</td></tr>';
     }).join('');
   } catch(e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">\u52a0\u8f7d\u5931\u8d25</td></tr>'; }
