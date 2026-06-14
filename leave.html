@@ -471,7 +471,6 @@ function showApp() {
     document.getElementById('fEnd').value = formatDate(nextWeek);
     
     switchTab('list');
-    loadWechatConfig();
 }
 function formatDate(d) { return d.toISOString().split('T')[0]; }
 
@@ -664,12 +663,17 @@ function setProvider(p) {
     document.getElementById('lblApiKey').textContent = p === 'serverchan' ? 'SendKey' : p === 'pushplus' ? 'Token' : 'API Key';
 }
 async function loadWechatConfig() {
-    const d = await api('/api/config/wechat');
-    if (!d.provider) return;
-    setProvider(d.provider);
-    document.getElementById('cfgApiKey').value = d.api_key || '';
-    document.getElementById('cfgWebhook').value = d.webhook_url || '';
-    document.getElementById('cfgEnabled').checked = d.enabled !== false;
+    try {
+        const d = await api('/api/config/wechat');
+        if (!d.provider) return;
+        setProvider(d.provider);
+        document.getElementById('cfgApiKey').value = d.api_key || '';
+        document.getElementById('cfgWebhook').value = d.webhook_url || '';
+        document.getElementById('cfgEnabled').checked = d.enabled !== false;
+    } catch (e) {
+        // 微信通知配置已移除，静默处理
+        console.log('[配置] 微信通知配置不可用');
+    }
 }
 async function saveWechatConfig() {
     const data = {

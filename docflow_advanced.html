@@ -901,7 +901,7 @@ async function login() {
   btn.innerHTML = '<span class="loading"></span> 登录中...';
   
   try {
-    const d = await api('/login', {
+    const d = await api('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
@@ -1359,6 +1359,67 @@ function renderDocsList(docs) {
       </table>
     </div>
   `;
+}
+
+// ===== 创建公文 =====
+function renderCreateDoc(content) {
+  content.innerHTML = `
+    <div class="topbar">
+      <h1>✏️ 创建公文</h1>
+      <div class="topbar-actions">
+        <button onclick="navigateTo('docs')" class="btn btn-ghost">← 返回列表</button>
+      </div>
+    </div>
+    <div class="card" style="max-width:700px;margin-top:16px">
+      <div class="form-group">
+        <label>标题</label>
+        <input type="text" id="newDocTitle" class="form-control" placeholder="请输入公文标题">
+      </div>
+      <div class="form-group">
+        <label>类型</label>
+        <select id="newDocType" class="form-control">
+          <option value="NOTICE">📋 通知</option>
+          <option value="PROPOSAL">📝 请示</option>
+          <option value="REPORT">📊 报告</option>
+          <option value="MINUTES">📑 会议纪要</option>
+          <option value="POLICY">📜 制度</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>优先级</label>
+        <select id="newDocPriority" class="form-control">
+          <option value="NORMAL">一般</option>
+          <option value="HIGH">🔥 紧急</option>
+          <option value="LOW">💡 普通</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>正文内容</label>
+        <textarea id="newDocContent" class="form-control" rows="10" placeholder="请输入公文正文内容..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="submitNewDoc()" class="btn btn-primary">📤 提交审批</button>
+        <button onclick="navigateTo('docs')" class="btn btn-ghost">取消</button>
+      </div>
+    </div>`;
+}
+
+async function submitNewDoc() {
+  const title = document.getElementById('newDocTitle').value.trim();
+  const type = document.getElementById('newDocType').value;
+  const priority = document.getElementById('newDocPriority').value;
+  const content = document.getElementById('newDocContent').value.trim();
+  if (!title) return alert('请输入公文标题');
+  try {
+    const btn = event.target; btn.disabled = true; btn.textContent = '提交中...';
+    const res = await api('/api/docs', { method: 'POST', body: JSON.stringify({ title, type, priority, content }) });
+    if (res.success) {
+      alert('✅ 公文已提交审批！编号 #' + res.id);
+      navigateTo('docs');
+    } else {
+      alert('❌ 提交失败：' + (res.message || '未知错误'));
+    }
+  } catch (e) { alert('❌ 提交失败：' + e.message); }
 }
 
 // ===== AI功能 =====
