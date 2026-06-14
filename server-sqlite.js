@@ -249,6 +249,25 @@ function run(sql, params = []) {
 // ---------- 飞书客户端（全局） ----------
 let larkClient = null;
 
+// ---------- 飞书用户信息获取（自动识别用）----------
+async function fetchFeishuUserName(openId) {
+    if (!larkClient || !openId) return null;
+    try {
+        const res = await larkClient.contact.v3.user.get({
+            path: { user_id: openId },
+            params: { user_id_type: 'open_id' }
+        });
+        const userData = res?.data?.user;
+        if (userData) {
+            // 优先用 name，其次 nick_name
+            return userData.name || userData.nick_name || null;
+        }
+    } catch (e) {
+        console.warn('[飞书] 获取用户信息失败:', e.message?.slice(0,80) || String(e).slice(0,80));
+    }
+    return null;
+}
+
 // ---------- 飞书用户映射 ----------
 function getSystemUserByFeishuId(feishuOpenId) {
     const map = query('SELECT system_user_id FROM feishu_user_map WHERE feishu_open_id = ?', [feishuOpenId]);
@@ -523,6 +542,16 @@ async function handleFeishuMessage(data) {
             }
         }
 
+        // 解除绑定：「我不是XXX」
+        const unbindMatch = content.match(/我不是([^\s，,。!！?？]+)/);
+        if (unbindMatch) {
+            if (dbHelper) dbHelper.unbindFeishuUser(senderId);
+            else run('DELETE FROM feishu_user_map WHERE feishu_open_id = ?', [senderId]);
+            await sendFeishuMsg(chatId, '🔓 已解除飞书身份绑定。\n\n下次发消息时会自动尝试识别你的身份，也可以说「我是你的名字」来重新绑定。');
+            console.log('[飞书] 解除绑定: ' + senderId);
+            return;
+        }
+
         // ========== 确认飞书用户身份 ==========
         let user = null;
         if (dbHelper) user = dbHelper.getUserByFeishuId(senderId);
@@ -541,7 +570,36 @@ async function handleFeishuMessage(data) {
             }
         }
 
-        // 未绑定身份 → 友好提示绑定
+        // 未绑定身份 → 尝试自动检测飞书昵称匹配
+        if (!user) {
+            // 尝试通过飞书 API 获取用户信息自动匹配
+            try {
+                const feishuName = await fetchFeishuUserName(senderId);
+                if (feishuName) {
+                    const sysUser = query('SELECT id, username, name, role FROM users WHERE name = ?', [feishuName])[0];
+                    if (sysUser) {
+                        if (dbHelper) dbHelper.bindFeishuUser(senderId, sysUser.id);
+                        else {
+                            const em = query('SELECT id FROM feishu_user_map WHERE feishu_open_id = ?', [senderId]);
+                            if (em.length > 0) run('UPDATE feishu_user_map SET system_user_id = ? WHERE feishu_open_id = ?', [sysUser.id, senderId]);
+                            else run('INSERT INTO feishu_user_map (feishu_open_id, system_user_id) VALUES (?, ?)', [senderId, sysUser.id]);
+                        }
+                        user = sysUser;
+                        const roleLabel = {ADMIN:'👑管理员',COUNSELOR:'🎓辅导员',TEACHER:'👨‍🏫老师',STUDENT:'🧑‍🎓学生',EMPLOYEE:'💼员工'}[user.role]||user.role;
+                        const isManager = ['ADMIN','COUNSELOR','TEACHER'].includes(user.role);
+                        console.log('[飞书] 🎯 自动识别: open_id=' + senderId.slice(0,12) + ' → ' + user.name + ' (' + user.role + ') ' + (isManager?'管理者':'成员'));
+                        await sendFeishuMsg(chatId, `🎯 已自动识别你的身份：${user.name}（${roleLabel}）
+
+` +
+                            (isManager ? '你拥有审批权限，可以直接审批请假和公文！' : '你有问题随时找我请假或查数据～') +
+                            `\n\n💡 如身份不对，请回复「我不是${user.name}」`);
+                    }
+                }
+            } catch (e) {
+                console.warn('[飞书] 自动识别失败:', e.message);
+            }
+        }
+
         if (!user) {
             const allUsers = query('SELECT name, role FROM users LIMIT 10');
             const userList = allUsers.map(u => u.name + '(' + ({ADMIN:'管理员',COUNSELOR:'辅导员',TEACHER:'老师',STUDENT:'学生',EMPLOYEE:'员工'}[u.role]||u.role) + ')').join('、');

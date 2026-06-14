@@ -81,8 +81,10 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 .btn-primary:hover{background:var(--brand-700)}
 .btn-primary:active{transform:translateY(1px)}
 .error-msg{color:var(--danger);font-size:12px;text-align:center;margin-top:12px;min-height:16px}
-.login-tip{margin-top:24px;padding:12px 14px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--slate-500);line-height:1.6}
+.login-tip{margin-top:24px;padding:12px 14px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--slate-500);line-height:1.6}.account-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}.account-table td{padding:3px 4px;vertical-align:middle}.account-table code{background:var(--slate-200);padding:1px 5px;border-radius:3px;font-size:11px}
 .login-tip b{color:var(--text-sub);font-weight:600}
+.role-admin td:first-child{color:#7c3aed}.role-counselor td:first-child{color:#0891b2}.role-teacher td:first-child{color:#2563eb}.role-student td:first-child{color:#059669}
+.login-tip code{background:var(--slate-200);padding:1px 4px;border-radius:3px;font-size:11px}
 @media(max-width:900px){.login-wrap{grid-template-columns:1fr}.login-hero{display:none}.login-box-wrap{padding:24px}}
 
 /* ============ 应用主布局 ============ */
@@ -408,9 +410,17 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
         <button class="btn-primary" onclick="doLogin()">登 录</button>
         <div class="error-msg" id="loginError"></div>
         <div class="login-tip">
-          <b>试用账号</b><br>
-          管理员：<span style="font-family:monospace">admin / admin</span><br>
-          普通用户：<span style="font-family:monospace">user / user</span>
+          <b>🔑 试用账号</b>（密码均为 <code>123456</code>）
+          <table class="account-table">
+            <tr class="role-admin"><td>👑 管理员</td><td><code>admin</code></td><td>系统管理员</td></tr>
+            <tr class="role-counselor"><td>🎓 辅导员</td><td><code>fudaoyuan</code></td><td>李辅导员</td></tr>
+            <tr class="role-teacher"><td>👨‍🏫 老师</td><td><code>wanglaoshi</code></td><td>王老师·计算机系</td></tr>
+            <tr class="role-teacher"><td>👩‍🏫 老师</td><td><code>zhanglaoshi</code></td><td>张老师·数学系</td></tr>
+            <tr class="role-student"><td>🧑‍🎓 学生</td><td><code>xiaoming</code></td><td>小明·计算机2023</td></tr>
+            <tr class="role-student"><td>👩‍🎓 学生</td><td><code>xiaohong</code></td><td>小红·数学2023</td></tr>
+            <tr class="role-student"><td>🧑‍🎓 学生</td><td><code>xiaogang</code></td><td>小刚·计算机2024</td></tr>
+          </table>
+          <p style="font-size:11px;margin-top:8px;color:var(--slate-400)">💡 在飞书群里说「我是小明」即可自动绑定身份</p>
         </div>
       </div>
     </div>

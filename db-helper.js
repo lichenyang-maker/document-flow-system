@@ -89,6 +89,31 @@ function initDBHelper(db, saveDB) {
         return dbAll('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
     }
 
+    // 获取某系部的教师列表
+    function getTeachersByDepartment(department) {
+        if (!department) return dbAll("SELECT id, name, role FROM users WHERE role = 'TEACHER'");
+        const deptPrefix = department.replace(/[0-9]+级$/, '');
+        return dbAll(
+            "SELECT id, name, role, department FROM users WHERE role = 'TEACHER' AND department LIKE ?",
+            ['%' + deptPrefix + '%']
+        );
+    }
+
+    function getTeacherById(teacherId) {
+        return dbGet("SELECT id, name, role, department FROM users WHERE id = ? AND role = 'TEACHER'", [teacherId]);
+    }
+
+    // 获取指定教师待审批的请假列表
+    function getPendingLeavesForTeacher(teacherId) {
+        return dbAll(
+            `SELECT l.*, u.name as user_name, u.department as user_dept 
+             FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id 
+             WHERE l.approver_id = ? AND l.status = 'PENDING' 
+             ORDER BY l.created_at DESC LIMIT 10`,
+            [teacherId]
+        );
+    }
+
     // ---------- 飞书绑定 ----------
     function bindFeishuUser(feishuOpenId, systemUserId) {
         const exist = dbGet('SELECT id FROM feishu_user_map WHERE feishu_open_id = ?', [feishuOpenId]);
@@ -99,16 +124,20 @@ function initDBHelper(db, saveDB) {
         }
     }
 
+    function unbindFeishuUser(feishuOpenId) {
+        dbRun('DELETE FROM feishu_user_map WHERE feishu_open_id = ?', [feishuOpenId]);
+    }
+
     // ---------- 请假相关 ----------
-    function createLeaveRequest(userId, type, startDate, endDate, days, reason, feishuChatId, feishuMsgId) {
-        // 兼容旧数据库（可能没有 feishu_chat_id/feishu_msg_id 列）
+    function createLeaveRequest(userId, type, startDate, endDate, days, reason, feishuChatId, feishuMsgId, course) {
         try {
             return dbRun(
-                `INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status, feishu_chat_id, feishu_msg_id) 
-                 VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
-                [userId, type, startDate || '', endDate || '', days, reason || '', feishuChatId || '', feishuMsgId || '']
+                `INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, course, status, feishu_chat_id, feishu_msg_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
+                [userId, type, startDate || '', endDate || '', days, reason || '', course || '', feishuChatId || '', feishuMsgId || '']
             );
         } catch (e) {
+            // 兼容旧库（无 course / feishu 列）
             return dbRun(
                 `INSERT INTO leave_requests (user_id, type, start_date, end_date, days, reason, status) 
                  VALUES (?, ?, ?, ?, ?, ?, 'PENDING')`,
@@ -288,8 +317,9 @@ function initDBHelper(db, saveDB) {
         dbAll, dbGet, dbRun,
         // 用户
         getUserById, getUserByName, getUserByFeishuId, getFeishuIdByUserId, getAdmins, getApprovers,
+        getTeachersByDepartment, getTeacherById, getPendingLeavesForTeacher,
         // 飞书
-        bindFeishuUser,
+        bindFeishuUser, unbindFeishuUser,
         // 请假
         createLeaveRequest, getPendingLeaveInChat, getLeaveById, approveLeave, rejectLeave,
         getMyLeaves, getLeaveBalance, countLeavesInRange,
