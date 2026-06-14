@@ -633,6 +633,8 @@ function toast(msg, type) {
 async function api(url, opts) {
   opts = opts || {};
   opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  var t = localStorage.getItem('docflow_token');
+  if (t) opts.headers['Authorization'] = 'Bearer ' + t;
   
   try {
     const res = await fetch(API + url, opts);
@@ -695,6 +697,7 @@ async function login() {
     
     if (d.success) {
       currentUser = d.user;
+      if (d.token) localStorage.setItem('docflow_token', d.token);
       currentPage = 'dashboard';
       render();
       toast('登录成功，欢迎回来！', 'success');
