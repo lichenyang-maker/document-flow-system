@@ -1570,10 +1570,6 @@ app.post('/api/leave', auth, async (req, res) => {
         // 2. 也发到群聊
         try { await sendFeishuToGroup(notifyText); } catch (e) {}
 
-        // 3. 微信通知
-        sendWechatNotify('【新请假申请】来自 ' + (applicant?.name || ''),
-            `请假类型：${type}\n时间：${sDate} 至 ${eDate}\n天数：${days}\n事由：${reason || '无'}`);
-
         res.json({
             success: true,
             id: leaveId,
@@ -2035,11 +2031,6 @@ app.post('/api/stats/query', auth, async (req, res) => {
 
         res.json(result);
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-// 微信 Webhook
-app.post('/api/wechat/webhook', express.raw({ type: 'application/xml', limit: '1mb' }), async (req, res) => {
-    res.json({ success: true });
 });
 
 // 飞书 Webhook
