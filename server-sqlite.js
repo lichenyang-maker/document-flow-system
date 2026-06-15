@@ -276,9 +276,107 @@ async function initDB() {
             improvement TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // ============ 销售订货5.4-5.10新增表 ============
+        `CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_code TEXT NOT NULL,
+            product_name TEXT DEFAULT '',
+            category TEXT DEFAULT '',
+            specification TEXT DEFAULT '',
+            quantity REAL DEFAULT 0,
+            unit TEXT DEFAULT 'PCS',
+            location TEXT DEFAULT '',
+            min_stock REAL DEFAULT 0,
+            max_stock REAL DEFAULT 0,
+            last_check_at TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS monthly_forecasts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month TEXT NOT NULL,
+            department TEXT DEFAULT '',
+            product_category TEXT DEFAULT '',
+            forecast_quantity REAL DEFAULT 0,
+            actual_quantity REAL DEFAULT 0,
+            variance REAL DEFAULT 0,
+            notes TEXT DEFAULT '',
+            creator_id INTEGER,
+            status TEXT DEFAULT 'draft',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS new_product_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            product_name TEXT NOT NULL,
+            product_code TEXT DEFAULT '',
+            specification TEXT DEFAULT '',
+            bom_status TEXT DEFAULT 'pending',
+            bom_content TEXT DEFAULT '',
+            sample_status TEXT DEFAULT 'pending',
+            sample_notes TEXT DEFAULT '',
+            review_result TEXT DEFAULT 'pending',
+            reviewer_id INTEGER,
+            reviewed_at TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS order_confirmations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            conf_no TEXT UNIQUE NOT NULL,
+            customer_name TEXT NOT NULL,
+            total_amount REAL DEFAULT 0,
+            deposit_amount REAL DEFAULT 0,
+            deposit_paid INTEGER DEFAULT 0,
+            delivery_terms TEXT DEFAULT '',
+            payment_terms TEXT DEFAULT '',
+            confirmed_by INTEGER,
+            confirmed_at TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS rush_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            rush_reason TEXT DEFAULT '',
+            original_delivery TEXT,
+            new_delivery TEXT,
+            days_ahead INTEGER DEFAULT 0,
+            approved_by INTEGER,
+            approved_at TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS change_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            change_type TEXT NOT NULL,
+            change_detail TEXT DEFAULT '',
+            reason TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            applicant_id INTEGER,
+            reviewer_eng_id INTEGER,
+            reviewer_eng_comment TEXT DEFAULT '',
+            reviewer_plan_id INTEGER,
+            reviewer_plan_comment TEXT DEFAULT '',
+            reviewer_biz_id INTEGER,
+            reviewer_biz_comment TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS notification_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            channel TEXT DEFAULT 'feishu',
+            title TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            status TEXT DEFAULT 'sent',
+            read_at TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`
     ];
-
+    
     for (const sql of tables) {
         try { db.run(sql); } catch (e) { console.warn('[WARN] 建表失败:', e.message); }
     }
@@ -4173,7 +4271,14 @@ async function start() {
             { name: 'prediction_plans', sql: `CREATE TABLE IF NOT EXISTS prediction_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL, target_department TEXT DEFAULT '', plan_content TEXT DEFAULT '', status TEXT DEFAULT 'draft', creator_id INTEGER, approver_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
             { name: 'production_cycles', sql: `CREATE TABLE IF NOT EXISTS production_cycles (id INTEGER PRIMARY KEY AUTOINCREMENT, product_code TEXT NOT NULL, product_name TEXT DEFAULT '', lead_days INTEGER NOT NULL, cycle_category TEXT DEFAULT 'standard', valid_from TEXT NOT NULL, valid_to TEXT, approver_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
             { name: 'bom_materials', sql: `CREATE TABLE IF NOT EXISTS bom_materials (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER, product_code TEXT DEFAULT '', material_code TEXT NOT NULL, material_name TEXT DEFAULT '', specification TEXT DEFAULT '', quantity REAL DEFAULT 0, unit TEXT DEFAULT '', status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
-            { name: 'delivery_stats', sql: `CREATE TABLE IF NOT EXISTS delivery_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL UNIQUE, total_orders INTEGER DEFAULT 0, on_time INTEGER DEFAULT 0, delay_count INTEGER DEFAULT 0, on_time_pct REAL DEFAULT 0, delay_reason TEXT DEFAULT '', improvement TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
+            { name: 'delivery_stats', sql: `CREATE TABLE IF NOT EXISTS delivery_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL UNIQUE, total_orders INTEGER DEFAULT 0, on_time INTEGER DEFAULT 0, delay_count INTEGER DEFAULT 0, on_time_pct REAL DEFAULT 0, delay_reason TEXT DEFAULT '', improvement TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'inventory', sql: `CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, product_code TEXT NOT NULL, product_name TEXT DEFAULT '', category TEXT DEFAULT '', specification TEXT DEFAULT '', quantity REAL DEFAULT 0, unit TEXT DEFAULT 'PCS', location TEXT DEFAULT '', min_stock REAL DEFAULT 0, max_stock REAL DEFAULT 0, last_check_at TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'monthly_forecasts', sql: `CREATE TABLE IF NOT EXISTS monthly_forecasts (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL, department TEXT DEFAULT '', product_category TEXT DEFAULT '', forecast_quantity REAL DEFAULT 0, actual_quantity REAL DEFAULT 0, variance REAL DEFAULT 0, notes TEXT DEFAULT '', creator_id INTEGER, status TEXT DEFAULT 'draft', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'new_product_reviews', sql: `CREATE TABLE IF NOT EXISTS new_product_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER, product_name TEXT NOT NULL, product_code TEXT DEFAULT '', specification TEXT DEFAULT '', bom_status TEXT DEFAULT 'pending', bom_content TEXT DEFAULT '', sample_status TEXT DEFAULT 'pending', sample_notes TEXT DEFAULT '', review_result TEXT DEFAULT 'pending', reviewer_id INTEGER, reviewed_at TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'order_confirmations', sql: `CREATE TABLE IF NOT EXISTS order_confirmations (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, conf_no TEXT UNIQUE NOT NULL, customer_name TEXT NOT NULL, total_amount REAL DEFAULT 0, deposit_amount REAL DEFAULT 0, deposit_paid INTEGER DEFAULT 0, delivery_terms TEXT DEFAULT '', payment_terms TEXT DEFAULT '', confirmed_by INTEGER, confirmed_at TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'rush_orders', sql: `CREATE TABLE IF NOT EXISTS rush_orders (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, rush_reason TEXT DEFAULT '', original_delivery TEXT, new_delivery TEXT, days_ahead INTEGER DEFAULT 0, approved_by INTEGER, approved_at TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'change_reviews', sql: `CREATE TABLE IF NOT EXISTS change_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, change_type TEXT NOT NULL, change_detail TEXT DEFAULT '', reason TEXT DEFAULT '', status TEXT DEFAULT 'pending', applicant_id INTEGER, reviewer_eng_id INTEGER, reviewer_eng_comment TEXT DEFAULT '', reviewer_plan_id INTEGER, reviewer_plan_comment TEXT DEFAULT '', reviewer_biz_id INTEGER, reviewer_biz_comment TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'notification_logs', sql: `CREATE TABLE IF NOT EXISTS notification_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, channel TEXT DEFAULT 'feishu', title TEXT DEFAULT '', content TEXT DEFAULT '', status TEXT DEFAULT 'sent', read_at TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
         ];
 
         let createdCount = 0;

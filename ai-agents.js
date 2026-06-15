@@ -1510,7 +1510,7 @@ async function salesAgentProcess(message, context = {}) {
         // Create delivery note
         var dnNo = 'DN' + Date.now().toString(36).toUpperCase();
         runDb("INSERT INTO delivery_notes (order_id,delivery_no,warehouse_status,shipped_at,created_at) VALUES (?,?,'shipped',datetime('now'),datetime('now'))", [spId, dnNo]);
-        return { success: true, content: `🚚 **发货/订单|销售|通知|请示/：订单已发货！** #${spId}\n📋 ${spOrder.order_no} · ${spOrder.customer_name}\n📦 ${spOrder.product_type || ''} × ${spOrder.quantity}${spOrder.unit || 'PCS'}\n🔖 发货单号：${dnNo}\n📅 发货时间：${new Date().toLocaleString('zh-CN')}\n🎉 订单流程完成！` };
+        return { success: true, content: `🚚 **发货通知：订单已发货！** #${spId}\n📋 ${spOrder.order_no} · ${spOrder.customer_name}\n📦 ${spOrder.product_type || ''} × ${spOrder.quantity}${spOrder.unit || 'PCS'}\n🔖 发货单号：${dnNo}\n📅 发货时间：${new Date().toLocaleString('zh-CN')}\n🎉 订单流程完成！` };
     }
 
     // 变更订单
