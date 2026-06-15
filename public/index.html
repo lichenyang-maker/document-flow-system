@@ -83,7 +83,7 @@ input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 .error-msg{color:var(--danger);font-size:12px;text-align:center;margin-top:12px;min-height:16px}
 .login-tip{margin-top:24px;padding:12px 14px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--slate-500);line-height:1.6}.account-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}.account-table td{padding:3px 4px;vertical-align:middle}.account-table code{background:var(--slate-200);padding:1px 5px;border-radius:3px;font-size:11px}
 .login-tip b{color:var(--text-sub);font-weight:600}
-.role-admin td:first-child{color:#7c3aed}.role-counselor td:first-child{color:#0891b2}.role-teacher td:first-child{color:#2563eb}.role-student td:first-child{color:#059669}
+.role-admin td:first-child{color:#7c3aed}.role-sales td:first-child{color:#e6a23c}.role-engineer td:first-child{color:#409eff}.role-planner td:first-child{color:#67c23a}.role-purchase td:first-child{color:#7c3aed}.role-quality td:first-child{color:#059669}.role-director td:first-child{color:#0891b2}
 .login-tip code{background:var(--slate-200);padding:1px 4px;border-radius:3px;font-size:11px}
 @media(max-width:900px){.login-wrap{grid-template-columns:1fr}.login-hero{display:none}.login-box-wrap{padding:24px}}
 
@@ -419,7 +419,7 @@ async function showSettings() {
   if (currentUser) {
     document.getElementById('smAvatar').textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
     document.getElementById('smName').textContent = currentUser.name || currentUser.username || '—';
-    const roleNames = { ADMIN:'管理员', COUNSELOR:'辅导员', TEACHER:'老师', STUDENT:'学生', EMPLOYEE:'职工', MANAGER:'部门经理', HR:'人事' };
+    const roleNames = { ADMIN:'管理员', SALES:'业务部/市场部', ENGINEER:'工程部', PLANNER:'计划部', EMPLOYEE:'员工', MANAGER:'部门经理', HR:'人事' };
     document.getElementById('smRole').textContent = roleNames[currentUser.role] || currentUser.role || '—';
   }
   document.getElementById('smOldPass').value = '';
@@ -511,12 +511,12 @@ async function changePassword() {
           <b>🔑 试用账号</b>
           <table class="account-table">
             <tr class="role-admin"><td>👑 管理员</td><td><code>admin</code></td><td><b>admin123</b> · 系统管理员</td></tr>
-            <tr class="role-counselor"><td>🎓 辅导员</td><td><code>fudaoyuan / 123456</code></td><td>李辅导员</td></tr>
-            <tr class="role-teacher"><td>👨‍🏫 老师</td><td><code>wanglaoshi / 123456</code></td><td>王老师·计算机系</td></tr>
-            <tr class="role-teacher"><td>👨‍🏫 老师</td><td><code>zhanglaoshi / 123456</code></td><td>张老师·数学系</td></tr>
-            <tr class="role-student"><td>👩 学生</td><td><code>xiaoming / 123456</code></td><td>小明·计算机2023</td></tr>
-            <tr class="role-student"><td>👩 学生</td><td><code>xiaohong / 123456</code></td><td>小红·数学2023</td></tr>
-            <tr class="role-student"><td>👩 学生</td><td><code>xiaogang / 123456</code></td><td>小刚·计算机2024</td></tr>
+            <tr class="role-counselor"><td>🎓 业务部/市场部</td><td><code>fudaoyuan / 123456</code></td><td>李业务部/市场部</td></tr>
+            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>wanglaoshi / 123456</code></td><td>王工程部·计算机系</td></tr>
+            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>zhanglaoshi / 123456</code></td><td>张工程部·数学系</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaoming / 123456</code></td><td>小明·计算机2023</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaohong / 123456</code></td><td>小红·数学2023</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaogang / 123456</code></td><td>小刚·计算机2024</td></tr>
           </table>
           <p style="font-size:11px;margin-top:8px;color:var(--slate-400)">💡 在飞书群里说「我是小明」即可自动绑定身份</p>
         </div>
@@ -916,7 +916,7 @@ async function doLogin() {
     if (!res.ok) { const d = await res.json(); err.textContent = d.message || '登录失败'; return; }
     const data = await res.json();
     token = data.token;
-    isAdmin = data.user && (data.user.role === 'ADMIN' || data.user.role === 'COUNSELOR');
+    isAdmin = data.user && (data.user.role === 'ADMIN' || data.user.role === 'DIRECTOR' || data.user.role === 'MANAGER');
     localStorage.setItem('token', token);
     if (data.user) localStorage.setItem('currentUser', JSON.stringify(data.user));
     await initApp();
@@ -932,8 +932,8 @@ async function initApp() {
     currentUser = await res.json();
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     userRole = currentUser.role || '';
-    isAdmin = (userRole === 'ADMIN' || userRole === 'COUNSELOR');
-    const roleNames = { ADMIN:'管理员', COUNSELOR:'辅导员', TEACHER:'老师', STUDENT:'学生', EMPLOYEE:'职工', MANAGER:'部门经理', HR:'人事' };
+    isAdmin = (userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'MANAGER');
+    const roleNames = { ADMIN:'管理员', SALES:'业务部/市场部', ENGINEER:'工程部', PLANNER:'计划部', EMPLOYEE:'员工', MANAGER:'部门经理', HR:'人事' };
     const name = currentUser.name || currentUser.username || '用户';
     document.getElementById('sidebarUser').textContent = name;
     document.getElementById('sidebarRole').textContent = roleNames[userRole] || userRole;
@@ -1257,14 +1257,14 @@ function buildSidebar(role) {
   if (!nav) return;
   var menus = {
     ADMIN:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'sales',i:'\ud83d\udce6',l:'\u9500\u552e\u8ba2\u5355'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u7ba1\u7406'},{p:'users',i:'\ud83d\udc65',l:'\u7528\u6237\u7ba1\u7406'}],
-    COUNSELOR:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
-    TEACHER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'}],
-    STUDENT:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
+    SALES:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
+    ENGINEER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'}],
+    PLANNER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
     EMPLOYEE:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
     MANAGER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u5ba1\u6279\u7ba1\u7406'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
     HR:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'users',i:'\ud83d\udc65',l:'\u4eba\u4e8b\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8003\u52e4\u7ba1\u7406'}]
   };
-  var items = menus[role] || menus.STUDENT;
+  var items = menus[role] || menus.PLANNER;
   nav.innerHTML = items.map(function(m) {
     return '<a class="nav-item" href="javascript:void(0)" onclick="switchPage(\'' + m.p + '\')">' + m.i + ' ' + m.l + '</a>';
   }).join('');
@@ -1300,8 +1300,8 @@ async function loadUsers() {
   try {
     var res = await fetch(API + '/api/users', getHeaders());
     var data = await res.json();
-    var rn = {ADMIN:'\u7ba1\u7406\u5458',COUNSELOR:'\u8f85\u5bfc\u5458',TEACHER:'\u8001\u5e08',STUDENT:'\u5b66\u751f',EMPLOYEE:'\u804c\u5de5',MANAGER:'\u7ecf\u7406',HR:'\u4eba\u4e8b'};
-    var rc = {ADMIN:'#f56c6c',COUNSELOR:'#e6a23c',TEACHER:'#409eff',STUDENT:'#67c23a',EMPLOYEE:'#909399',MANAGER:'#7c3aed',HR:'#059669'};
+    var rn = {ADMIN:'\u7ba1\u7406\u5458',SALES:'\u8f85\u5bfc\u5458',ENGINEER:'\u8001\u5e08',PLANNER:'\u5b66\u751f',EMPLOYEE:'\u804c\u5de5',MANAGER:'\u7ecf\u7406',HR:'\u4eba\u4e8b'};
+    var rc = {ADMIN:'#f56c6c',SALES:'#e6a23c',ENGINEER:'#409eff',PLANNER:'#67c23a',PURCHASE:'#7c3aed',QUALITY:'#059669',DIRECTOR:'#0891b2',MANAGER:'#7c3aed',EMPLOYEE:'#909399'};
     tbody.innerHTML = data.map(function(u) {
       var color = rc[u.role]||'#909399';
       var del = u.id !== currentUser.id ? '<button class="table-btn table-btn-danger" onclick="deleteUser(' + u.id + ',\'' + (u.name||'').replace(/'/g, '\\\'') + '\')" style="padding:2px 8px;font-size:11px">\u5220\u9664</button>' : '<span style="color:var(--text-muted);font-size:11px">\u5f53\u524d\u7528\u6237</span>';

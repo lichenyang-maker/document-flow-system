@@ -1,8 +1,9 @@
-const { chatWithAgent, classifyIntent, getAgentsList, analyzeWithAgent } = require('./ai-agents');
+const { chatWithAgent, classifyIntent, getAgentsList, analyzeWithAgent, routerAgentProcess } = require('./ai-agents');
+const { injectDB, injectFeishu, injectDBQuery } = require('./ai-agents');
 
 async function test() {
     console.log('========================================');
-    console.log('  🤖 多智能体系统测试');
+    console.log('  🤖 销售订货多智能体系统测试');
     console.log('========================================\n');
 
     console.log('📋 可用智能体:');
@@ -13,12 +14,11 @@ async function test() {
     console.log();
 
     const testCases = [
-        { agent: 'general', msg: '帮我介绍一下公文流转系统的主要功能' },
-        { agent: 'coder', msg: '写一个 Node.js 函数，读取 CSV 文件并返回 JSON 格式数据' },
-        { agent: 'document', msg: '帮我写一份会议通知，关于下周的季度总结会议' },
-        { agent: 'approval', msg: '分析一下这个请假申请：张三，3天年假，6月20-22日，原因是陪家人出游' },
-        { agent: 'data', msg: '请分析以下数据：5月有12个请假申请，6月至今有8个，其中病假3个，事假5个，年假12个' },
-        { agent: 'reasoning', msg: '公司需要在传统审批流程和自动化审批系统之间做选择，请帮我分析利弊' }
+        { agent: 'general', msg: '帮我介绍一下销售订货系统的主要功能' },
+        { agent: 'order', msg: '帮我创建一个销售订单，客户名称是华为科技，产品是服务器，数量10台' },
+        { agent: 'data', msg: '请分析一下订单交付率数据' },
+        { agent: 'notify', msg: '通知工程部，订单SO20260615001需要紧急评审' },
+        { agent: 'feishu', msg: '查看我的待审批订单' }
     ];
 
     for (const tc of testCases) {
@@ -38,21 +38,33 @@ async function test() {
     console.log('========================================\n');
 
     const intentTests = [
-        '帮我写一个请假申请',
-        '如何用 Python 连接数据库',
-        '写一份季度工作总结',
-        '分析一下最近的请假数据趋势',
-        '公司是否应该引入新的审批系统，请深度分析'
+        '我要下订单，客户是腾讯',
+        '帮我查一下我的订单',
+        '订单SO001需要变更',
+        '查看交付率统计',
+        '发联络单给计划部',
+        '帮我查库存',
+        '这个月生产周期是多少',
+        '你好，今天天气不错'
     ];
 
     for (const msg of intentTests) {
-        const intent = await classifyIntent(msg);
-        console.log(`   "${msg.substring(0, 20)}..." -> ${intent}`);
+        try {
+            const intent = await classifyIntent(msg);
+            console.log(`   "${msg.substring(0, 25).padEnd(25)}" -> ${intent}`);
+        } catch (e) {
+            console.log(`   "${msg.substring(0, 25).padEnd(25)}" -> ERROR: ${e.message}`);
+        }
     }
 
     console.log('\n========================================');
     console.log('  ✅ 测试完成');
     console.log('========================================');
 }
+
+// 如果需要注入数据库和飞书依赖，取消下面注释
+// const dbHelper = null;
+// injectDB(dbHelper);
+// injectFeishu({});
 
 test();

@@ -1,7 +1,7 @@
-// ============================================================
-//  学工请假系统 - 全流程 AI 飞书审批版
+﻿// ============================================================
+//  销售订货系统 - 全流程 AI 飞书审批版
 //  端口：3000 | 数据库：sql.js (纯JS SQLite)
-//  v4.0 - 学工角色 + 全流程AI + 飞书闭环
+//  v4.0 - 销售角色 + 全流程AI + 飞书闭环
 // ============================================================
 const express = require('express');
 const initSqlJs = require('sql.js');
@@ -188,6 +188,94 @@ async function initDB() {
             personal_days REAL DEFAULT 3,
             personal_used REAL DEFAULT 0,
             UNIQUE(user_id, year)
+        )`,
+        // ============ 销售订货系统表 ============
+        `CREATE TABLE IF NOT EXISTS order_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            approver_id INTEGER,
+            approver_name TEXT DEFAULT '',
+            stage TEXT NOT NULL,
+            action TEXT NOT NULL,
+            comment TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS delivery_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            delivery_no TEXT UNIQUE NOT NULL,
+            warehouse_status TEXT DEFAULT 'pending',
+            financial_status TEXT DEFAULT 'pending',
+            financial_reviewer_id INTEGER,
+            shipped_at TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS order_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            change_type TEXT NOT NULL,
+            change_reason TEXT DEFAULT '',
+            old_value TEXT DEFAULT '',
+            new_value TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            applicant_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS contact_forms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT DEFAULT '',
+            department TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            applicant_id INTEGER,
+            approver_id INTEGER,
+            approver_comment TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS prediction_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month TEXT NOT NULL,
+            target_department TEXT DEFAULT '',
+            plan_content TEXT DEFAULT '',
+            status TEXT DEFAULT 'draft',
+            creator_id INTEGER,
+            approver_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS production_cycles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_code TEXT NOT NULL,
+            product_name TEXT DEFAULT '',
+            lead_days INTEGER NOT NULL,
+            cycle_category TEXT DEFAULT 'standard',
+            valid_from TEXT NOT NULL,
+            valid_to TEXT,
+            approver_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS bom_materials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            product_code TEXT DEFAULT '',
+            material_code TEXT NOT NULL,
+            material_name TEXT DEFAULT '',
+            specification TEXT DEFAULT '',
+            quantity REAL DEFAULT 0,
+            unit TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS delivery_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month TEXT NOT NULL UNIQUE,
+            total_orders INTEGER DEFAULT 0,
+            on_time INTEGER DEFAULT 0,
+            delay_count INTEGER DEFAULT 0,
+            on_time_pct REAL DEFAULT 0,
+            delay_reason TEXT DEFAULT '',
+            improvement TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`
     ];
 
@@ -204,15 +292,15 @@ async function initDB() {
     if (userCount === 0) {
         const year = new Date().getFullYear();
         const md5 = p => crypto.createHash('md5').update(p).digest('hex');
-        // 学工系统角色：ADMIN(系统管理员), COUNSELOR(辅导员), TEACHER(老师), STUDENT(学生)
+        // 学工系统角色：ADMIN(系统管理员), SALES(辅导员), ENGINEER(老师), PLANNER(学生)
         const initUsers = [
             ['admin', md5('admin123'), '系统管理员', 'ADMIN', '信息中心'],
-            ['fudaoyuan', md5('123456'), '李辅导员', 'COUNSELOR', '学生工作部'],
-            ['wanglaoshi', md5('123456'), '王老师', 'TEACHER', '计算机系'],
-            ['zhanglaoshi', md5('123456'), '张老师', 'TEACHER', '数学系'],
-            ['xiaoming', md5('123456'), '小明', 'STUDENT', '计算机系2023级'],
-            ['xiaohong', md5('123456'), '小红', 'STUDENT', '数学系2023级'],
-            ['xiaogang', md5('123456'), '小刚', 'STUDENT', '计算机系2024级'],
+            ['fudaoyuan', md5('123456'), '张业务', 'SALES', '业务部/市场部'],
+            ['wanglaoshi', md5('123456'), '李工程', 'ENGINEER', '工程部'],
+            ['zhanglaoshi', md5('123456'), '王计划', 'ENGINEER', '计划部'],
+            ['xiaoming', md5('123456'), '赵采购', 'PLANNER', '工程部2023级'],
+            ['xiaohong', md5('123456'), '钱品质', 'PLANNER', '计划部2023级'],
+            ['xiaogang', md5('123456'), '孙主管', 'PLANNER', '工程部2024级'],
         ];
         for (const [username, password, name, role, dept] of initUsers) {
             run("INSERT INTO users (username, password, name, role, department) VALUES (?, ?, ?, ?, ?)",
@@ -421,6 +509,324 @@ function buildLeaveResultCard(leave, result, approverName, comment) {
     };
 }
 
+// ============================================================
+//  销售订货审批卡片系统（v6.0 -飞书端完整审批流程）
+//  每个功能模块按流程图关联：下单→工程BOM评审→计划交期评审→业务确认→发货
+//  非标产品额外：采购审核→品质审核
+// ============================================================
+
+var ORDER_STATUS = {
+    DRAFT: '\u8349\u7A3F',
+    PENDING_ENG: '\u5F85\u5DE5\u7A0B\u8BC4\u5BA1',
+    PENDING_PLAN: '\u5F85\u8BA1\u5212\u8BC4\u5BA1',
+    PENDING_BIZ: '\u5F85\u4E1A\u52A1\u786E\u8BA4',
+    PENDING_PURCHASE: '\u5F85\u91C7\u8D2D\u5BA1\u6838',
+    PENDING_QUALITY: '\u5F85\u54C1\u8D28\u5BA1\u6838',
+    APPROVED: '\u5DF2\u6279\u51C6',
+    IN_PRODUCTION: '\u751F\u4EA7\u4E2D',
+    COMPLETED: '\u5DF2\u5B8C\u6210',
+    DELIVERED: '\u5DF2\u53D1\u8D27',
+    CHANGED: '\u5DF2\u53D8\u66F4',
+    CANCELLED: '\u5DF2\u53D6\u6D88'
+};
+
+var ORDER_FLOW = {
+    DRAFT: { next: 'PENDING_ENG', action: 'submit', btn: '\u63D0\u4EA4\u8BC4\u5BA1', desc: '\u63D0\u4EA4\u5DE5\u7A0B\u90E8BOM\u8BC4\u5BA1' },
+    PENDING_ENG: { next: 'PENDING_PLAN', action: 'eng_approve', btn: '\u5DE5\u7A0B\u786E\u8BA4', desc: '\u5DE5\u7A0B\u90E8BOM\u8BC4\u5BA1\u786E\u8BA4',
+                   reject: 'DRAFT', rejectAction: 'eng_reject', rejectBtn: '\u5DE5\u7A0B\u8FD4\u56DE', rejectDesc: '\u8FD4\u56DE\u8BA2\u5355\u4FEE\u6539' },
+    PENDING_PLAN: { next: 'PENDING_BIZ', action: 'plan_approve', btn: '\u8BA1\u5212\u786E\u8BA4', desc: '\u8BA1\u5212\u90E8\u4EA4\u671F\u8BC4\u5BA1',
+                   reject: 'DRAFT', rejectAction: 'plan_reject', rejectBtn: '\u8BA1\u5212\u8FD4\u56DE', rejectDesc: '\u4EA4\u671F\u65E0\u6CD5\u6EE1\u8DB3\uFF0C\u8FD4\u56DE\u4FEE\u6539' },
+    PENDING_BIZ: { action: 'biz_confirm', btn: '\u4E1A\u52A1\u786E\u8BA4', desc: '\u4E1A\u52A1\u90E8\u6700\u7EC8\u786E\u8BA4',
+                  nextStandard: 'APPROVED', nextNonStandard: 'PENDING_PURCHASE',
+                  reject: 'DRAFT', rejectAction: 'biz_reject', rejectBtn: '\u4E1A\u52A1\u8FD4\u56DE', rejectDesc: '\u8FD4\u56DE\u4FEE\u6539' },
+    PENDING_PURCHASE: { next: 'PENDING_QUALITY', action: 'purchase_approve', btn: '\u91C7\u8D2D\u786E\u8BA4', desc: '\u91C7\u8D2D\u90E8\u5BA1\u6838\u4F9B\u5E94\u94FE',
+                       reject: 'PENDING_BIZ', rejectAction: 'purchase_reject', rejectBtn: '\u91C7\u8D2D\u8FD4\u56DE', rejectDesc: '\u8FD4\u56DE\u4E1A\u52A1\u91CD\u65B0\u786E\u8BA4' },
+    PENDING_QUALITY: { next: 'APPROVED', action: 'quality_approve', btn: '\u54C1\u8D28\u786E\u8BA4', desc: '\u54C1\u8D28\u90E8\u5BA1\u6838',
+                      reject: 'PENDING_BIZ', rejectAction: 'quality_reject', rejectBtn: '\u54C1\u8D28\u8FD4\u56DE', rejectDesc: '\u8FD4\u56DE\u4E1A\u52A1\u91CD\u65B0\u786E\u8BA4' }
+};
+
+// ---------- 构建订单审批卡片 ----------
+function buildOrderReviewCard(order, applicant, stage) {
+    var PRODUCT_TYPE = order.product_type || 'standard';
+    var isNonStandard = PRODUCT_TYPE !== 'standard';
+    var isRush = order.is_rush ? '\u26A1 \u6025\u63D2\u5355 ' : '';
+    var isNew = order.is_new_product ? '\u{1F195} \u65B0\u54C1 ' : '';
+
+    // 评审流程可视化
+    var stages = [
+        { label: '\u{1F4E8}\u4E0B\u5355', done: true },
+        { label: '\u2699\uFE0F\u5DE5\u7A0B', done: stage === 'PENDING_PLAN' || stage === 'PENDING_BIZ' || stage === 'PENDING_PURCHASE' || stage === 'PENDING_QUALITY' || stage === 'APPROVED', current: stage === 'PENDING_ENG' },
+        { label: '\u{1F4C5}\u8BA1\u5212', done: stage === 'PENDING_BIZ' || stage === 'PENDING_PURCHASE' || stage === 'PENDING_QUALITY' || stage === 'APPROVED', current: stage === 'PENDING_PLAN' },
+        { label: '\u{1F4CB}\u4E1A\u52A1', done: stage === 'APPROVED', current: stage === 'PENDING_BIZ' }
+    ];
+    if (isNonStandard) {
+        stages.push({ label: '\u{1F6AC}\u91C7\u8D2D', done: stage === 'PENDING_QUALITY' || stage === 'APPROVED', current: stage === 'PENDING_PURCHASE' });
+        stages.push({ label: '\u2705\u54C1\u8D28', done: stage === 'APPROVED', current: stage === 'PENDING_QUALITY' });
+    }
+    stages.push({ label: '\u2705\u5B8C\u6210', done: stage === 'APPROVED', current: false });
+
+    var flowLine = '';
+    for (var i = 0; i < stages.length; i++) {
+        var s = stages[i];
+        if (s.done) flowLine += '\u2705 ' + s.label;
+        else if (s.current) flowLine += '\u{1F534} **' + s.label + '**';
+        else flowLine += '\u26AA ' + s.label;
+        if (i < stages.length - 1) flowLine += '\u2192 ';
+    }
+
+    var flow = ORDER_FLOW[stage];
+    var card = {
+        config: { wide_screen_mode: true },
+        header: {
+            title: { tag: 'plain_text', content: isRush + '\u{1F4CB} \u9500\u552E\u8BA2\u5355\u5BA1\u6279' + (isNonStandard ? '\uFF08\u975E\u6807\uFF09' : '') },
+            template: isRush ? 'orange' : (isNonStandard ? 'purple' : 'blue')
+        },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\u{1F516} \u8BA2\u5355\u7F16\u53F7**\uFF1A' + (order.order_no || 'SO#' + order.id) + '  ' + isNew + '\n' +
+                '**\u{1F3E2} \u5BA2\u6237**\uFF1A' + (order.customer_name || '') + '\n' +
+                '**\u{1F4E6} \u4EA7\u54C1**\uFF1A' + (order.product_name || '') + ' \u00D7 ' + (order.quantity || 0) + ' PCS\n' +
+                '**\u{1F4C5} \u8981\u6C42\u4EA4\u671F**\uFF1A' + (order.delivery_date || '\u5F85\u5B9A') + '\n' +
+                '**\u{1F4DD} \u4EA7\u54C1\u7C7B\u578B**\uFF1A' + (isNonStandard ? '\u975E\u6807\u4EA7\u54C1' : '\u6807\u51C6\u4EA7\u54C1') + '\n' +
+                '**\u{1F464} \u7533\u8BF7\u4EBA**\uFF1A' + (applicant?.name || order.applicant_name || '') + '\n' +
+                (order.special_requirements ? '**\u26A0\uFE0F \u7279\u6B8A\u8981\u6C42**\uFF1A' + order.special_requirements + '\n' : '') +
+                (order.attachment_note ? '**\u{1F4CE} \u9644\u9875**\uFF1A' + order.attachment_note + '\n' : '')
+            } },
+            { tag: 'hr' },
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\u{1F504} \u5BA1\u6279\u6D41\u7A0B**\uFF1A\n' + flowLine + '\n\n' +
+                '**\u{1F4CC} \u5F53\u524D\u73AF\u8282**\uFF1A' + (flow ? flow.desc : '\u5F85\u5BA1\u6279') + '\n' +
+                (isNonStandard ? '**\u26A0\uFE0F \u975E\u6807\u4EA7\u54C1\uFF0C\u5C06\u989D\u5916\u7ECF\u91C7\u8D2D\u90E8 \u2192 \u54C1\u8D28\u90E8\u5BA1\u6838**' : '')
+            } }
+        ]
+    };
+
+    // 审批/驳回按钮
+    if (flow && flow.action) {
+        var actions = [];
+        actions.push({
+            tag: 'button',
+            text: { tag: 'plain_text', content: '\u2705 ' + (flow.btn || '\u540C\u610F') },
+            value: { action: 'order_' + flow.action, order_id: order.id },
+            type: 'primary'
+        });
+        if (flow.rejectAction) {
+            actions.push({
+                tag: 'button',
+                text: { tag: 'plain_text', content: '\u274c ' + (flow.rejectBtn || '\u8FD4\u56DE') },
+                value: { action: 'order_' + flow.rejectAction, order_id: order.id },
+                type: 'danger'
+            });
+        }
+        card.elements.push({ tag: 'action', actions: actions });
+    }
+
+    card.elements.push({ tag: 'note', elements: [{ tag: 'plain_text', content: '\u70B9\u51FB\u6309\u94AE\u5373\u53EF\u5BA1\u6279\uFF0C\u4E5F\u53EF\u5728\u7FA4\u804A\u4E2D\u56DE\u590D\u300C\u540C\u610F/驳回 #' + order.id + '\u300D' }] });
+    return card;
+}
+
+// ---------- 构建订单审批结果卡片 ----------
+function buildOrderResultCard(order, result, reviewerName, comment) {
+    var isApproved = result === 'APPROVED';
+    var nextStage = '';
+    if (isApproved) {
+        var flow = ORDER_FLOW[order.status];
+        if (flow) nextStage = '\u2192 ' + (ORDER_STATUS[flow.next] || ORDER_STATUS[flow.nextStandard] || '');
+    }
+    return {
+        config: { wide_screen_mode: true },
+        header: {
+            title: { tag: 'plain_text', content: (isApproved ? '\u2705 \u8BA2\u5355\u5BA1\u6279\u901A\u8FC7' : '\u274c \u8BA2\u5355\u8FD4\u56DE\u4FEE\u6539') },
+            template: isApproved ? 'green' : 'red'
+        },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\u{1F516} \u8BA2\u5355**\uFF1A' + (order.order_no || 'SO#' + order.id) + '\n' +
+                '**\u{1F3E2} \u5BA2\u6237**\uFF1A' + order.customer_name + '\n' +
+                '**\u{1F4E6} \u4EA7\u54C1**\uFF1A' + order.product_name + ' \u00D7 ' + order.quantity + ' PCS\n' +
+                '**\u{1F464} \u5BA1\u6279\u4EBA**\uFF1A' + (reviewerName || '') + '\n' +
+                '**\u{1F4AC} \u5BA1\u6279\u610F\u89C1**\uFF1A' + (comment || (isApproved ? '\u5DF2\u786E\u8BA4\u901A\u8FC7' : '\u8BF7\u4FEE\u6539\u540E\u91CD\u65B0\u63D0\u4EA4')) + '\n' +
+                (isApproved && nextStage ? '**\u{1F504} \u4E0B\u4E00\u6B65**\uFF1A' + nextStage : '')
+            } },
+            { tag: 'note', elements: [{ tag: 'plain_text', content: isApproved ? '\u{1F389} \u5BA1\u6279\u5DF2\u5B8C\u6210\uFF0C\u6D41\u7A0B\u7EE7\u7EED\u63A8\u8FDB' : '\u8BF7\u4FEE\u6539\u8BA2\u5355\u4FE1\u606F\u540E\u91CD\u65B0\u63D0\u4EA4\u5BA1\u6279' }] }
+        ]
+    };
+}
+
+// ---------- 构建发货确认卡片 ----------
+function buildDeliveryReviewCard(order, deliveryNote) {
+    return {
+        config: { wide_screen_mode: true },
+        header: { title: { tag: 'plain_text', content: '\u{1F4E6} \u53D1\u8D27\u786E\u8BA4\u5355' }, template: 'green' },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\u{1F516} \u53D1\u8D27\u5355\u53F7**\uFF1A' + (deliveryNote.delivery_no || 'DN#') + '\n' +
+                '**\u{1F516} \u5173\u8054\u8BA2\u5355**\uFF1A' + (order.order_no || '#' + order.id) + '\n' +
+                '**\u{1F3E2} \u5BA2\u6237**\uFF1A' + order.customer_name + '\n' +
+                '**\u{1F4E6} \u4EA7\u54C1**\uFF1A' + order.product_name + ' \u00D7 ' + order.quantity + ' PCS\n' +
+                '**\u{1F4C5} \u4EA4\u671F**\uFF1A' + (order.delivery_date || '') + '\n' +
+                '**\u{1F4B0} \u8D22\u52A1\u5BA1\u6838**\uFF1A\u5F85\u786E\u8BA4'
+            } },
+            { tag: 'action', actions: [
+                { tag: 'button', text: { tag: 'plain_text', content: '\u2705 \u8D22\u52A1\u786E\u8BA4\u51FA\u5E93' }, value: { action: 'order_delivery_approve', order_id: order.id, delivery_id: deliveryNote.id }, type: 'primary' },
+                { tag: 'button', text: { tag: 'plain_text', content: '\u274c \u8D22\u52A1\u62D2\u7EDD' }, value: { action: 'order_delivery_reject', order_id: order.id, delivery_id: deliveryNote.id }, type: 'danger' }
+            ] }
+        ]
+    };
+}
+
+// ---------- 构建变更单通知卡片 ----------
+function buildOrderChangeCard(order, changeType, changeDetail) {
+    var typeMap = { CUSTOMER_CHANGE: '\u5BA2\u6237\u53D8\u66F4', PLAN_DELAY: '\u8BA1\u5212\u90E8\u5EF6\u8FDF', RUSH_INSERT: '\u26A1 \u6025\u63D2\u5355', AUTO_EXTEND: '\u81EA\u52A8\u987A\u5EF6' };
+    return {
+        config: { wide_screen_mode: true },
+        header: { title: { tag: 'plain_text', content: '\u{1F4C4} \u9500\u552E\u8BA2\u5355\u53D8\u66F4\u53CA\u901A\u77E5\u5355' }, template: 'orange' },
+        elements: [
+            { tag: 'div', text: { tag: 'lark_md', content:
+                '**\u{1F516} \u8BA2\u5355**\uFF1A' + (order.order_no || '#' + order.id) + '\n' +
+                '**\u{1F3E2} \u5BA2\u6237**\uFF1A' + order.customer_name + '\n' +
+                '**\u2604\uFE0F \u53D8\u66F4\u7C7B\u578B**\uFF1A' + (typeMap[changeType] || changeType) + '\n' +
+                '**\u{1F4DD} \u53D8\u66F4\u5185\u5BB9**\uFF1A' + (changeDetail || '') + '\n' +
+                '**\u{1F4C5} \u539F\u4EA4\u671F**\uFF1A' + (order.delivery_date || '') + '\n' +
+                (order.changed_delivery_date ? '**\u{1F4C5} \u65B0\u4EA4\u671F**\uFF1A' + order.changed_delivery_date + '\n' : '')
+            } },
+            { tag: 'note', elements: [{ tag: 'plain_text', content: '\u53D8\u66F4\u540E\u9700\u91CD\u65B0\u8FDB\u5165\u8BC4\u5BA1\u6D41\u7A0B\uFF08\u5DE5\u7A0B\u2192\u8BA1\u5212\u2192\u4E1A\u52A1\uFF09' }] }
+        ]
+    };
+}
+
+// ============================================================
+//  订单审批流程核心函数
+// ============================================================
+
+// 提交订单→工程部评审
+async function submitOrderForReview(orderId) {
+    var order = query("SELECT * FROM sales_orders WHERE id = ? AND status = 'DRAFT'", [orderId])[0];
+    if (!order) return { success: false, reason: '订单不存在或已提交' };
+    run("UPDATE sales_orders SET status='PENDING_ENG', updated_at=datetime('now') WHERE id=?", [orderId]);
+    var applicant = query("SELECT id, name FROM users WHERE id = ?", [order.applicant_id])[0];
+
+    // 发送飞书卡片给工程部审批人和申请人
+    var users = query("SELECT id, name, feishu_open_id FROM users WHERE role IN ('ENGINEER','ADMIN','DIRECTOR')");
+    var card = buildOrderReviewCard({ ...order, status: 'PENDING_ENG' }, applicant, 'PENDING_ENG');
+
+    var sentCount = 0;
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        if (u.feishu_open_id) {
+            try { await sendFeishuCard(u.feishu_open_id, 'open_id', card); sentCount++; } catch(e) {}
+        }
+    }
+
+    // 发送通知消息到群聊
+    try {
+        var groupMsg = '📋 **新订单待工程部BOM评审** #' + orderId + '\n' +
+                       '🔖 ' + (order.order_no || 'SO#'+orderId) + ' | 🏢 ' + order.customer_name + '\n' +
+                       '📦 ' + order.product_name + ' × ' + order.quantity + 'PCS | 📅 ' + (order.delivery_date||'待定') + '\n' +
+                       '💡 回复「同意 #' + orderId + '」或「驳回 #' + orderId + '」进行审批';
+        await sendFeishuToGroup(groupMsg);
+    } catch(e) { console.error('[订单] 群发通知失败:', e.message); }
+
+    // 记录审批日志
+    try { run("INSERT INTO order_approvals (order_id, approver_id, action, comment, created_at) VALUES (?,?,?,?,datetime('now'))", [orderId, applicant?.id || 0, 'SUBMIT', '提交订单审批']); } catch(e) {}
+
+    return { success: true, orderId: orderId, newStatus: 'PENDING_ENG', cardSent: sentCount };
+}
+
+// 审批订单→下一阶段
+async function approveOrderStage(orderId, stage, reviewerId, reviewerName, comment) {
+    var order = query("SELECT * FROM sales_orders WHERE id = ? AND status = ?", [orderId, stage])[0];
+    if (!order) return { success: false, reason: '订单不存在或状态不正确（当前状态: ' + stage + '）' };
+
+    var flow = ORDER_FLOW[stage];
+    if (!flow) return { success: false, reason: '未知审批阶段: ' + stage };
+
+    var nextStatus;
+    if (stage === 'PENDING_BIZ') {
+        var isNonStandard = (order.product_type && order.product_type !== 'standard');
+        nextStatus = isNonStandard ? (flow.nextNonStandard || 'APPROVED') : (flow.nextStandard || 'APPROVED');
+    } else {
+        nextStatus = flow.next || 'APPROVED';
+    }
+
+    run("UPDATE sales_orders SET status=?, updated_at=datetime('now') WHERE id=?", [nextStatus, orderId]);
+    try { run("INSERT INTO order_approvals (order_id, approver_id, action, comment, created_at) VALUES (?,?,?,?,datetime('now'))", [orderId, reviewerId, 'APPROVE', comment || flow.desc]); } catch(e) {}
+
+    var applicant = query("SELECT id, name, feishu_open_id FROM users WHERE id = ?", [order.applicant_id])[0];
+    var reviewer = reviewerName || '审核人';
+
+    // 发结果卡片给申请人
+    if (applicant?.feishu_open_id) {
+        try { await sendFeishuCard(applicant.feishu_open_id, 'open_id', buildOrderResultCard({ ...order, status: nextStatus }, 'APPROVED', reviewer, comment)); } catch(e) {}
+    }
+
+    // 如果进入下一审批阶段，发卡片给对应审批人
+    if (nextStatus !== 'APPROVED' && ORDER_FLOW[nextStatus]) {
+        var roleMap = {
+            PENDING_PLAN: ['PLANNER', 'ADMIN', 'DIRECTOR'],
+            PENDING_BIZ: ['SALES', 'SALES_INTL', 'ADMIN', 'DIRECTOR'],
+            PENDING_PURCHASE: ['PURCHASE', 'ADMIN', 'DIRECTOR'],
+            PENDING_QUALITY: ['QUALITY', 'ADMIN', 'DIRECTOR']
+        };
+        var roles = roleMap[nextStatus] || ['ADMIN', 'DIRECTOR'];
+        var nextUsers = query("SELECT id, name, feishu_open_id FROM users WHERE role IN (" + roles.map(function(){return '?';}).join(',') + ")", roles);
+        var nextCard = buildOrderReviewCard({ ...order, status: nextStatus }, applicant, nextStatus);
+        var sc = 0;
+        for (var i = 0; i < nextUsers.length; i++) {
+            if (nextUsers[i].feishu_open_id) {
+                try { await sendFeishuCard(nextUsers[i].feishu_open_id, 'open_id', nextCard); sc++; } catch(e) {}
+            }
+        }
+        try {
+            var stageNames = { PENDING_PLAN: '计划部交期评审', PENDING_BIZ: '业务部确认', PENDING_PURCHASE: '采购部审核', PENDING_QUALITY: '品质部审核' };
+            await sendFeishuToGroup('📋 **订单进入' + (stageNames[nextStatus] || nextStatus) + '** #' + orderId + '\n' +
+                '🔖 ' + (order.order_no || 'SO#'+orderId) + ' | 🏢 ' + order.customer_name + '\n' +
+                '💡 回复「同意 #' + orderId + '」或「驳回 #' + orderId + '」进行审批');
+        } catch(e) {}
+    }
+
+    if (nextStatus === 'APPROVED') {
+        try {
+            await sendFeishuToGroup('🎉 **订单已批准！** #' + orderId + '\n' +
+                '🔖 ' + (order.order_no || 'SO#'+orderId) + ' | 🏢 ' + order.customer_name + '\n' +
+                '📦 ' + order.product_name + ' × ' + order.quantity + 'PCS\n' +
+                '📌 状态：已批准 → 可进入生产发货流程\n' +
+                '💡 说「发货 #' + orderId + '」创建发货单');
+        } catch(e) {}
+    }
+
+    return { success: true, orderId: orderId, oldStatus: stage, newStatus: nextStatus };
+}
+
+// 驳回订单
+async function rejectOrderStage(orderId, stage, reviewerId, reviewerName, comment) {
+    var order = query("SELECT * FROM sales_orders WHERE id = ? AND status = ?", [orderId, stage])[0];
+    if (!order) return { success: false, reason: '订单不存在或状态不正确' };
+
+    var flow = ORDER_FLOW[stage];
+    var targetStatus = (flow && flow.reject) ? flow.reject : 'DRAFT';
+
+    run("UPDATE sales_orders SET status=?, updated_at=datetime('now') WHERE id=?", [targetStatus, orderId]);
+    try { run("INSERT INTO order_approvals (order_id, approver_id, action, comment, created_at) VALUES (?,?,?,?,datetime('now'))", [orderId, reviewerId, 'REJECT', comment || '审批驳回']); } catch(e) {}
+
+    // 发送驳回卡片给申请人
+    var applicant = query("SELECT id, name, feishu_open_id FROM users WHERE id = ?", [order.applicant_id])[0];
+    if (applicant?.feishu_open_id) {
+        try { await sendFeishuCard(applicant.feishu_open_id, 'open_id', buildOrderResultCard(order, 'REJECTED', reviewerName, comment)); } catch(e) {}
+    }
+
+    try {
+        await sendFeishuToGroup('❌ **订单审批驳回** #' + orderId + '\n' +
+            '🔖 ' + (order.order_no || 'SO#'+orderId) + ' | 🏢 ' + order.customer_name + '\n' +
+            '👤 驳回人：' + (reviewerName || '系统') + '\n' +
+            '💬 原因：' + (comment || '请修改后重新提交') + '\n' +
+            '💡 请修改订单信息后重新提交审批');
+    } catch(e) {}
+
+    return { success: true, orderId: orderId, newStatus: targetStatus };
+}
+
+
 // ---------- 给系统用户发飞书审批卡片 ----------
 async function sendCardToUser(systemUserId, cardContent) {
     var feishuOpenId = getFeishuIdBySystemUser(systemUserId);
@@ -453,10 +859,10 @@ async function sendFeishuToGroup(text) {
     return await _feishuSendRaw(FEISHU_GROUP_CHAT_ID, 'chat_id', text);
 }
 
-// ---------- 给所有审批人（ADMIN/COUNSELOR/TEACHER）发飞书消息 ----------
+// ---------- 给所有审批人（ADMIN/SALES/ENGINEER）发飞书消息 ----------
 async function sendFeishuToApprovers(text) {
     if (!larkClient) return { success: false, sent: 0, reason: '飞书客户端未初始化' };
-    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'SALES', 'ENGINEER']);
     if (admins.length === 0) return { success: false, sent: 0, reason: '系统中没有审批人（管理员/辅导员/老师）' };
 
     let sentCount = 0;
@@ -682,19 +1088,19 @@ async function handleFeishuMessage(data) {
                         run('INSERT INTO feishu_user_map (feishu_open_id, system_user_id) VALUES (?, ?)', [senderId, sysUser.id]);
                     }
                 }
-                const roleNames = { ADMIN: '系统管理员', COUNSELOR: '辅导员', TEACHER: '老师', STUDENT: '学生', EMPLOYEE: '员工' };
+                const roleNames = { ADMIN: '系统管理员', SALES: '辅导员', ENGINEER: '老师', PLANNER: '学生', EMPLOYEE: '员工' };
                 const roleName = roleNames[sysUser.role] || sysUser.role;
                 console.log('[飞书] 绑定成功: ' + senderId + ' → ' + sysUser.name + ' (' + sysUser.role + ')');
 
                 let tipsMsg = '✅ 绑定成功！' + sysUser.name + '（' + roleName + '）\n\n以后直接发消息即可操作：\n';
-                if (sysUser.role === 'STUDENT') {
-                    tipsMsg += '📝 请假 → 说「我要请假3天回家」\n' +
-                        '🔍 查询 → 说「我的请假记录」\n' +
-                        '📊 余额 → 说「我还有多少天年假」';
-                } else if (['COUNSELOR', 'TEACHER', 'ADMIN'].includes(sysUser.role)) {
-                    tipsMsg += '✅ 审批 → 回复「同意 #编号」或「不同意」\n' +
-                        '📊 查看 → 说「待审批事项」或「本周统计」\n' +
-                        '📢 通知 → 说「提醒学生XX」';
+                if (sysUser.role === 'PLANNER') {
+                    tipsMsg += '📝 下订单 → 说「我要下订单」\n' +
+                        '🔍 查订单 → 说「我的订单」\n' +
+                        '📊 统计 → 说「交付率统计」';
+                } else if (['SALES', 'ENGINEER', 'ADMIN'].includes(sysUser.role)) {
+                    tipsMsg += '✅ 审批 → 回复「同意 #编号」确认评审\n' +
+                        '📊 查看 → 说「待审批订单」或「交付率统计」\n' +
+                        '📢 通知 → 说「发消息给工程部XX」';
                 }
                 await sendFeishuMsg(chatId, tipsMsg);
                 return;
@@ -747,13 +1153,13 @@ async function handleFeishuMessage(data) {
                             else run('INSERT INTO feishu_user_map (feishu_open_id, system_user_id) VALUES (?, ?)', [senderId, sysUser.id]);
                         }
                         user = sysUser;
-                        const roleLabel = {ADMIN:'👑管理员',COUNSELOR:'🎓辅导员',TEACHER:'👨‍🏫老师',STUDENT:'🧑‍🎓学生',EMPLOYEE:'💼员工'}[user.role]||user.role;
-                        const isManager = ['ADMIN','COUNSELOR','TEACHER'].includes(user.role);
+                        const roleLabel = {ADMIN:'👑管理员',SALES:'🎓辅导员',ENGINEER:'👨‍🏫老师',PLANNER:'🧑‍🎓学生',EMPLOYEE:'💼员工'}[user.role]||user.role;
+                        const isManager = ['ADMIN','SALES','ENGINEER'].includes(user.role);
                         console.log('[飞书] 🎯 自动识别: open_id=' + senderId.slice(0,12) + ' → ' + user.name + ' (' + user.role + ') ' + (isManager?'管理者':'成员'));
                         await sendFeishuMsg(chatId, `🎯 已自动识别你的身份：${user.name}（${roleLabel}）
 
 ` +
-                            (isManager ? '你拥有审批权限，可以直接审批请假和公文！' : '你有问题随时找我请假或查数据～') +
+                            (isManager ? '你拥有审批权限，可以直接审核销售订单流程！' : '你有问题随时找我下订单或查数据～') +
                             `\n\n💡 如身份不对，请回复「我不是${user.name}」`);
                     }
                 }
@@ -764,26 +1170,26 @@ async function handleFeishuMessage(data) {
 
         if (!user) {
             const allUsers = query('SELECT name, role FROM users LIMIT 10');
-            const userList = allUsers.map(u => u.name + '(' + ({ADMIN:'管理员',COUNSELOR:'辅导员',TEACHER:'老师',STUDENT:'学生',EMPLOYEE:'员工'}[u.role]||u.role) + ')').join('、');
+            const userList = allUsers.map(u => u.name + '(' + ({ADMIN:'管理员',SALES:'辅导员',ENGINEER:'老师',PLANNER:'学生',EMPLOYEE:'员工'}[u.role]||u.role) + ')').join('、');
             await sendFeishuMsg(chatId,
-                '👋 你好！我是学工请假助手。\n\n' +
+                '👋 你好！我是销售订货助手。\n\n' +
                 '⚠️ 当前还没有绑定你的身份。\n\n' +
-                '🔗 请回复：「我是你的名字」\n   例如：「我是小明」\n\n' +
+                '🔗 请回复：「我是你的名字」\n   例如：「我是赵采购」\n\n' +
                 '系统中已有用户：' + userList + '\n\n' +
-                '绑定后我就能帮你请假、审批、查数据啦！');
+                '绑定后我就能帮你下订单、查订单、看统计啦！');
             return;
         }
 
         console.log('[飞书] 当前身份: ' + user.name + ' (' + user.role + ')');
 
-        // ========== Router Agent 智能路由（v4.0 全 AI 驱动 + 学工角色）==========
+        // ========== Router Agent 智能路由（v6.0 全 AI 驱动 + 销售角色）==========
         if (aiAgents && dbHelper) {
             try {
                 const context = {
                     userId: user.id,
                     userName: user.name,
                     userRole: user.role,
-                    isAdmin: (user.role === 'ADMIN' || user.role === 'COUNSELOR'),
+                    isAdmin: (user.role === 'ADMIN' || user.role === 'SALES'),
                     feishuChatId: chatId,
                     feishuMsgId: msgId,
                     feishuOpenId: senderId,
@@ -796,6 +1202,68 @@ async function handleFeishuMessage(data) {
                 }
 
                 console.log('[Router] 处理: "' + content.slice(0, 60) + '" by ' + user.name + ' (' + user.role + ')');
+
+                // ===== v6.0: 订单审批指令预处理（同意/驳回 #订单ID）=====
+                var orderApproveMatch = content.match(/(同意|批准|通过|ok|yes|确认|同意并|可以)\s*#(\d+)/i);
+                var orderRejectMatch = content.match(/(驳回|拒绝|不同意|不准|不行|不批|退回|返回)\s*#(\d+)/i);
+                if (orderApproveMatch || orderRejectMatch) {
+                    var isOrderApprove = !!orderApproveMatch;
+                    var orderMatch = orderApproveMatch || orderRejectMatch;
+                    var targetId = parseInt(orderMatch[2]);
+                    var orderCheck = query('SELECT * FROM sales_orders WHERE id = ?', [targetId])[0];
+                    var leaveCheck = query('SELECT * FROM leave_requests WHERE id = ?', [targetId])[0];
+
+                    if (orderCheck && !leaveCheck) {
+                        if (isOrderApprove) {
+                            var approveResult = await approveOrderStage(targetId, orderCheck.status, user.id, user.name,
+                                (orderApproveMatch[1] || '同意') + ' (飞书快捷审批)');
+                            if (approveResult.success) {
+                                await sendFeishuMsg(chatId,
+                                    '\u2705 **订单审批通过** #' + targetId + '\n\n' +
+                                    '\u{1F516} ' + (orderCheck.order_no || 'SO#'+orderCheck.id) + '\n' +
+                                    '\u{1F3E2} ' + orderCheck.customer_name + '\n' +
+                                    '\u{1F4E6} ' + orderCheck.product_name + ' \u00D7 ' + orderCheck.quantity + 'PCS\n' +
+                                    '\u{1F504} ' + (ORDER_STATUS[orderCheck.status] || orderCheck.status) + ' \u2192 **' + (ORDER_STATUS[approveResult.newStatus] || approveResult.newStatus) + '**');
+                            } else {
+                                await sendFeishuMsg(chatId, '\u274C 订单审批失败：' + (approveResult.reason || '未知错误'));
+                            }
+                        } else {
+                            var rejectResult = await rejectOrderStage(targetId, orderCheck.status, user.id, user.name,
+                                (orderRejectMatch[1] || '驳回') + ' (飞书快捷审批)');
+                            if (rejectResult.success) {
+                                await sendFeishuMsg(chatId,
+                                    '\u274C **订单已驳回** #' + targetId + '\n\n' +
+                                    '\u{1F516} ' + (orderCheck.order_no || 'SO#'+orderCheck.id) + '\n' +
+                                    '\u{1F3E2} ' + orderCheck.customer_name + '\n' +
+                                    '\u{1F4A1} 请修改订单信息后重新提交审批。');
+                            } else {
+                                await sendFeishuMsg(chatId, '\u274C 驳回失败：' + (rejectResult.reason || '未知错误'));
+                            }
+                        }
+                        return;
+                    }
+                }
+
+                var submitMatch = content.match(/(提交审批|提交审核|送审|发起审批)\s*#(\d+)/i);
+                if (submitMatch) {
+                    var submitId = parseInt(submitMatch[2]);
+                    var submitOrder = query('SELECT * FROM sales_orders WHERE id = ? AND status = \'DRAFT\'', [submitId])[0];
+                    if (submitOrder) {
+                        var submitResult = await submitOrderForReview(submitId);
+                        if (submitResult.success) {
+                            await sendFeishuMsg(chatId,
+                                '\u2705 **订单已提交审批** #' + submitId + '\n\n' +
+                                '\u{1F516} ' + (submitOrder.order_no || 'SO#'+submitOrder.id) + '\n' +
+                                '\u{1F3E2} ' + submitOrder.customer_name + '\n' +
+                                '\u{1F504} 草稿 \u2192 **待工程部BOM评审**\n\n' +
+                                '\u{1F4A1} 工程部将收到飞书审批卡片');
+                        } else {
+                            await sendFeishuMsg(chatId, '\u274C 提交失败：' + (submitResult.reason || '未知错误'));
+                        }
+                        return;
+                    }
+                }
+
                 const result = await aiAgents.routerAgentProcess(content, context);
 
                 if (result && typeof result === 'object' && result.content) {
@@ -814,12 +1282,12 @@ async function handleFeishuMessage(data) {
             console.log('[飞书] AI 或数据库未准备就绪，发送兜底回复');
             try {
                 await sendFeishuMsg(chatId,
-                    '👋 你好！我是学工请假助手小流。\n\n' +
+                    '👋 你好！我是销售订货助手小流。\n\n' +
                     '当前 AI 系统正在初始化或维护中，暂时无法智能回答。\n' +
                     '你可以尝试以下功能：\n' +
-                    '📝 说「我要请假X天」提交请假\n' +
-                    '✅ 说「同意 #编号」审批请假\n' +
-                    '📊 说「待审批事项」查看待办\n\n' +
+                    '📝 说「我要下订单」创建销售订单\n' +
+                    '✅ 说「我的订单」查询订单列表\n' +
+                    '📊 说「交付率统计」查看数据\n\n' +
                     '🔧 如果问题持续，请联系管理员检查 AI 服务状态。');
             } catch (e) {
                 console.error('[飞书] 兜底回复发送失败:', e.message);
@@ -1198,9 +1666,9 @@ app.get('/api/roles', auth, (req, res) => {
             success: true,
             roles: [
                 { value: 'ADMIN', label: '管理员', desc: '系统管理、用户管理、全部审批' },
-                { value: 'COUNSELOR', label: '辅导员', desc: '请假审批、公文审批' },
-                { value: 'TEACHER', label: '老师', desc: '请假审批、课程管理' },
-                { value: 'STUDENT', label: '学生', desc: '请假申请、查看记录' },
+                { value: 'SALES', label: '辅导员', desc: '请假审批、公文审批' },
+                { value: 'ENGINEER', label: '老师', desc: '请假审批、课程管理' },
+                { value: 'PLANNER', label: '学生', desc: '请假申请、查看记录' },
                 { value: 'EMPLOYEE', label: '职工', desc: '请假申请、公文查看' },
                 { value: 'MANAGER', label: '部门经理', desc: '本部门审批、公文管理' },
                 { value: 'HR', label: '人事', desc: '人员管理、考勤统计' }
@@ -1311,6 +1779,97 @@ app.post('/api/feishu/card/action', async (req, res) => {
         var action = body?.action?.value || {};
         var openId = body?.operator?.open_id || body?.user?.open_id || '';
         console.log('[飞书卡片] 回调 action=' + JSON.stringify(action));
+        // 销售订单卡片操作 (v6.0)
+        if (action.order_id || (typeof action.action === 'string' && action.action.startsWith('order_'))) {
+            console.log('[卡片] 收到订单操作: ' + JSON.stringify(action));
+            var orderId = parseInt(action.order_id);
+            if (!orderId) return res.json({ code: 0, msg: 'no order_id' });
+
+            var operator = getSystemUserByFeishuId(openId);
+            if (!operator) return res.json({ code: 0, msg: 'user not bound' });
+
+            var order = query("SELECT * FROM sales_orders WHERE id = ?", [orderId])[0];
+            if (!order) return res.json({ code: 0, msg: 'order not found' });
+
+            var result = null;
+
+            // 提交审批
+            if (action.action === 'order_submit') {
+                result = await submitOrderForReview(orderId);
+                console.log('[卡片] ' + operator.name + ' 提交订单 #' + orderId + ' 审批');
+            }
+            // 工程部确认
+            else if (action.action === 'order_eng_approve') {
+                result = await approveOrderStage(orderId, 'PENDING_ENG', operator.id, operator.name, '工程部BOM评审通过');
+                console.log('[卡片] ' + operator.name + ' 工程确认订单 #' + orderId);
+            }
+            // 工程部返回
+            else if (action.action === 'order_eng_reject') {
+                result = await rejectOrderStage(orderId, 'PENDING_ENG', operator.id, operator.name, '工程部BOM评审返回修改');
+                console.log('[卡片] ' + operator.name + ' 工程返回订单 #' + orderId);
+            }
+            // 计划部确认
+            else if (action.action === 'order_plan_approve') {
+                result = await approveOrderStage(orderId, 'PENDING_PLAN', operator.id, operator.name, '计划部交期评审通过');
+                console.log('[卡片] ' + operator.name + ' 计划确认订单 #' + orderId);
+            }
+            // 计划部返回
+            else if (action.action === 'order_plan_reject') {
+                result = await rejectOrderStage(orderId, 'PENDING_PLAN', operator.id, operator.name, '计划部交期无法满足');
+                console.log('[卡片] ' + operator.name + ' 计划返回订单 #' + orderId);
+            }
+            // 业务部确认
+            else if (action.action === 'order_biz_confirm') {
+                result = await approveOrderStage(orderId, 'PENDING_BIZ', operator.id, operator.name, '业务部最终确认通过');
+                console.log('[卡片] ' + operator.name + ' 业务确认订单 #' + orderId);
+            }
+            // 业务部返回
+            else if (action.action === 'order_biz_reject') {
+                result = await rejectOrderStage(orderId, 'PENDING_BIZ', operator.id, operator.name, '业务部返回修改');
+                console.log('[卡片] ' + operator.name + ' 业务返回订单 #' + orderId);
+            }
+            // 采购部确认
+            else if (action.action === 'order_purchase_approve') {
+                result = await approveOrderStage(orderId, 'PENDING_PURCHASE', operator.id, operator.name, '采购部审核通过');
+                console.log('[卡片] ' + operator.name + ' 采购确认订单 #' + orderId);
+            }
+            // 采购部返回
+            else if (action.action === 'order_purchase_reject') {
+                result = await rejectOrderStage(orderId, 'PENDING_PURCHASE', operator.id, operator.name, '采购部审核返回');
+                console.log('[卡片] ' + operator.name + ' 采购返回订单 #' + orderId);
+            }
+            // 品质部确认
+            else if (action.action === 'order_quality_approve') {
+                result = await approveOrderStage(orderId, 'PENDING_QUALITY', operator.id, operator.name, '品质部审核通过');
+                console.log('[卡片] ' + operator.name + ' 品质确认订单 #' + orderId);
+            }
+            // 品质部返回
+            else if (action.action === 'order_quality_reject') {
+                result = await rejectOrderStage(orderId, 'PENDING_QUALITY', operator.id, operator.name, '品质部审核返回');
+                console.log('[卡片] ' + operator.name + ' 品质返回订单 #' + orderId);
+            }
+            // 发货确认
+            else if (action.action === 'order_delivery_approve') {
+                var deliveryId = parseInt(action.delivery_id) || 0;
+                run("UPDATE delivery_notes SET status='APPROVED', financial_reviewer_id=?, updated_at=datetime('now') WHERE id=?", [operator.id, deliveryId]);
+                run("UPDATE sales_orders SET status='DELIVERED', shipped_at=datetime('now'), updated_at=datetime('now') WHERE id=?", [orderId]);
+                result = { success: true, orderId: orderId, newStatus: 'DELIVERED' };
+                console.log('[卡片] ' + operator.name + ' 财务确认发货 #' + orderId);
+            }
+            else if (action.action === 'order_delivery_reject') {
+                var deliveryId2 = parseInt(action.delivery_id) || 0;
+                run("UPDATE delivery_notes SET status='REJECTED', updated_at=datetime('now') WHERE id=?", [deliveryId2]);
+                result = { success: true, orderId: orderId, newStatus: 'APPROVED' };
+                console.log('[卡片] ' + operator.name + ' 财务拒绝发货 #' + orderId);
+            }
+
+            if (result && !result.success) {
+                console.error('[卡片] 订单操作失败:', result.reason);
+            }
+            return res.json({ code: 0, msg: result?.success ? 'success' : (result?.reason || 'error') });
+        }
+
+        // 请假卡片操作（保留兼容）
         if (!action.leave_id) return res.json({ code: 0, msg: 'no action' });
         var leaveId = parseInt(action.leave_id);
         var operator = getSystemUserByFeishuId(openId);
@@ -1338,6 +1897,129 @@ app.post('/api/feishu/card/action', async (req, res) => {
         console.error('[飞书卡片] 错误:', e.message);
         res.json({ code: 0, msg: 'error: ' + e.message });
     }
+});
+
+
+// ============================================================
+//  销售订单审批 API 路由（v6.0 - 飞书端完整审批流程）
+// ============================================================
+
+// 提交订单进入审批流程
+app.post('/api/orders/:id/submit', auth, async (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var result = await submitOrderForReview(orderId);
+        if (result.success) res.json({ message: '订单已提交审批', status: result.newStatus, cardSent: result.cardSent });
+        else res.status(400).json({ message: result.reason || '提交失败' });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 审批当前阶段（自动识别审批人角色和订单当前状态）
+app.post('/api/orders/:id/approve', auth, async (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var order = query("SELECT * FROM sales_orders WHERE id = ?", [orderId])[0];
+        if (!order) return res.status(404).json({ message: '订单不存在' });
+        if (!ORDER_FLOW[order.status]) return res.status(400).json({ message: '订单当前状态不可审批: ' + order.status });
+
+        var user = query("SELECT * FROM users WHERE id = ?", [req.userId])[0];
+        var comment = req.body.comment || '';
+
+        var result = await approveOrderStage(orderId, order.status, req.userId, user?.name || '用户', comment);
+        if (result.success) res.json({ message: '审批通过', oldStatus: result.oldStatus, newStatus: result.newStatus });
+        else res.status(400).json({ message: result.reason || '审批失败' });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 驳回当前阶段
+app.post('/api/orders/:id/reject', auth, async (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var order = query("SELECT * FROM sales_orders WHERE id = ?", [orderId])[0];
+        if (!order) return res.status(404).json({ message: '订单不存在' });
+
+        var user = query("SELECT * FROM users WHERE id = ?", [req.userId])[0];
+        var comment = req.body.comment || '需要修改';
+
+        var result = await rejectOrderStage(orderId, order.status, req.userId, user?.name || '用户', comment);
+        if (result.success) res.json({ message: '已驳回', newStatus: result.newStatus });
+        else res.status(400).json({ message: result.reason || '操作失败' });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 创建发货单
+app.post('/api/orders/:id/deliver', auth, async (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var order = query("SELECT * FROM sales_orders WHERE id = ? AND status = 'APPROVED'", [orderId])[0];
+        if (!order) return res.status(400).json({ message: '订单不存在或未批准' });
+
+        var now = new Date();
+        var dno = 'DN' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+        var r = run("INSERT INTO delivery_notes (delivery_no, order_id, customer_name, product_name, quantity, status, created_by) VALUES (?,?,?,?,?,?,?)",
+            [dno, orderId, order.customer_name, order.product_name, order.quantity, 'PENDING', req.userId]);
+
+        // 发送发货确认卡片给财务部
+        var fnUsers = query("SELECT id, name, feishu_open_id FROM users WHERE role IN ('FINANCE','ADMIN','DIRECTOR')");
+        var deliveryNote = query("SELECT * FROM delivery_notes WHERE id = ?", [r.lastID])[0];
+        if (deliveryNote) {
+            var delCard = buildDeliveryReviewCard(order, deliveryNote);
+            for (var i = 0; i < fnUsers.length; i++) {
+                if (fnUsers[i].feishu_open_id) {
+                    try { await sendFeishuCard(fnUsers[i].feishu_open_id, 'open_id', delCard); } catch(e) {}
+                }
+            }
+            try { await sendFeishuToGroup('📦 **新发货单待财务审核**\n🔖 ' + (order.order_no||'#'+orderId) + ' | 🏢 ' + order.customer_name + '\n💡 财务部请在卡片中确认出库'); } catch(e) {}
+        }
+
+        res.json({ message: '发货单已创建', deliveryId: r.lastID, deliveryNo: dno });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取订单详情（含审批记录）
+app.get('/api/orders/:id', auth, (req, res) => {
+    try {
+        var order = query("SELECT * FROM sales_orders WHERE id = ?", [parseInt(req.params.id)])[0];
+        if (!order) return res.status(404).json({ message: '订单不存在' });
+        var approvals = query("SELECT oa.*, u.name as approver_name FROM order_approvals oa LEFT JOIN users u ON oa.approver_id = u.id WHERE oa.order_id = ? ORDER BY oa.created_at ASC", [order.id]);
+        var deliveryNotes = query("SELECT * FROM delivery_notes WHERE order_id = ? ORDER BY created_at DESC", [order.id]);
+        res.json({ order: order, approvals: approvals, deliveryNotes: deliveryNotes });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取待审批订单列表
+app.get('/api/orders/pending', auth, (req, res) => {
+    try {
+        var orders = query("SELECT * FROM sales_orders WHERE status IN ('PENDING_ENG','PENDING_PLAN','PENDING_BIZ','PENDING_PURCHASE','PENDING_QUALITY') ORDER BY created_at DESC");
+        res.json(orders);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取全部订单列表
+app.get('/api/orders', auth, (req, res) => {
+    try {
+        var { status, customer } = req.query;
+        var sql = "SELECT o.*, u.name as applicant_name FROM sales_orders o LEFT JOIN users u ON o.applicant_id = u.id WHERE 1=1";
+        var params = [];
+        if (status) { sql += ' AND o.status = ?'; params.push(status); }
+        if (customer) { sql += ' AND o.customer_name LIKE ?'; params.push('%' + customer + '%'); }
+        sql += ' ORDER BY o.created_at DESC LIMIT 50';
+        var orders = query(sql, params);
+        res.json(orders);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 创建订单（API）
+app.post('/api/orders', auth, async (req, res) => {
+    try {
+        var { customer_name, product_name, quantity, delivery_date, is_new_product, product_type, special_requirements, attachment_note, is_rush } = req.body;
+        var now = new Date();
+        var orderNo = 'SO' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+        var r = run("INSERT INTO sales_orders (order_no, customer_name, product_name, quantity, delivery_date, is_new_product, product_type, special_requirements, attachment_note, is_rush, status, applicant_id, applicant_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?, (SELECT name FROM users WHERE id = ?))",
+            [orderNo, customer_name, product_name, quantity, delivery_date, is_new_product?1:0, product_type||'standard', special_requirements||'', attachment_note||'', is_rush?1:0, 'DRAFT', req.userId, req.userId]);
+        try { await sendFeishuToGroup('📝 **新销售订单已创建**\n🔖 ' + orderNo + ' | 🏢 ' + customer_name + '\n📦 ' + product_name + ' × ' + quantity + 'PCS\n💡 回复「提交审批 #' + r.lastID + '」进入评审流程'); } catch(e) {}
+        res.json({ id: r.lastID, order_no: orderNo, message: '订单已创建' });
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
 // 公文
@@ -1572,8 +2254,8 @@ app.post('/api/notify/send', auth, async (req, res) => {
 app.get('/api/leave', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        // ADMIN/COUNSELOR/TEACHER 可看全部请假，STUDENT 只看自己的
-        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+        // ADMIN/SALES/ENGINEER 可看全部请假，PLANNER 只看自己的
+        const canSeeAll = user && ['ADMIN', 'SALES', 'ENGINEER'].includes(user.role);
         const uid = canSeeAll ? null : req.userId;
         let sql = `SELECT l.*, u.name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE 1=1`;
         const p = [];
@@ -1610,12 +2292,12 @@ app.post('/api/leave', auth, async (req, res) => {
         try {
             // 通知辅导员和管理员（他们负责审批学生请假）
             const approvers = query(
-                `SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN') OR (role = 'TEACHER' AND department LIKE ?)`,
+                `SELECT id, name, role FROM users WHERE role IN ('SALES', 'ADMIN') OR (role = 'ENGINEER' AND department LIKE ?)`,
                 ['%' + (applicant.department || '').replace(/[0-9]+级$/, '') + '%']
             );
             if (approvers.length === 0) {
                 // 如果没有匹配的老师，通知所有辅导员和管理员
-                const fallbackApprovers = query(`SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN')`);
+                const fallbackApprovers = query(`SELECT id, name, role FROM users WHERE role IN ('SALES', 'ADMIN')`);
                 for (const a of fallbackApprovers) {
                     const r2 = await sendFeishuToUser(a.id, notifyText);
                     if (r2.success) feishuResult.sent++;
@@ -1704,7 +2386,7 @@ app.get('/api/leave/:id', auth, (req, res) => {
         const leave = query('SELECT l.*, u.name as user_name, u.department FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ?', [leaveId])[0];
         if (!leave) return res.status(404).json({ message: '请假记录不存在' });
         const cur = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        const canSeeAll = cur && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(cur.role);
+        const canSeeAll = cur && ['ADMIN', 'SALES', 'ENGINEER'].includes(cur.role);
         if (!canSeeAll && leave.user_id !== req.userId) return res.status(403).json({ message: '无权查看此请假记录' });
         res.json(leave);
     } catch (e) { res.status(500).json({ message: e.message }); }
@@ -1718,7 +2400,7 @@ app.get('/api/leave/:id', auth, (req, res) => {
 app.get('/api/sales-orders', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'MANAGER'].includes(user.role);
+        const canSeeAll = user && ['ADMIN', 'SALES', 'MANAGER'].includes(user.role);
         let sql = 'SELECT * FROM sales_orders WHERE 1=1';
         const p = [];
         if (!canSeeAll) { sql += ' AND applicant_id = ?'; p.push(req.userId); }
@@ -1834,6 +2516,122 @@ app.get('/api/sales-orders/stats/info', auth, (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
+// ================ 新增业务表 Web API ================
+
+// 联络单
+app.get('/api/contact-forms', auth, (req, res) => {
+    try { res.json(query('SELECT * FROM contact_forms ORDER BY created_at DESC')); }
+    catch (e) { res.status(500).json({ message: e.message }); }
+});
+app.post('/api/contact-forms', auth, (req, res) => {
+    try {
+        var b = req.body;
+        if (!b.title) return res.status(400).json({ message: '标题不能为空' });
+        run("INSERT INTO contact_forms (title,content,department,status,applicant_id) VALUES (?,?,?,'pending',?)",
+            [b.title, b.content||'', b.department||'', req.userId]);
+        res.json({ success: true, id: query('SELECT last_insert_rowid() as id')[0].id });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 预测计划
+app.get('/api/prediction-plans', auth, (req, res) => {
+    try { res.json(query('SELECT * FROM prediction_plans ORDER BY created_at DESC')); }
+    catch (e) { res.status(500).json({ message: e.message }); }
+});
+app.post('/api/prediction-plans', auth, (req, res) => {
+    try {
+        var b = req.body;
+        if (!b.month) return res.status(400).json({ message: '预测月份不能为空' });
+        run("INSERT INTO prediction_plans (month,target_department,plan_content,status,creator_id) VALUES (?,?,?,'draft',?)",
+            [b.month, b.target_department||'', b.plan_content||'', req.userId]);
+        res.json({ success: true, id: query('SELECT last_insert_rowid() as id')[0].id });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 生产周期表
+app.get('/api/production-cycles', auth, (req, res) => {
+    try { res.json(query('SELECT * FROM production_cycles ORDER BY product_code')); }
+    catch (e) { res.status(500).json({ message: e.message }); }
+});
+app.post('/api/production-cycles', auth, (req, res) => {
+    try {
+        var b = req.body;
+        if (!b.product_code) return res.status(400).json({ message: '产品编码不能为空' });
+        var today = new Date().toISOString().slice(0,10);
+        run("INSERT OR REPLACE INTO production_cycles (product_code,product_name,lead_days,cycle_category,valid_from) VALUES (?,?,?,?,?)",
+            [b.product_code, b.product_name||'', b.lead_days||30, b.cycle_category||'standard', today]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 交付率统计
+app.get('/api/delivery-stats', auth, (req, res) => {
+    try { res.json(query('SELECT * FROM delivery_stats ORDER BY month DESC')); }
+    catch (e) { res.status(500).json({ message: e.message }); }
+});
+app.post('/api/delivery-stats', auth, (req, res) => {
+    try {
+        var b = req.body;
+        if (!b.month) return res.status(400).json({ message: '统计月份不能为空' });
+        var exist = query('SELECT id FROM delivery_stats WHERE month = ?', [b.month]);
+        if (exist.length > 0) {
+            run("UPDATE delivery_stats SET total_orders=?, on_time=?, delay_count=?, delay_reason=?, improvement=?, updated_at=datetime('now') WHERE month=?",
+                [b.total_orders||0, b.on_time||0, b.delay_count||0, b.delay_reason||'', b.improvement||'', b.month]);
+        } else {
+            run("INSERT INTO delivery_stats (month,total_orders,on_time,delay_count,delay_reason,improvement) VALUES (?,?,?,?,?,?)",
+                [b.month, b.total_orders||0, b.on_time||0, b.delay_count||0, b.delay_reason||'', b.improvement||'']);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 订单变更记录
+app.get('/api/order-changes', auth, (req, res) => {
+    try {
+        var sql = 'SELECT * FROM order_changes';
+        if (req.query.order_id) { sql += ' WHERE order_id = ?'; }
+        sql += ' ORDER BY created_at DESC';
+        var params = req.query.order_id ? [parseInt(req.query.order_id)] : [];
+        res.json(query(sql, params));
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 发货单
+app.get('/api/delivery-notes', auth, (req, res) => {
+    try { res.json(query('SELECT * FROM delivery_notes ORDER BY created_at DESC')); }
+    catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 订单审批记录
+app.get('/api/order-approvals', auth, (req, res) => {
+    try {
+        var sql = 'SELECT * FROM order_approvals';
+        if (req.query.order_id) { sql += ' WHERE order_id = ?'; }
+        sql += ' ORDER BY created_at DESC';
+        var params = req.query.order_id ? [parseInt(req.query.order_id)] : [];
+        res.json(query(sql, params));
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// BOM 物料管理
+app.get('/api/bom-materials', auth, (req, res) => {
+    try {
+        var sql = 'SELECT * FROM bom_materials';
+        if (req.query.order_id) { sql += ' WHERE order_id = ?'; }
+        sql += ' ORDER BY created_at DESC';
+        var params = req.query.order_id ? [parseInt(req.query.order_id)] : [];
+        res.json(query(sql, params));
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+app.post('/api/bom-materials', auth, (req, res) => {
+    try {
+        var b = req.body;
+        run("INSERT INTO bom_materials (order_id,product_code,material_code,material_name,specification,quantity,unit,status) VALUES (?,?,?,?,?,?,?,'pending')",
+            [b.order_id||0, b.product_code||'', b.material_code, b.material_name||'', b.specification||'', b.quantity||0, b.unit||'']);
+        res.json({ success: true, id: query('SELECT last_insert_rowid() as id')[0].id });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
 // 取消请假
 app.put('/api/leave/:id/cancel', auth, (req, res) => {
     try {
@@ -1851,8 +2649,8 @@ app.put('/api/leave/:id/cancel', auth, (req, res) => {
 app.get('/api/leave/stats', auth, (req, res) => {
     try {
         const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
-        // ADMIN/COUNSELOR/TEACHER 可看全部，STUDENT 只看自己的
-        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+        // ADMIN/SALES/ENGINEER 可看全部，PLANNER 只看自己的
+        const canSeeAll = user && ['ADMIN', 'SALES', 'ENGINEER'].includes(user.role);
         const uid = canSeeAll ? null : req.userId;
         const w = uid ? ' WHERE user_id = ?' : '';
         const p = uid ? [uid] : [];
@@ -1993,7 +2791,7 @@ function getSystemOverview() {
     const totalLeave = query('SELECT COUNT(*) as c FROM leave_requests')[0].c;
     const pendingDocs = query(`SELECT COUNT(*) as c FROM documents WHERE status = 'PENDING'`)[0].c;
     const pendingLeave = query(`SELECT COUNT(*) as c FROM leave_requests WHERE status = 'PENDING'`)[0].c;
-    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+    const admins = query('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'SALES', 'ENGINEER']);
     // 检查 department 列是否存在（使用 try-catch 安全方式）
     let departments = [];
     try {
@@ -2077,7 +2875,7 @@ app.post('/api/stats/query', auth, async (req, res) => {
         const user = query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
         if (!user) return res.status(401).json({ success: false, message: '用户不存在' });
 
-        const isAdmin = ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+        const isAdmin = ['ADMIN', 'SALES', 'ENGINEER'].includes(user.role);
         const lowerMsg = message.toLowerCase();
         const text = message;
         const result = { success: true, queryType: 'unknown', data: {}, text: '', message: message, userName: user.name, isAdmin };
@@ -2353,8 +3151,8 @@ app.post('/api/ai/router', auth, async (req, res) => {
         const context = {
             userId: req.userId,
             userName: user ? user.name : '用户#' + req.userId,
-            userRole: user ? user.role : 'STUDENT',
-            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            userRole: user ? user.role : 'PLANNER',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'SALES') : false,
             conversationId: 'web_' + req.userId
         };
 
@@ -2407,8 +3205,8 @@ app.post('/api/ai/upload', auth, async (req, res) => {
         var context = {
             userId: req.userId,
             userName: user ? user.name : '用户#' + req.userId,
-            userRole: user ? user.role : 'STUDENT',
-            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            userRole: user ? user.role : 'PLANNER',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'SALES') : false,
             conversationId: req.body.conversationId || ('web_' + req.userId)
         };
 
@@ -2438,8 +3236,8 @@ app.post('/api/agents/router', auth, async (req, res) => {
         const context = {
             userId: req.userId,
             userName: user ? user.name : '用户#' + req.userId,
-            userRole: user ? user.role : 'STUDENT',
-            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            userRole: user ? user.role : 'PLANNER',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'SALES') : false,
             conversationId: conversationId || ('web_' + req.userId)
         };
 
@@ -2476,8 +3274,8 @@ app.post('/api/ai/feishu-router', async (req, res) => {
         const context = {
             userId: user ? user.id : 1,
             userName: user ? user.name : '飞书用户',
-            userRole: user ? user.role : 'STUDENT',
-            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false,
+            userRole: user ? user.role : 'PLANNER',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'SALES') : false,
             feishuChatId: chatId || '',
             feishuMsgId: msgId || '',
             feishuOpenId: openId || '',
@@ -2528,8 +3326,8 @@ app.post('/api/ai/leave', auth, async (req, res) => {
         const result = await aiAgents.leaveAgentProcess(message, {
             userId: req.userId,
             userName: user ? user.name : '用户#' + req.userId,
-            userRole: user ? user.role : 'STUDENT',
-            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'COUNSELOR') : false
+            userRole: user ? user.role : 'PLANNER',
+            isAdmin: user ? (user.role === 'ADMIN' || user.role === 'SALES') : false
         });
 
         res.json(result);
@@ -2599,7 +3397,7 @@ app.post('/api/agents/chat', auth, async (req, res) => {
             const user = query('SELECT id, name, role FROM users WHERE id = ?', [req.userId])[0];
             if (!user) return res.status(401).json({ success: false, error: '用户不存在' });
 
-            const isAdmin = ['ADMIN', 'COUNSELOR', 'TEACHER'].includes(user.role);
+            const isAdmin = ['ADMIN', 'SALES', 'ENGINEER'].includes(user.role);
             const text = message;
 
             // ---- 解析查询类型 ----
@@ -2887,7 +3685,7 @@ app.get('/docflow-ai', (req, res) => res.sendFile(path.join(__dirname, 'docflow_
 async function start() {
     const startTime = Date.now();
     console.log('\n========================================');
-    console.log('📋 公文流转 + AI 多智能体系统 v2.0');
+    console.log('📋 销售订货 + AI 多智能体系统 v6.0');
     console.log('========================================');
     console.log('[启动] 正在初始化数据库...');
 
@@ -2915,6 +3713,13 @@ async function start() {
                     sendToChat: async (chatId, text) => await sendFeishuMsg(chatId, text),
                     sendToGroup: async (text) => await sendFeishuToGroup(text),
                     sendCardToUser: async (userId, card) => await sendCardToUser(userId, card),
+    submitOrderForReview: submitOrderForReview,
+    approveOrderStage: approveOrderStage,
+    rejectOrderStage: rejectOrderStage,
+    buildOrderReviewCard: buildOrderReviewCard,
+    buildOrderResultCard: buildOrderResultCard,
+    ORDER_FLOW: ORDER_FLOW,
+    ORDER_STATUS: ORDER_STATUS,
                     buildLeaveApprovalCard: buildLeaveApprovalCard,
                     buildLeaveResultCard: buildLeaveResultCard
                 });
@@ -2938,7 +3743,7 @@ async function start() {
         // 建表
         console.log('[启动] 检查数据表结构...');
         const tables = [
-            { name: 'users', sql: `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT DEFAULT '', name TEXT NOT NULL, role TEXT DEFAULT 'STUDENT', department TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'users', sql: `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT DEFAULT '', name TEXT NOT NULL, role TEXT DEFAULT 'PLANNER', department TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
             { name: 'documents', sql: `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, type TEXT DEFAULT 'NORMAL', priority TEXT DEFAULT 'NORMAL', status TEXT DEFAULT 'PENDING', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
@@ -2979,11 +3784,15 @@ async function start() {
                 shipped_at TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )` }
-        ];
-
-        let createdCount = 0;
-        tables.forEach(t => { if (safeRun(t.sql, t.name)) createdCount++; });
+            )` },
+            { name: 'order_approvals', sql: `CREATE TABLE IF NOT EXISTS order_approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, approver_id INTEGER, approver_name TEXT DEFAULT '', stage TEXT NOT NULL, action TEXT NOT NULL, comment TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'delivery_notes', sql: `CREATE TABLE IF NOT EXISTS delivery_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, delivery_no TEXT UNIQUE NOT NULL, warehouse_status TEXT DEFAULT 'pending', financial_status TEXT DEFAULT 'pending', financial_reviewer_id INTEGER, shipped_at TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'order_changes', sql: `CREATE TABLE IF NOT EXISTS order_changes (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, change_type TEXT NOT NULL, change_reason TEXT DEFAULT '', old_value TEXT DEFAULT '', new_value TEXT DEFAULT '', status TEXT DEFAULT 'pending', applicant_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'contact_forms', sql: `CREATE TABLE IF NOT EXISTS contact_forms (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT DEFAULT '', department TEXT DEFAULT '', status TEXT DEFAULT 'pending', applicant_id INTEGER, approver_id INTEGER, approver_comment TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'prediction_plans', sql: `CREATE TABLE IF NOT EXISTS prediction_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL, target_department TEXT DEFAULT '', plan_content TEXT DEFAULT '', status TEXT DEFAULT 'draft', creator_id INTEGER, approver_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'production_cycles', sql: `CREATE TABLE IF NOT EXISTS production_cycles (id INTEGER PRIMARY KEY AUTOINCREMENT, product_code TEXT NOT NULL, product_name TEXT DEFAULT '', lead_days INTEGER NOT NULL, cycle_category TEXT DEFAULT 'standard', valid_from TEXT NOT NULL, valid_to TEXT, approver_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'bom_materials', sql: `CREATE TABLE IF NOT EXISTS bom_materials (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER, product_code TEXT DEFAULT '', material_code TEXT NOT NULL, material_name TEXT DEFAULT '', specification TEXT DEFAULT '', quantity REAL DEFAULT 0, unit TEXT DEFAULT '', status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'delivery_stats', sql: `CREATE TABLE IF NOT EXISTS delivery_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL UNIQUE, total_orders INTEGER DEFAULT 0, on_time INTEGER DEFAULT 0, delay_count INTEGER DEFAULT 0, on_time_pct REAL DEFAULT 0, delay_reason TEXT DEFAULT '', improvement TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
         ];
 
         let createdCount = 0;

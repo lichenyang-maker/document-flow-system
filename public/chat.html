@@ -180,12 +180,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
       <div class="sidebar-group-title">业务处理</div>
       <div class="agent-item" data-agent="leave" onclick="quickSend('我要请假3天回家')">
         <div class="agent-dot" style="background:#7c3aed"></div>
-        <div class="agent-icon">📋</div><div class="agent-info"><div class="agent-name">请假管理</div><div class="agent-desc">申请 · 审批 · 查询</div></div>
+        <div class="agent-icon">📋</div><div class="agent-info"><div class="agent-name">销售订单</div><div class="agent-desc">申请 · 审批 · 查询</div></div>
         <span class="agent-badge" style="background:rgba(124,58,237,.12);color:#a78bfa">Leave</span>
       </div>
       <div class="agent-item" data-agent="document" onclick="quickSend('帮我起草一份采购申请表')">
         <div class="agent-dot" style="background:#2563eb"></div>
-        <div class="agent-icon">📄</div><div class="agent-info"><div class="agent-name">公文管理</div><div class="agent-desc">起草 · 审批 · 归档</div></div>
+        <div class="agent-icon">📄</div><div class="agent-info"><div class="agent-name">订单查询</div><div class="agent-desc">起草 · 审批 · 归档</div></div>
         <span class="agent-badge" style="background:rgba(37,99,235,.12);color:#93c5fd">Doc</span>
       </div>
       <div class="agent-item" data-agent="approval" onclick="quickSend('待审批事项')">
@@ -241,7 +241,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
     <div class="msgs-inner">
       <div class="welcome" id="welcome">
         <h2>👋 您好，有什么需要帮助？</h2>
-        <p>企业级 AI 智能助理，覆盖请假管理、公文处理、数据分析、审批流转全流程</p>
+        <p>企业级 AI 智能助理，覆盖销售订单、公文处理、数据分析、审批流转全流程</p>
         <div class="agent-cards">
           <div class="agent-card" onclick="quickSend('我要请3天病假')"><div class="icon">📋</div><div class="name">请假申请</div><div class="sub">提交请假 · 查询余额</div></div>
           <div class="agent-card" onclick="quickSend('帮我起草一份通知')"><div class="icon">📄</div><div class="name">公文起草</div><div class="sub">生成公文 · 审批流转</div></div>
@@ -253,7 +253,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
           <span class="example-btn" onclick="quickSend('我还有多少天年假')">🌴 年假余额</span>
           <span class="example-btn" onclick="quickSend('待审批事项')">⏳ 待审批</span>
           <span class="example-btn" onclick="quickSend('帮我起草一份采购申请')">📄 起草公文</span>
-          <span class="example-btn" onclick="quickSend('通知王老师明天开会')">🔔 发通知</span>
+          <span class="example-btn" onclick="quickSend('查订单 #3 的状态')">🔔 发通知</span>
           <span class="example-btn" onclick="quickSend('分析一下本周数据')">📊 数据分析</span>
         </div>
       </div>
@@ -286,7 +286,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
 
 <script>
 var token=localStorage.getItem('token'),conversationId='web_'+Date.now(),selectedFile=null,feishuSync=localStorage.getItem('feishuSync')!=='off';
-var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{name:'请假管理',icon:'📋',color:'#7c3aed'},document:{name:'公文管理',icon:'📄',color:'#2563eb'},data:{name:'数据分析',icon:'📊',color:'#059669'},notify:{name:'消息通知',icon:'🔔',color:'#d97706'},approval:{name:'审批处理',icon:'✅',color:'#dc2626'}};
+var AGENTS={general:{name:'全能助理',icon:'🤖',color:'#409eff'},leave:{name:'销售订单',icon:'📋',color:'#7c3aed'},document:{name:'订单查询',icon:'📄',color:'#2563eb'},data:{name:'数据分析',icon:'📊',color:'#059669'},notify:{name:'消息通知',icon:'🔔',color:'#d97706'},approval:{name:'审批处理',icon:'✅',color:'#dc2626'}};
 
 // 页面加载时自动加载历史对话
 document.addEventListener('DOMContentLoaded',function(){loadConversations();});
