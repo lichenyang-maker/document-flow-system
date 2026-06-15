@@ -1509,7 +1509,7 @@ async function salesAgentProcess(message, context = {}) {
         runDb("UPDATE sales_orders SET status='shipped', shipped_at=datetime('now'), updated_at=datetime('now') WHERE id=?", [spId]);
         // Create delivery note
         var dnNo = 'DN' + Date.now().toString(36).toUpperCase();
-        runDb("INSERT INTO delivery_notes (order_id,delivery_no,status,created_at) VALUES (?,?,'shipped',datetime('now'))", [spId, dnNo]);
+        runDb("INSERT INTO delivery_notes (order_id,delivery_no,warehouse_status,shipped_at,created_at) VALUES (?,?,'shipped',datetime('now'),datetime('now'))", [spId, dnNo]);
         return { success: true, content: `🚚 **发货通知：订单已发货！** #${spId}\n📋 ${spOrder.order_no} · ${spOrder.customer_name}\n📦 ${spOrder.product_type || ''} × ${spOrder.quantity}${spOrder.unit || 'PCS'}\n🔖 发货单号：${dnNo}\n📅 发货时间：${new Date().toLocaleString('zh-CN')}\n🎉 订单流程完成！` };
     }
 
@@ -1522,7 +1522,7 @@ async function salesAgentProcess(message, context = {}) {
         if (chgOrder.status === 'shipped' || chgOrder.status === 'cancelled') return { success: true, content: `⚠️ 订单 #${chgId} 已${chgOrder.status === 'shipped' ? '发货' : '取消'}，无法变更。` };
         var chgNote = (message.replace(chgMatch[0], '')).trim() || '客户要求变更';
         runDb("UPDATE sales_orders SET status='draft', change_notes=?, updated_at=datetime('now') WHERE id=?", [chgNote, chgId]);
-        runDb("INSERT INTO order_changes (order_id,change_type,change_reason,changed_by,created_at) VALUES (?,?,?,?,datetime('now'))", [chgId, 'modification', chgNote, userId]);
+        runDb("INSERT INTO order_changes (order_id,change_type,change_reason,applicant_id,created_at) VALUES (?,?,?,?,datetime('now'))", [chgId, 'modification', chgNote, userId]);
         return { success: true, content: `✅ **订单已变更，回到草稿状态** #${chgId}\n💬 ${chgNote}\n🔄 修改后说「提交审批 #${chgId}」重新提交` };
     }
 
