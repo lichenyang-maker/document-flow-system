@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="format-detection" content="telephone=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>公文流转系统</title>
+<title>销售订货系统</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--primary:#3370ff;--primary-light:#e8f0fe;--primary-dark:#2a5cd4;--success:#00b894;--warning:#ff9f43;--danger:#ff6b6b;--bg:#f5f7fa;--card:#fff;--text:#1f2937;--text2:#6b7280;--border:#e5e7eb;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -100,22 +100,22 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,Blink
 
 <div class="app" id="app" style="display:none">
   <div class="header">
-    <h1 id="headerTitle">公文流转系统</h1>
-    <div class="sub" id="headerSub">飞书工作台版</div>
+    <h1 id="headerTitle">销售订货系统</h1>
+    <div class="sub" id="headerSub">飞书工作台</div>
   </div>
 
   <div class="page active" id="page-home">
     <div class="stats">
-      <div class="stat"><div class="num" id="statDocs">—</div><div class="label">公文总数</div></div>
-      <div class="stat green"><div class="num" id="statLeave">—</div><div class="label">请假申请</div></div>
+      <div class="stat"><div class="num" id="statDocs">—</div><div class="label">订单总数</div></div>
+      <div class="stat green"><div class="num" id="statLeave">—</div><div class="label">销售订单</div></div>
       <div class="stat orange"><div class="num" id="statPending">—</div><div class="label">待审批</div></div>
       <div class="stat red"><div class="num" id="statRejected">—</div><div class="label">已驳回</div></div>
     </div>
 
-    <div class="section-title">📝 最近公文</div>
+    <div class="section-title">📝 最近订单</div>
     <div id="recentDocs"><div class="empty"><div class="icon">📄</div>暂无数据</div></div>
 
-    <div class="section-title">🏖️ 最近请假</div>
+    <div class="section-title">🏖️ 最近订单</div>
     <div id="recentLeave"><div class="empty"><div class="icon">📝</div>暂无数据</div></div>
   </div>
 
@@ -171,7 +171,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,Blink
       <div style="font-size:13px;color:var(--text2);line-height:1.8">
         • 本应用可直接在飞书工作台打开<br>
         • 自动通过飞书账号登录，无需输入密码<br>
-        • 可以在群内通过消息发起请假申请<br>
+        • 可以在群内通过消息发起销售订单<br>
         • 领导可直接在消息中审批，审批结果同步到系统<br>
       </div>
     </div>
@@ -199,8 +199,8 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,Blink
 
 <div class="tabbar" id="tabbar" style="display:none">
   <div class="tab active" data-page="home" onclick="switchPage('home')"><div class="icon">🏠</div><div>首页</div></div>
-  <div class="tab" data-page="docs" onclick="switchPage('docs')"><div class="icon">📄</div><div>公文</div></div>
-  <div class="tab" data-page="leave" onclick="switchPage('leave')"><div class="icon">🏖️</div><div>请假</div></div>
+  <div class="tab" data-page="docs" onclick="switchPage('docs')"><div class="icon">📄</div><div>订单</div></div>
+  <div class="tab" data-page="leave" onclick="switchPage('leave')"><div class="icon">🏖️</div><div>订单</div></div>
   <div class="tab" data-page="user" onclick="switchPage('user')"><div class="icon">👤</div><div>我的</div></div>
 </div>
 
@@ -312,7 +312,7 @@ function renderLeaveList(containerId, list, simple) {
   }
   el.innerHTML = list.map(d => `
     <div class="list-item" onclick="showLeaveDetail(${d.id})">
-      <div class="title">${d.type || '请假'} - ${d.user_name || d.username || '—'}</div>
+      <div class="title">${d.type || '订单'} - ${d.user_name || d.username || '—'}</div>
       <div class="meta">
         ${statusBadge(d.status)}
         <span>📅 ${d.start_date || d.startDate || '—'} 至 ${d.end_date || d.endDate || '—'}</span>
@@ -359,7 +359,7 @@ function loadUser() {
   document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
   document.getElementById('userUsername').textContent = currentUser.username || '—';
   document.getElementById('userRole').textContent = (currentUser.role === 'ADMIN' || currentUser.role === 'admin') ? '管理员' : '员工';
-  document.getElementById('userRoleText').textContent = (currentUser.role === 'ADMIN' || currentUser.role === 'admin') ? '管理员（可审批公文和请假）' : '普通员工';
+  document.getElementById('userRoleText').textContent = (currentUser.role === 'ADMIN' || currentUser.role === 'admin') ? '管理员（可审批销售订单）' : '普通员工';
 }
 
 function showCreateMenu() {
@@ -371,11 +371,11 @@ function showCreateMenu() {
 }
 
 function showDocForm() {
-  document.getElementById('createTitle').textContent = '📝 新建公文';
+  document.getElementById('createTitle').textContent = '📝 新建订单';
   document.getElementById('createForm').innerHTML = `
     <div class="form-group">
-      <label>公文标题 *</label>
-      <input id="docTitle" placeholder="请输入公文标题">
+      <label>订单标题 *</label>
+      <input id="docTitle" placeholder="请输入订单标题">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -396,8 +396,8 @@ function showDocForm() {
       </div>
     </div>
     <div class="form-group">
-      <label>公文内容 *</label>
-      <textarea id="docContent" placeholder="请输入公文详细内容..."></textarea>
+      <label>订单内容 *</label>
+      <textarea id="docContent" placeholder="请输入订单详细内容..."></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-block" onclick="closeModal('createModal')">取消</button>
@@ -427,7 +427,7 @@ async function submitDoc() {
 }
 
 function showLeaveForm() {
-  document.getElementById('createTitle').textContent = '🏖️ 申请请假';
+  document.getElementById('createTitle').textContent = '🏖️ 创建订单';
   const today = new Date();
   const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   const tomorrow = new Date(today.getTime() + 86400000);
@@ -435,7 +435,7 @@ function showLeaveForm() {
   document.getElementById('createForm').innerHTML = `
     <div class="form-row">
       <div class="form-group">
-        <label>请假类型 *</label>
+        <label>订单类型 *</label>
         <select id="leaveType">
           <option value="事假">事假</option>
           <option value="年假">年假</option>
@@ -446,8 +446,8 @@ function showLeaveForm() {
         </select>
       </div>
       <div class="form-group">
-        <label>天数 *</label>
-        <input id="leaveDays" type="number" min="1" value="1" placeholder="天数">
+        <label>数量 *</label>
+        <input id="leaveDays" type="number" min="1" value="1" placeholder="数量">
       </div>
     </div>
     <div class="form-row">
@@ -461,8 +461,8 @@ function showLeaveForm() {
       </div>
     </div>
     <div class="form-group">
-      <label>请假事由</label>
-      <textarea id="leaveReason" placeholder="请说明请假原因..."></textarea>
+      <label>订单备注</label>
+      <textarea id="leaveReason" placeholder="请说明订单原因..."></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-block" onclick="closeModal('createModal')">取消</button>
@@ -513,7 +513,7 @@ async function showDocDetail(id) {
       <div class="detail-item"><div class="label">申请人</div><div class="value">${doc.applicant_name || '—'}</div></div>
       <div class="detail-item"><div class="label">优先级</div><div class="value">${doc.priority || '—'}</div></div>
       <div class="detail-item"><div class="label">创建时间</div><div class="value">${fmtDate(doc.created_at)}</div></div>
-      <div class="detail-item" style="margin-top:12px"><div class="label">公文内容</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${doc.content || '—'}</div></div>
+      <div class="detail-item" style="margin-top:12px"><div class="label">订单内容</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${doc.content || '—'}</div></div>
     `;
     document.getElementById('detailActions').innerHTML = actions
       ? `<div class="modal-actions">${actions}</div>`
@@ -546,7 +546,7 @@ async function showLeaveDetail(id) {
     const list = await res.json();
     const leave = list.find(d => d.id === id);
     if (!leave) return;
-    document.getElementById('detailTitle').textContent = '🏖️ 请假详情';
+    document.getElementById('detailTitle').textContent = '🏖️ 订单详情';
     let actions = '';
     if (isAdmin && leave.status === 'PENDING') {
       actions = `
@@ -559,8 +559,8 @@ async function showLeaveDetail(id) {
       <div class="detail-item"><div class="label">申请人</div><div class="value">${leave.user_name || '—'}</div></div>
       <div class="detail-item"><div class="label">类型</div><div class="value">${leave.type || '—'}</div></div>
       <div class="detail-item"><div class="label">时间</div><div class="value">${leave.start_date || '—'} 至 ${leave.end_date || '—'}</div></div>
-      <div class="detail-item"><div class="label">天数</div><div class="value">${leave.days ?? '—'} 天</div></div>
-      <div class="detail-item" style="margin-top:12px"><div class="label">请假事由</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${leave.reason || '无'}</div></div>
+      <div class="detail-item"><div class="label">数量</div><div class="value">${leave.days ?? '—'} 天</div></div>
+      <div class="detail-item" style="margin-top:12px"><div class="label">订单备注</div><div class="value" style="background:#f9fafb;padding:12px;border-radius:6px;line-height:1.8">${leave.reason || '无'}</div></div>
       ${leave.approver_comment ? `<div class="detail-item" style="margin-top:12px"><div class="label">审批意见</div><div class="value" style="background:#e8f0fe;padding:12px;border-radius:6px;line-height:1.8">${leave.approver_comment}</div></div>` : ''}
     `;
     document.getElementById('detailActions').innerHTML = actions

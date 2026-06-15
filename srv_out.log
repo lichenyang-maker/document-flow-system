@@ -1,0 +1,58 @@
+[OK] Auth 模块已加载
+[OK] db-helper 模块已加载
+[OK] 多智能体系统已加载
+
+========================================
+📋 公文流转 + AI 多智能体系统 v6.0
+========================================
+[启动] 正在初始化数据库...
+[OK] 数据库已加载: D:\document-flow-system\document_flow.db
+[OK] db-helper 已初始化
+[OK] AI 智能体依赖已注入
+[启动] 检查数据表结构...
+[OK] 数据表检查完成 (22/22)
+[飞书] 正在初始化...
+[飞书] App ID: cli_aaa1***
+[飞书] Secret: 61tkmv***
+[info]: [ 'client ready' ]
+[飞书] ✅ Tenant Token 获取成功，凭证有效。飞书消息发送功能已就绪。
+[info]: [ 'event-dispatch is ready' ]
+[飞书WS] [
+  '[ws]',
+  'receive events or callbacks through persistent connection only available in self-build & Feishu app, Configured in:\n' +
+    '        Developer Console(开发者后台)\n' +
+    '          ->\n' +
+    '        Events and Callbacks(事件与回调)\n' +
+    '          ->\n' +
+    '        Mode of event/callback subscription(订阅方式)\n' +
+    '          ->\n' +
+    '        Receive events/callbacks through persistent connection(使用 长连接 接收事件/回调)'
+]
+[OK] 飞书长连接已启动 (WebSocket 模式) - 可接收用户消息并回复
+[飞书] 提示：请确保飞书开放平台已开启「使用长连接接收事件」并开通「im:message」「im:message:send_as_bot」权限
+[定时任务] 待审批检查已启动（每30分钟）
+[定时任务] 下次每日简报时间：2026/6/16 09:00:00（1017 分钟后）
+[定时任务] 每日简报已安排（每天 9:00）
+[OK] 数据统计: 用户 7 人 | 公文 0 份 | 请假 2 条
+[OK] Auth 路由已注册
+[OK] Auth 中间件已注册
+
+========================================================
+🚀 服务已启动 (耗时 0.5s)
+📄 主页面:     http://localhost:3000/
+🤖 AI助手:     http://localhost:3000/chat
+🤖 Router API: POST /api/ai/router
+
+
+📢 Notify API: POST /api/ai/notify
+💊 健康检查:   http://localhost:3000/health
+🔐 登录账号:   admin / admin123
+========================================================
+
+[飞书WS] [ '[ws]', 'ws client ready' ]
+[飞书] ✅ 消息发送成功 [chat_id] msg_id=om_x100b6dcf54d108bcc3791d7bbacc004
+[飞书] 上线通知已发到群聊
+[定时任务] 当前没有待审批订单
+[飞书] ✅ 消息发送成功 [chat_id] msg_id=om_x100b6dcf54f56d10c3c38b50d6cc131
+[定时任务] 每日简报已发到群聊
+[启动] 每日简报测试发送完成

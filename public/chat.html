@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>AI 智能助手 · DocFlow 公文流转系统</title>
+<title>AI 智能助手 · 销售订货系统</title>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -165,7 +165,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
 <aside class="sidebar">
   <div class="sidebar-brand">
     <div class="sidebar-brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-    <div class="sidebar-brand-text"><div class="sidebar-brand-name">DocFlow AI</div><div class="sidebar-brand-sub">企业智能助手 v4.0</div></div>
+    <div class="sidebar-brand-text"><div class="sidebar-brand-name">SalesOrder AI</div><div class="sidebar-brand-sub">销售订货智能助手 v6.0</div></div>
   </div>
   <div class="sidebar-scroll">
     <div class="sidebar-group">
@@ -178,7 +178,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
     </div>
     <div class="sidebar-group">
       <div class="sidebar-group-title">业务处理</div>
-      <div class="agent-item" data-agent="leave" onclick="quickSend('我要请假3天回家')">
+      <div class="agent-item" data-agent="leave" onclick="quickSend('我要下订单，客户是华为')">
         <div class="agent-dot" style="background:#7c3aed"></div>
         <div class="agent-icon">📋</div><div class="agent-info"><div class="agent-name">销售订单</div><div class="agent-desc">申请 · 审批 · 查询</div></div>
         <span class="agent-badge" style="background:rgba(124,58,237,.12);color:#a78bfa">Leave</span>
@@ -196,7 +196,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
     </div>
     <div class="sidebar-group">
       <div class="sidebar-group-title">数据分析</div>
-      <div class="agent-item" data-agent="stats" onclick="quickSend('本周请假统计')">
+      <div class="agent-item" data-agent="stats" onclick="quickSend('本周订单统计')">
         <div class="agent-dot" style="background:#059669"></div>
         <div class="agent-icon">📊</div><div class="agent-info"><div class="agent-name">数据分析</div><div class="agent-desc">统计 · 报表 · 洞察</div></div>
         <span class="agent-badge" style="background:rgba(5,150,105,.12);color:#6ee7b7">Stats</span>
@@ -204,7 +204,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
     </div>
     <div class="sidebar-group">
       <div class="sidebar-group-title">协作</div>
-      <div class="agent-item" onclick="quickSend('帮我分析最近一周请假和公文情况（多智能体协作）')">
+      <div class="agent-item" onclick="quickSend('帮我分析最近一周订单情况（多智能体协作）')">
         <div class="agent-dot" style="background:#ec4899"></div>
         <div class="agent-icon">🤝</div><div class="agent-info"><div class="agent-name">多智能体协作</div><div class="agent-desc">并行分析 · 综合报告</div></div>
         <span class="agent-badge" style="background:rgba(236,72,153,.12);color:#f9a8d4">Team</span>
@@ -245,11 +245,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);line-height:1.5}
         <div class="agent-cards">
           <div class="agent-card" onclick="quickSend('我要请3天病假')"><div class="icon">📋</div><div class="name">请假申请</div><div class="sub">提交请假 · 查询余额</div></div>
           <div class="agent-card" onclick="quickSend('帮我起草一份通知')"><div class="icon">📄</div><div class="name">公文起草</div><div class="sub">生成公文 · 审批流转</div></div>
-          <div class="agent-card" onclick="quickSend('本周请假统计')"><div class="icon">📊</div><div class="name">数据统计</div><div class="sub">报表 · 趋势分析</div></div>
+          <div class="agent-card" onclick="quickSend('本周订单统计')"><div class="icon">📊</div><div class="name">数据统计</div><div class="sub">报表 · 趋势分析</div></div>
           <div class="agent-card" onclick="quickSend('待审批事项')"><div class="icon">✅</div><div class="name">审批处理</div><div class="sub">同意 · 驳回 · 待办</div></div>
         </div>
         <div class="examples">
-          <span class="example-btn" onclick="quickSend('我要请假3天回家')">📝 请假3天</span>
+          <span class="example-btn" onclick="quickSend('我要下订单，客户是华为')">📝 请假3天</span>
           <span class="example-btn" onclick="quickSend('我还有多少天年假')">🌴 年假余额</span>
           <span class="example-btn" onclick="quickSend('待审批事项')">⏳ 待审批</span>
           <span class="example-btn" onclick="quickSend('帮我起草一份采购申请')">📄 起草公文</span>

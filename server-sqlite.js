@@ -1866,8 +1866,36 @@ app.post('/api/feishu/card/action', async (req, res) => {
             return res.json({ code: 0, msg: result?.success ? 'success' : (result?.reason || 'error') });
         }
 
+        // 联络单审批
+        if (action.action === 'contact_approve' && action.id) {
+            var cardOp1 = getSystemUserByFeishuId(openId);
+            if (!cardOp1) return res.json({ code: 0, msg: 'user not bound' });
+            run("UPDATE contact_forms SET status='approved', approver_id=?, approver_comment='已批准' WHERE id=?", [cardOp1.id, parseInt(action.id)]);
+            console.log('[飞书卡片] 联络单审批通过 #' + action.id);
+            return res.json({ code: 0, msg: 'approved' });
+        }
+        if (action.action === 'contact_reject' && action.id) {
+            var cardOp2 = getSystemUserByFeishuId(openId);
+            if (!cardOp2) return res.json({ code: 0, msg: 'user not bound' });
+            run("UPDATE contact_forms SET status='rejected', approver_id=?, approver_comment='已驳回' WHERE id=?", [cardOp2.id, parseInt(action.id)]);
+            console.log('[飞书卡片] 联络单驳回 #' + action.id);
+            return res.json({ code: 0, msg: 'rejected' });
+        }
+        // 生产周期审批
+        if (action.action === 'cycle_approve' && action.product_code) {
+            var cardOp3 = getSystemUserByFeishuId(openId);
+            if (!cardOp3) return res.json({ code: 0, msg: 'user not bound' });
+            run("UPDATE production_cycles SET approver_id=?, valid_from=date('now'), valid_to=date('now','+6 months') WHERE product_code=?", [cardOp3.id, action.product_code]);
+            console.log('[飞书卡片] 生产周期审批通过 ' + action.product_code);
+            return res.json({ code: 0, msg: 'approved' });
+        }
+        if (action.action === 'cycle_reject' && action.product_code) {
+            console.log('[飞书卡片] 生产周期驳回 ' + action.product_code);
+            return res.json({ code: 0, msg: 'rejected' });
+        }
+
         // 请假卡片操作（保留兼容）
-        if (!action.leave_id) return res.json({ code: 0, msg: 'no action' });
+        if (!action.leave_id) return res.json({ code: 0, msg: 'done' });
         var leaveId = parseInt(action.leave_id);
         var operator = getSystemUserByFeishuId(openId);
         if (!operator) return res.json({ code: 0, msg: 'user not bound' });
@@ -2422,6 +2450,49 @@ app.post('/api/sales-orders', auth, (req, res) => {
     try {
         const b = req.body;
         if (!b.customer_name) return res.status(400).json({ message: '客户名称不能为空' });
+        
+        // 5.2.1 新产品验证
+        if (b.is_new_product) {
+            var existingReview=query('SELECT id,review_result FROM new_product_reviews WHERE product_code=? OR product_name=? ORDER BY created_at DESC LIMIT 1',[b.product_code||'',b.product_name||'']);
+            if(existingReview.length>0 && existingReview[0].review_result==='pending'){
+                return res.status(400).json({message:'5.2.1 该新产品评审未通过，暂不允许下订单'});
+            }
+        }
+        // 5.2.3 交期验证
+        if(b.delivery_date && b.product_code){
+            var cycle=query('SELECT lead_days FROM production_cycles WHERE product_code=? AND valid_from<=date("now") AND (valid_to IS NULL OR valid_to>=date("now")) ORDER BY created_at DESC LIMIT 1',[b.product_code]);
+            if(cycle.length>0){
+                var minDate=new Date();minDate.setDate(minDate.getDate()+cycle[0].lead_days);
+                var deliveryDate=new Date(b.delivery_date);
+                if(deliveryDate<minDate){
+                    return res.status(400).json({message:'5.2.3 交期不满足产品生产周期表要求，最早交期'+minDate.toISOString().slice(0,10)});
+                }
+            }
+        }
+        // 5.2.4 附页确认
+        if(b.has_attachment && !b.attachment_confirmed){
+            return res.status(400).json({message:'5.2.4 请确认订单附页内容是否完整'});
+        }
+        // 5.2.5 不能确认需求
+        if(b.has_unconfirmed_requirement && !b.confirm_deadline){
+            return res.status(400).json({message:'5.2.5 存在不能确认的需求，请填写预计确认日期'});
+        }
+        // 5.5 急插单7工作日验证
+        if(b.is_rush && b.delivery_date){
+            var rushDelivery=new Date(b.delivery_date);
+            var today=new Date();
+            var workDays=0;
+            var tempDate=new Date(today);
+            while(tempDate<=rushDelivery){
+                var day=tempDate.getDay();
+                if(day!==0 && day!==6) workDays++;
+                tempDate.setDate(tempDate.getDate()+1);
+            }
+            if(workDays<7){
+                return res.status(400).json({message:'5.5 急插单需至少提前七个工作日，当前仅剩'+workDays+'个工作日'});
+            }
+        }
+
         var applicant = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
         var orderNo = 'SO' + Date.now().toString(36).toUpperCase();
         var r = run(`INSERT INTO sales_orders (
@@ -2527,6 +2598,21 @@ app.post('/api/contact-forms', auth, (req, res) => {
         run("INSERT INTO contact_forms (title,content,department,status,applicant_id) VALUES (?,?,?,'pending',?)",
             [b.title, b.content||'', b.department||'', req.userId]);
         res.json({ success: true, id: query('SELECT last_insert_rowid() as id')[0].id });
+// 联络单审批（5.7）
+app.post('/api/contact-forms/:id/approve', auth, (req, res) => {
+    try {
+        var formId = parseInt(req.params.id);
+        var action = req.body.action || 'approved';
+        var status = action === 'approved' ? 'approved' : 'rejected';
+        run("UPDATE contact_forms SET status=?, approver_id=?, approver_comment=? WHERE id=?", [status, req.userId, req.body.comment||'', formId]);
+        var form = query('SELECT cf.*, u.name as applicant_name FROM contact_forms cf LEFT JOIN users u ON cf.applicant_id=u.id WHERE cf.id=?', [formId])[0];
+        if (form) {
+            var statusText = status === 'approved' ? '✅ 已批准' : '❌ 已驳回';
+            try { sendFeishuToGroup(statusText + '\n📋 ' + form.title + '\n👤 ' + (form.applicant_name||'')); } catch(ign) {}
+        }
+        res.json({ success: true, status: status });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
@@ -2558,6 +2644,41 @@ app.post('/api/production-cycles', auth, (req, res) => {
         run("INSERT OR REPLACE INTO production_cycles (product_code,product_name,lead_days,cycle_category,valid_from) VALUES (?,?,?,?,?)",
             [b.product_code, b.product_name||'', b.lead_days||30, b.cycle_category||'standard', today]);
         res.json({ success: true });
+// 生产周期审批（5.10）
+app.post('/api/production-cycles/:id/approve', auth, (req, res) => {
+    try {
+        var cycleId = parseInt(req.params.id);
+        var action = req.body.action || 'approved';
+        run("UPDATE production_cycles SET approver_id=?, valid_from=date('now'), valid_to=date('now','+6 months') WHERE id=?", [req.userId, cycleId]);
+        res.json({ success: true, message: action === 'approved' ? '已批准（有效期6个月）' : '已驳回' });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 流程汇总
+app.get('/api/flow-summary', auth, (req, res) => {
+    try {
+        var totalOrders = query('SELECT COUNT(*) as c FROM sales_orders')[0].c;
+        var pendingReview = query("SELECT COUNT(*) as c FROM sales_orders WHERE status IN ('PENDING_ENG','PENDING_PLAN','PENDING_BIZ')")[0].c;
+        var shippedThisMonth = query("SELECT COUNT(*) as c FROM sales_orders WHERE status='shipped' AND shipped_at >= date('now','start of month')")[0].c;
+        var latestForecast = query('SELECT month, forecast_quantity FROM monthly_forecasts ORDER BY created_at DESC LIMIT 1')[0];
+        var latestDeliveryRate = query('SELECT month, on_time_pct FROM delivery_stats ORDER BY month DESC LIMIT 1')[0];
+        var activeCycles = query('SELECT COUNT(*) as c FROM production_cycles WHERE valid_to >= date(\'now\')')[0].c;
+        res.json({
+            flow: [
+                { step: 1, name: '5.1 接收订单', icon: '📥', count: totalOrders },
+                { step: 2, name: '5.2 创建订单', icon: '📝', count: totalOrders },
+                { step: 3, name: '5.3 订单评审', icon: '🔧', count: pendingReview, status: pendingReview > 0 ? 'pending' : 'done' },
+                { step: 4, name: '5.4 订单变更', icon: '🔄', count: query('SELECT COUNT(*) as c FROM change_reviews WHERE created_at >= date(\'now\', \'-7 days\')')[0].c },
+                { step: 5, name: '5.5 急插单', icon: '⚡', count: query('SELECT COUNT(*) as c FROM rush_orders WHERE created_at >= date(\'now\', \'-7 days\')')[0].c },
+                { step: 6, name: '5.6 发货', icon: '🚚', count: shippedThisMonth },
+                { step: 7, name: '5.7 联络单', icon: '📋', count: query('SELECT COUNT(*) as c FROM contact_forms WHERE created_at >= date(\'now\', \'-30 days\')')[0].c },
+                { step: 8, name: '5.8 预测计划', icon: '📊', count: latestForecast?.forecast_quantity||0 },
+                { step: 9, name: '5.9 交付率', icon: '📈', count: latestDeliveryRate?.on_time_pct||0 },
+                { step: 10, name: '5.10 生产周期', icon: '⏱️', count: activeCycles }
+            ]
+        });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
@@ -3929,6 +4050,7 @@ app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat
 
 // 飞书 AI 聊天页面
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
+app.get('/sales', (req, res) => res.sendFile(path.join(__dirname, 'public', 'sales.html')));
 app.get('/feishu-chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'feishu-chat.html')));
 app.get('/leave', (req, res) => res.sendFile(path.join(__dirname, 'leave.html')));
 app.get('/docflow', (req, res) => res.sendFile(path.join(__dirname, 'docflow.html')));

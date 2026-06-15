@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>销售订货流程图</title>
+<style>
+body{margin:0;padding:20px;font-family:"Microsoft YaHei",sans-serif;background:#f5f6f8;display:flex;flex-direction:column;align-items:center}
+.container{max-width:1100px;width:100%;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+h1{text-align:center;color:#1e293b;font-size:22px;margin:0 0 8px}
+.sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:30px}
+.flow{display:flex;flex-direction:column;align-items:center;gap:6px}
+.row{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}
+.node{padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;text-align:center;min-width:100px;color:#fff;position:relative}
+.node-start{background:#6366f1}
+.node-process{background:#3b82f6}
+.node-decision{background:#f59e0b;min-width:120px}
+.node-end{background:#10b981}
+.node-rush{background:#ef4444}
+.node-change{background:#8b5cf6}
+.node-purchase{background:#ec4899}
+.arrow{font-size:18px;color:#94a3b8;margin:0 2px}
+.arrow-down{font-size:22px;color:#94a3b8;display:block;text-align:center;line-height:1}
+.branch{display:flex;justify-content:center;gap:20px;margin:4px 0}
+.branch-item{padding:6px 12px;border-radius:6px;font-size:11px;text-align:center;color:#fff;max-width:160px}
+.branch-label{font-size:10px;color:#94a3b8;text-align:center;margin-top:2px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:30px;padding-top:20px;border-top:1px solid #e2e8f0}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#475569}
+.legend-color{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.toolbar{display:flex;gap:10px;justify-content:center;margin-top:20px}
+.btn{padding:8px 20px;border:none;border-radius:6px;font-size:13px;cursor:pointer;color:#fff;background:#6366f1}
+.btn:hover{opacity:0.9}
+.btn-print{background:#64748b}
+@media print{body{background:#fff;padding:0}.btn,.toolbar{display:none!important}.container{box-shadow:none;border-radius:0;padding:20px}}
+</style>
+</head>
+<body>
+<div class="container" id="flowContainer">
+<h1>销售订货业务流程图</h1>
+<div class="sub">依据 5.1~5.10 销售订货管理制度</div>
+
+<div class="flow">
+
+<div class="row">
+<div class="node node-start">📥 接收客户订单</div>
+</div>
+<div class="arrow-down">↓</div>
+
+<div class="row">
+<div class="node node-decision">🔍 检查库存</div>
+</div>
+<div class="branch">
+<div class="branch-item" style="background:#10b981">有库存</div>
+<div class="branch-item" style="background:#3b82f6">无库存</div>
+</div>
+
+<div class="row" style="margin-top:2px">
+<div class="node node-end" style="opacity:0.7">📦 直接开《发货单》<br><span style="font-size:10px;font-weight:400">经财务审核→仓库出货</span></div>
+<div class="arrow">← →</div>
+<div class="node node-process">📝 创建《销售订单》<br><span style="font-size:10px;font-weight:400">5.1-5.2 订单内容审核</span></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+<div class="node node-process">🔧 工程部评审<br><span style="font-size:10px;font-weight:400">5.2.1-5.2.5 + 5.3.1 BOM制定</span></div>
+</div>
+<div class="arrow-down">↓</div>
+
+<div class="row">
+<div class="node node-process">📋 计划部交期评审<br><span style="font-size:10px;font-weight:400">5.3.2-5.3.3 交期确认</span></div>
+</div>
+<div class="arrow-down">↓</div>
+
+<div class="row">
+<div class="node node-process">✅ 业务部确认<br><span style="font-size:10px;font-weight:400">5.3.4 交期确认/协调</span></div>
+</div>
+
+<div class="branch">
+<div class="branch-item" style="background:#f59e0b">标准产品</div>
+<div class="branch-item" style="background:#ec4899">非标准产品</div>
+</div>
+
+<div class="row" style="margin-top:2px">
+<div class="node node-end" style="background:#10b981">✅ 订单确认完成<br><span style="font-size:10px;font-weight:400">5.3.6 计划+业务签字</span></div>
+<div class="arrow">← →</div>
+<div class="node node-purchase" style="background:#8b5cf6">采购审核<br><span style="font-size:10px;font-weight:400">品质审核→签字</span></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+<div class="node node-end">🏭 生产/入库/发货<br><span style="font-size:10px;font-weight:400">5.6 发货处理</span></div>
+</div>
+
+<div class="arrow-down">↓</div>
+<div class="row">
+<div class="node node-process" style="background:#64748b">📋 5.7 联络单<br><span style="font-size:10px;font-weight:400">非订单类需求→计划部处理</span></div>
+</div>
+<div class="arrow-down">↓</div>
+<div class="row">
+<div class="node node-process" style="background:#06b6d4">📊 5.8 预测需求计划<br><span style="font-size:10px;font-weight:400">月会分析+下月预测→PMC录入</span></div>
+</div>
+<div class="arrow-down">↓</div>
+<div class="row">
+<div class="node node-process" style="background:#f97316">📈 5.9 交付率统计<br><span style="font-size:10px;font-weight:400">每月5号前→计划部分析改善</span></div>
+</div>
+<div class="arrow-down">↓</div>
+<div class="row">
+<div class="node node-process" style="background:#a855f7">⏱️ 5.10 生产周期表<br><span style="font-size:10px;font-weight:400">每半年更新→分管领导审批</span></div>
+</div>
+</div>
+
+<h2 style="font-size:15px;margin:30px 0 12px;color:#1e293b;text-align:center">⚡ 特殊流程</h2>
+<div class="row">
+<div class="node node-rush">🚨 急插单<br><span style="font-size:10px;font-weight:400">5.5 提前7工作日</span></div>
+<div class="arrow">→</div>
+<div class="node node-change">🔄 订单变更<br><span style="font-size:10px;font-weight:400">5.4.1-5.4.3 重新评审</span></div>
+<div class="arrow">→</div>
+<div class="node node-process" style="background:#06b6d4">📊 预测转订单<br><span style="font-size:10px;font-weight:400">5.3.5 预测→销售订单</span></div>
+</div>
+
+<div class="legend">
+<div class="legend-item"><div class="legend-color" style="background:#3b82f6"></div> 标准流程</div>
+<div class="legend-item"><div class="legend-color" style="background:#f59e0b"></div> 决策节点</div>
+<div class="legend-item"><div class="legend-color" style="background:#10b981"></div> 完成/终点</div>
+<div class="legend-item"><div class="legend-color" style="background:#ef4444"></div> 急插单</div>
+<div class="legend-item"><div class="legend-color" style="background:#8b5cf6"></div> 变更/特殊</div>
+<div class="legend-item"><div class="legend-color" style="background:#6366f1"></div> 开始</div>
+</div>
+
+<div class="toolbar">
+<button class="btn" onclick="window.print()">🖨️ 打印 / 下载PDF</button>
+<button class="btn btn-print" onclick="downloadPNG()">📥 下载图片</button>
+</div>
+</div>
+
+<script>
+function downloadPNG(){
+  html2canvas(document.getElementById('flowContainer')).then(function(canvas){
+    var link=document.createElement('a');
+    link.download='销售订货流程图.png';
+    link.href=canvas.toDataURL();
+    link.click();
+  }).catch(function(){
+    window.print();
+  });
+}
+// Load html2canvas for PNG export
+var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+document.head.appendChild(s);
+</script>
+</body>
+</html>

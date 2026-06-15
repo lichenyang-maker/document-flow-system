@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>智能公文流转系统</title>
+<title>智能销售订货系统</title>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -623,7 +623,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
 <div class="login-overlay" id="loginOverlay">
   <div class="login-card">
     <div class="login-logo">📄</div>
-    <h2>智能公文流转系统</h2>
+    <h2>智能销售订货系统</h2>
     <p class="sub">Sign in to continue</p>
     <div class="lf">
       <label class="ll">用户名</label>
@@ -654,7 +654,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
       <span class="ico">📊</span> 工作台
     </button>
     <button class="ni" data-tab="docs" onclick="switchTab('docs')">
-      <span class="ico">📋</span> 公文管理
+      <span class="ico">📋</span> 订单管理
     </button>
   </nav>
   <div class="sb-user">
@@ -697,7 +697,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
         <div class="sc" onclick="switchTab('docs')" style="cursor:pointer">
           <div class="sc-top"><span class="sc-label">全部公文</span><div class="sc-ico">📋</div></div>
           <div class="sc-num" id="statTotal">0</div>
-          <div class="sc-desc">文档 + 请假申请</div>
+          <div class="sc-desc">文档 + 订单申请</div>
         </div>
         <div class="sc">
           <div class="sc-top"><span class="sc-label">待审批</span><div class="sc-ico">⏳</div></div>
@@ -717,7 +717,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
       </div>
     </div>
 
-    <!-- 公文管理（统一列表） -->
+    <!-- 订单管理（统一列表） -->
     <div id="docsSection" class="ps hidden">
       <div class="cc">
         <div class="cc-head">
@@ -752,7 +752,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
         </button>
         <button class="type-card" id="typeLeave" onclick="selectType('leave')">
           <div class="tc-ico">🏖️</div>
-          <div class="tc-lab">请假申请</div>
+          <div class="tc-lab">订单申请</div>
         </button>
       </div>
       <!-- 公文表单 -->
@@ -827,7 +827,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
     <div class="mfoot" id="addModalFoot">
       <button class="btn-out" onclick="closeAddModal()">取消</button>
       <button class="btn-pri hidden" id="submitDocBtn" onclick="submitDoc()">提交公文</button>
-      <button class="btn-pri hidden" id="submitLeaveBtn" onclick="submitLeave()">提交请假申请</button>
+      <button class="btn-pri hidden" id="submitLeaveBtn" onclick="submitLeave()">提交订单申请</button>
     </div>
   </div>
 </div>

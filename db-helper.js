@@ -74,36 +74,36 @@ function initDBHelper(db, saveDB) {
     }
 
     function getAdmins() {
-        return dbAll('SELECT id, username, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+        return dbAll('SELECT id, username, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'SALES', 'ENGINEER']);
     }
 
-    // 获取审批人列表（辅导员+管理员+相关老师）
+    // 获取审批人列表（业务员+管理员+工程师）
     function getApprovers(department) {
         if (department) {
             const deptPrefix = department.replace(/[0-9]+级$/, '');
             return dbAll(
-                `SELECT id, name, role FROM users WHERE role IN ('COUNSELOR', 'ADMIN') OR (role = 'TEACHER' AND department LIKE ?)`,
+                `SELECT id, name, role FROM users WHERE role IN ('SALES', 'ADMIN') OR (role = 'ENGINEER' AND department LIKE ?)`,
                 ['%' + deptPrefix + '%']
             );
         }
-        return dbAll('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'COUNSELOR', 'TEACHER']);
+        return dbAll('SELECT id, name, role FROM users WHERE role IN (?, ?, ?)', ['ADMIN', 'SALES', 'ENGINEER']);
     }
 
-    // 获取某系部的教师列表
+    // 获取某部门的人员列表
     function getTeachersByDepartment(department) {
-        if (!department) return dbAll("SELECT id, name, role FROM users WHERE role = 'TEACHER'");
+        if (!department) return dbAll("SELECT id, name, role FROM users WHERE role = 'ENGINEER'");
         const deptPrefix = department.replace(/[0-9]+级$/, '');
         return dbAll(
-            "SELECT id, name, role, department FROM users WHERE role = 'TEACHER' AND department LIKE ?",
+            "SELECT id, name, role, department FROM users WHERE role = 'ENGINEER' AND department LIKE ?",
             ['%' + deptPrefix + '%']
         );
     }
 
     function getTeacherById(teacherId) {
-        return dbGet("SELECT id, name, role, department FROM users WHERE id = ? AND role = 'TEACHER'", [teacherId]);
+        return dbGet("SELECT id, name, role, department FROM users WHERE id = ? AND role = 'ENGINEER'", [teacherId]);
     }
 
-    // 获取指定教师待审批的请假列表
+    // 获取指定审批人待审批的请假列表
     function getPendingLeavesForTeacher(teacherId) {
         return dbAll(
             `SELECT l.*, u.name as user_name, u.department as user_dept 

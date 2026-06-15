@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>销售订货管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#6366f1;--primary-dark:#4f46e5;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;--bg:#f1f5f9;--card:#fff;--text:#0f172a;--text-sub:#475569;--text-muted:#94a3b8;--border:#e2e8f0;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,0.08)}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+button{cursor:pointer;border:none;font-family:inherit;font-size:13px;transition:all .12s}
+input,select,textarea{font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;width:100%;outline:none}
+input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+
+/* App Layout */
+#mainApp{display:none;min-height:100vh}
+.sidebar{width:220px;background:#0f172a;color:#cbd5e1;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sb-brand{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.sb-brand .name{font-size:15px;font-weight:700;color:#fff}
+.sb-brand .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
+.sb-nav{padding:8px;flex:1;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;font-size:13px;color:#94a3b8;cursor:pointer;transition:all .12s;margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,0.06);color:#e2e8f0}
+.nav-item.active{background:var(--primary);color:#fff}
+.sb-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px}
+.sb-user .avatar{width:32px;height:32px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700}
+.sb-user .info{flex:1;min-width:0}
+.sb-user .name{font-size:13px;color:#fff}
+.sb-user .role{font-size:11px;color:rgba(255,255,255,0.45)}
+.sb-user .logout{font-size:18px;color:rgba(255,255,255,0.3);cursor:pointer;padding:4px}
+.main{flex:1;margin-left:220px;padding:20px 24px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.header h2{font-size:18px;font-weight:700}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.page{display:none}
+.page.active{display:block}
+
+/* Cards */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.stat-card .num{font-size:24px;font-weight:700;color:var(--primary)}
+.stat-card .label{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.card-header h3{font-size:15px;font-weight:600}
+.card-body{padding:16px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 14px;text-align:left;font-weight:600;color:var(--text-sub);font-size:12px;border-bottom:1px solid var(--border);background:#f8fafc;white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid #f1f5f9}
+tr:hover{background:#f8fafc}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-draft{background:#f1f5f9;color:#64748b}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-approved{background:#d1fae5;color:#065f46}
+.badge-shipped{background:#dbeafe;color:#1e40af}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+.badge-info{background:#e0e7ff;color:#3730a3}
+
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{opacity:0.9}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{opacity:0.9}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{background:#f1f5f9}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:4px}
+.btn-group{display:flex;gap:4px;flex-wrap:wrap}
+
+.filter-bar{display:flex;gap:8px;padding:12px 18px;background:#f8fafc;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.filter-bar select{width:auto;min-width:130px;padding:6px 10px}
+.filter-bar input{width:auto;min-width:160px;padding:6px 10px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:560px;max-width:96%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px}
+.modal-close{font-size:20px;color:var(--text-muted);cursor:pointer;background:none;border:none;padding:4px}
+.modal-body{padding:20px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px}
+.form-group .req{color:var(--danger)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+textarea{resize:vertical;min-height:60px}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{left:-220px;transition:left .2s}
+  .sidebar.open{left:0;box-shadow:4px 0 24px rgba(0,0,0,0.2)}
+  .main{margin-left:0;padding:12px}
+  .mobile-bar{display:flex!important}
+  .form-row{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  table{font-size:12px}
+  th,td{padding:6px 8px}
+}
+.mobile-bar{display:none;align-items:center;gap:10px;padding:8px 0;margin-bottom:8px}
+.mobile-bar .menu-btn{font-size:22px;cursor:pointer;padding:4px}
+.tab-bar{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.tab{padding:10px 18px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-sub)}
+.tab.active{border-bottom-color:var(--primary);color:var(--primary);font-weight:600}
+.empty-state{padding:40px;text-align:center;color:var(--text-muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="loginPage" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#1e293b)">
+  <div style="background:#fff;border-radius:12px;padding:40px;width:400px;max-width:96%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <h1 style="font-size:22px;margin-bottom:4px">📦 销售订货系统</h1>
+    <p style="color:var(--text-sub);font-size:13px;margin-bottom:28px">订单创建 · 评审跟进 · 发货管理</p>
+    <div style="margin-bottom:16px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px">用户名</label><input id="loginUser" placeholder="请输入用户名" style="width:100%"></div>
+    <div style="margin-bottom:16px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px">密码</label><input id="loginPass" type="password" placeholder="请输入密码" style="width:100%"></div>
+    <button class="btn" onclick="doLogin()" style="width:100%">登 录</button>
+    <div class="error" id="loginError" style="color:var(--danger);font-size:12px;text-align:center;margin-top:10px"></div>
+    <div style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:6px;font-size:12px;color:var(--text-sub);line-height:1.8">
+      <b>🔑 试用账号</b>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px">
+        <tr><td>👑 管理员</td><td><code style="background:#e2e8f0;padding:1px 6px;border-radius:3px">admin</code></td><td><b>admin123</b></td></tr>
+        <tr><td>📋 业务部</td><td><code style="background:#e2e8f0;padding:1px 6px;border-radius:3px">sales_zhang</code></td><td><b>123456</b></td></tr>
+        <tr><td>🔧 工程部</td><td><code style="background:#e2e8f0;padding:1px 6px;border-radius:3px">engineer_li</code></td><td><b>123456</b></td></tr>
+        <tr><td>📋 计划部</td><td><code style="background:#e2e8f0;padding:1px 6px;border-radius:3px">planner_wang</code></td><td><b>123456</b></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand"><div class="name">📦 SalesOrder</div><div class="sub">销售订货管理系统</div></div>
+    <nav class="sb-nav" id="sbNav"></nav>
+    <div class="sb-user">
+      <div class="avatar" id="userAvatar">U</div>
+      <div class="info"><div class="name" id="userName">—</div><div class="role" id="userRole">—</div></div>
+      <div class="logout" onclick="logout()" title="退出">⏻</div>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="mobile-bar"><span class="menu-btn" onclick="toggleSidebar()">☰</span><strong>📦 销售订货系统</strong></div>
+    <div class="header" id="pageHeader"><h2 id="pageTitle">📊 工作台</h2><div class="header-actions" id="headerActions"></div></div>
+
+    <!-- 工作台 -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card"><div class="card-header"><h3>⚡ 快捷操作</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="showModal('orderModal')">📝 创建订单</button>
+        <button class="btn btn-success btn-sm" onclick="switchPage('orders')">📦 销售订单</button>
+        <button class="btn btn-success btn-sm" onclick="switchPage('inventory')">📊 库存</button>
+        <button class="btn btn-success btn-sm" onclick="switchPage('forecast')">📈 预测</button>
+        <button class="btn btn-success btn-sm" onclick="switchPage('contact')">📋 联络单</button>
+        <button class="btn btn-success btn-sm" onclick="switchPage('stats')">📊 交付率</button>
+        <button class="btn btn-outline btn-sm" onclick="window.open('/flow','_blank')">📋 流程图</button>
+      </div></div>
+      <div class="card"><div class="card-header"><h3>📦 最近订单</h3></div><div id="recentOrders"><div class="empty-state">加载中...</div></div></div>
+    </div>
+
+    <!-- 销售订单 -->
+    <div class="page" id="page-orders">
+      <div class="card">
+        <div class="card-header"><h3>📦 销售订单</h3><button class="btn btn-primary btn-sm" onclick="showModal('orderModal')">+ 新建</button></div>
+        <div class="filter-bar">
+          <select id="orderFilter" onchange="loadOrders()"><option value="">全部</option><option value="draft">草稿</option><option value="PENDING_ENG">工程评审</option><option value="PENDING_PLAN">计划评审</option><option value="PENDING_BIZ">业务确认</option><option value="confirmed">已确认</option><option value="APPROVED">已批准</option><option value="shipped">已发货</option></select>
+          <input id="orderSearch" placeholder="搜索客户/编号" style="width:160px" onkeyup="if(event.key==='Enter')loadOrders()">
+          <button class="btn btn-primary btn-sm" onclick="loadOrders()">🔍</button>
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr><th>订单号</th><th>客户</th><th>产品</th><th>数量</th><th>状态</th><th>申请人</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 库存 -->
+    <div class="page" id="page-inventory">
+      <div class="card"><div class="card-header"><h3>📊 库存管理 (5.9)</h3><button class="btn btn-primary btn-sm" onclick="showModal('invModal')">+ 新增/更新</button></div>
+        <div class="filter-bar"><input id="invSearch" placeholder="搜索产品编码" style="width:200px" onkeyup="if(event.key==='Enter')loadInventory()"><button class="btn btn-primary btn-sm" onclick="loadInventory()">🔍</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>产品编码</th><th>产品名称</th><th>分类</th><th>数量</th><th>单位</th><th>库位</th><th>最小库存</th><th>最大库存</th></tr></thead><tbody id="invBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 预测 -->
+    <div class="page" id="page-forecast">
+      <div class="card"><div class="card-header"><h3>📈 月度预测计划 (5.8)</h3><button class="btn btn-primary btn-sm" onclick="showModal('forecastModal')">+ 新增</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>月份</th><th>部门</th><th>产品类别</th><th>预测数量</th><th>实际数量</th><th>偏差</th><th>备注</th><th>创建人</th></tr></thead><tbody id="forecastBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 联络单 -->
+    <div class="page" id="page-contact">
+      <div class="card"><div class="card-header"><h3>📋 联络单 (5.7)</h3><button class="btn btn-primary btn-sm" onclick="showModal('contactModal')">+ 新建</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>标题</th><th>内容</th><th>部门</th><th>状态</th><th>申请人</th><th>审批人</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="contactBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 交付率 -->
+    <div class="page" id="page-stats">
+      <div class="card"><div class="card-header"><h3>📊 交付率统计 (5.9)</h3><button class="btn btn-primary btn-sm" onclick="showModal('deliveryModal')">+ 新增</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>月份</th><th>总订单</th><th>准时</th><th>延误</th><th>准时率</th><th>延误原因</th><th>改善措施</th><th>更新时间</th></tr></thead><tbody id="deliveryBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 生产周期 -->
+    <div class="page" id="page-cycle">
+      <div class="card"><div class="card-header"><h3>⏱️ 生产周期表 (5.10)</h3><button class="btn btn-primary btn-sm" onclick="showModal('cycleModal')">+ 新增</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>产品编码</th><th>产品名称</th><th>生产天数</th><th>类别</th><th>有效期起</th><th>有效期止</th><th>审批人</th><th>创建时间</th></tr></thead><tbody id="cycleBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 急插单 -->
+    <div class="page" id="page-rush">
+      <div class="card"><div class="card-header"><h3>⚡ 急插单管理 (5.5)</h3><button class="btn btn-primary btn-sm" onclick="showModal('rushModal')">+ 新增</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>订单ID</th><th>订单号</th><th>客户</th><th>急插原因</th><th>原交期</th><th>新交期</th><th>提前天数</th><th>状态</th><th>创建时间</th></tr></thead><tbody id="rushBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 变更评审 -->
+    <div class="page" id="page-changes">
+      <div class="card"><div class="card-header"><h3>🔄 变更评审 (5.4)</h3></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>订单ID</th><th>变更类型</th><th>变更内容</th><th>原因</th><th>状态</th><th>申请人</th><th>创建时间</th></tr></thead><tbody id="changesBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 流程汇总 -->
+    <div class="page" id="page-flow-summary">
+      <div class="stats-grid" id="flowStatsGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 创建订单 Modal -->
+<div class="modal-overlay" id="orderModal" onclick="if(event.target===this)hideModal('orderModal')">
+  <div class="modal">
+    <div class="modal-header"><h3>📦 新建销售订单</h3><button class="modal-close" onclick="hideModal('orderModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>客户名称 <span class="req">*</span></label><input id="fOrderCustomer" placeholder="客户名称"></div>
+        <div class="form-group"><label>产品名称 <span class="req">*</span></label><input id="fOrderProduct" placeholder="产品名称"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>数量</label><input id="fOrderQty" type="number" value="1" min="1"></div>
+        <div class="form-group"><label>单位</label><select id="fOrderUnit"><option value="PCS">PCS</option><option value="SET">SET</option><option value="KG">KG</option><option value="M">M</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>单价</label><input id="fOrderPrice" type="number" step="0.01" value="0"></div>
+        <div class="form-group"><label>交期日期</label><input id="fOrderDelivery" type="date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>产品类型</label><select id="fOrderType"><option value="standard">标准产品</option><option value="non_standard">非标准产品</option></select></div>
+        <div class="form-group"><label>订单类型</label><select id="fOrderRush"><option value="normal">普通</option><option value="rush">急插单</option><option value="forecast">预测转订单</option></select></div>
+      </div>
+      <div class="form-group"><label>产品编码（用于交期/库存验证）</label><input id="fOrderCode" placeholder="如 SVR-2000"></div>
+      <div class="form-group"><label>特殊要求</label><textarea id="fOrderReq" rows="2" placeholder="特殊要求、附页说明等"></textarea></div>
+      <div class="form-group"><label>联系人</label><input id="fOrderContact" placeholder="联系人姓名"></div>
+      <div id="fOrderError" style="color:var(--danger);font-size:12px"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('orderModal')">取消</button><button class="btn btn-primary btn-sm" onclick="createOrder()">提交订单</button></div>
+  </div>
+</div>
+
+<!-- 库存 Modal -->
+<div class="modal-overlay" id="invModal" onclick="if(event.target===this)hideModal('invModal')">
+  <div class="modal"><div class="modal-header"><h3>📊 库存管理</h3><button class="modal-close" onclick="hideModal('invModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>产品编码 <span class="req">*</span></label><input id="fInvCode" placeholder="产品编码"></div><div class="form-group"><label>产品名称</label><input id="fInvName" placeholder="产品名称"></div></div>
+      <div class="form-row"><div class="form-group"><label>数量</label><input id="fInvQty" type="number" value="0"></div><div class="form-group"><label>单位</label><select id="fInvUnit"><option value="PCS">PCS</option><option value="SET">SET</option><option value="KG">KG</option></select></div></div>
+      <div class="form-row"><div class="form-group"><label>分类</label><input id="fInvCat" placeholder="如 Electronics"></div><div class="form-group"><label>库位</label><input id="fInvLoc" placeholder="如 A1-01"></div></div>
+      <div class="form-row"><div class="form-group"><label>最小库存</label><input id="fInvMin" type="number" value="0"></div><div class="form-group"><label>最大库存</label><input id="fInvMax" type="number" value="0"></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('invModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveInventory()">保存</button></div>
+  </div>
+</div>
+
+<!-- 预测 Modal -->
+<div class="modal-overlay" id="forecastModal" onclick="if(event.target===this)hideModal('forecastModal')">
+  <div class="modal"><div class="modal-header"><h3>📈 月度预测</h3><button class="modal-close" onclick="hideModal('forecastModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>月份 <span class="req">*</span></label><input id="fFcMonth" type="month"></div><div class="form-group"><label>部门</label><input id="fFcDept" placeholder="如 业务部"></div></div>
+      <div class="form-row"><div class="form-group"><label>产品类别</label><input id="fFcCat" placeholder="如 服务器"></div><div class="form-group"><label>预测数量</label><input id="fFcQty" type="number" value="0"></div></div>
+      <div class="form-group"><label>备注</label><textarea id="fFcNote" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('forecastModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveForecast()">保存</button></div>
+  </div>
+</div>
+
+<!-- 联络单 Modal -->
+<div class="modal-overlay" id="contactModal" onclick="if(event.target===this)hideModal('contactModal')">
+  <div class="modal"><div class="modal-header"><h3>📋 新建联络单</h3><button class="modal-close" onclick="hideModal('contactModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>标题 <span class="req">*</span></label><input id="fCtTitle" placeholder="联络单标题"></div>
+      <div class="form-group"><label>内容</label><textarea id="fCtContent" rows="3" placeholder="联络内容"></textarea></div>
+      <div class="form-group"><label>部门</label><input id="fCtDept" placeholder="如 工程部"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('contactModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveContact()">提交</button></div>
+  </div>
+</div>
+
+<!-- 交付率 Modal -->
+<div class="modal-overlay" id="deliveryModal" onclick="if(event.target===this)hideModal('deliveryModal')">
+  <div class="modal"><div class="modal-header"><h3>📊 交付率统计</h3><button class="modal-close" onclick="hideModal('deliveryModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>月份 <span class="req">*</span></label><input id="fDlMonth" type="month"></div>
+      <div class="form-row"><div class="form-group"><label>总订单数</label><input id="fDlTotal" type="number" value="0"></div><div class="form-group"><label>准时数</label><input id="fDlOntime" type="number" value="0"></div></div>
+      <div class="form-row"><div class="form-group"><label>延误数</label><input id="fDlDelay" type="number" value="0"></div><div class="form-group"><label>准时率</label><input id="fDlPct" type="number" step="0.01" value="0"></div></div>
+      <div class="form-group"><label>延误原因</label><textarea id="fDlReason" rows="2"></textarea></div>
+      <div class="form-group"><label>改善措施</label><textarea id="fDlImprove" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('deliveryModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveDelivery()">保存</button></div>
+  </div>
+</div>
+
+<!-- 生产周期 Modal -->
+<div class="modal-overlay" id="cycleModal" onclick="if(event.target===this)hideModal('cycleModal')">
+  <div class="modal"><div class="modal-header"><h3>⏱️ 生产周期表</h3><button class="modal-close" onclick="hideModal('cycleModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>产品编码 <span class="req">*</span></label><input id="fCyCode" placeholder="产品编码"></div><div class="form-group"><label>产品名称</label><input id="fCyName" placeholder="产品名称"></div></div>
+      <div class="form-row"><div class="form-group"><label>生产天数</label><input id="fCyDays" type="number" value="30"></div><div class="form-group"><label>类别</label><select id="fCyCat"><option value="standard">标准</option><option value="custom">定制</option></select></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('cycleModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveCycle()">保存</button></div>
+  </div>
+</div>
+
+<!-- 急插单 Modal -->
+<div class="modal-overlay" id="rushModal" onclick="if(event.target===this)hideModal('rushModal')">
+  <div class="modal"><div class="modal-header"><h3>⚡ 急插单</h3><button class="modal-close" onclick="hideModal('rushModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>订单ID <span class="req">*</span></label><input id="fRushOrderId" type="number" placeholder="订单ID"></div>
+      <div class="form-group"><label>急插原因</label><textarea id="fRushReason" rows="2" placeholder="急插原因"></textarea></div>
+      <div class="form-row"><div class="form-group"><label>原交期</label><input id="fRushOrig" type="date"></div><div class="form-group"><label>新交期</label><input id="fRushNew" type="date"></div></div>
+      <div class="form-group"><label>提前天数</label><input id="fRushDays" type="number" value="0"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline btn-sm" onclick="hideModal('rushModal')">取消</button><button class="btn btn-primary btn-sm" onclick="saveRush()">保存</button></div>
+  </div>
+</div>
+
+<script>
+var API = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+var token = localStorage.getItem('token');
+var currentUser = null;
+var roleNames = {ADMIN:'管理员',SALES:'业务部/市场部',ENGINEER:'工程部',PLANNER:'计划部',PURCHASE:'采购部',QUALITY:'品质部',DIRECTOR:'主管',MANAGER:'经理',EMPLOYEE:'员工'};
+
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
+function showModal(id){document.getElementById(id).classList.add('show')}
+function hideModal(id){document.getElementById(id).classList.remove('show')}
+
+async function api(method, path, body) {
+  var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    var res = await fetch(API + path, opts);
+    var data; try { data = await res.json(); } catch(e) { data = null; }
+    return { ok: res.ok, status: res.status, data: data };
+  } catch(e) { return { ok: false, data: { message: '网络错误' } }; }
+}
+
+// Login page
+document.getElementById('loginPage').style.display = 'flex';
+document.getElementById('loginPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  var u = document.getElementById('loginUser').value.trim();
+  var p = document.getElementById('loginPass').value;
+  var err = document.getElementById('loginError');
+  if (!u || !p) { err.textContent = '请输入用户名和密码'; return; }
+  var r = await api('POST', '/api/public/login', { username: u, password: p });
+  if (!r.ok) { err.textContent = (r.data && r.data.message) || '登录失败'; return; }
+  token = r.data.token;
+  currentUser = r.data.user;
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(currentUser));
+  document.getElementById('loginPage').style.display = 'none';
+  initApp();
+}
+
+// Auto login check
+(function() {
+  var saved = localStorage.getItem('token');
+  var savedUser = localStorage.getItem('user');
+  if (saved && savedUser) { token = saved; currentUser = JSON.parse(savedUser); document.getElementById('loginPage').style.display = 'none'; initApp(); }
+})();
+
+function initApp() {
+  document.getElementById('mainApp').style.display = 'flex';
+  var u = currentUser;
+  document.getElementById('userName').textContent = u.name;
+  document.getElementById('userRole').textContent = roleNames[u.role] || u.role;
+  document.getElementById('userAvatar').textContent = (u.name||'U').charAt(0).toUpperCase();
+  buildSidebar();
+  switchPage('dashboard');
+}
+
+function buildSidebar() {
+  var menus = [
+    {p:'dashboard',i:'📊',l:'工作台'},
+    {p:'orders',i:'📦',l:'销售订单'},
+    {p:'inventory',i:'📊',l:'库存管理'},
+    {p:'forecast',i:'📈',l:'预测计划'},
+    {p:'contact',i:'📋',l:'联络单'},
+    {p:'stats',i:'📊',l:'交付率'},
+    {p:'cycle',i:'⏱️',l:'生产周期'},
+    {p:'rush',i:'⚡',l:'急插单'},
+    {p:'changes',i:'🔄',l:'变更评审'},
+    {p:'flow-summary',i:'📋',l:'流程汇总'},
+  ];
+  var nav = document.getElementById('sbNav');
+  nav.innerHTML = '<div style="padding:4px 14px 8px;font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px">主菜单</div>' +
+    menus.map(function(m) {
+      return '<div class="nav-item" data-page="' + m.p + '" onclick="switchPage(\'' + m.p + '\')">' + m.i + ' ' + m.l + '</div>';
+    }).join('') +
+    '<div style="padding:4px 14px 8px;margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px">工具</div>' +
+    '<div class="nav-item" onclick="window.open(\'/flow\',\'_blank\')">📋 流程图</div>' +
+    '<div class="nav-item" onclick="window.open(\'/chat\',\'_blank\')">🤖 AI助手</div>';
+}
+
+function switchPage(page) {
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var el = document.querySelector('.nav-item[data-page="' + page + '"]');
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var pg = document.getElementById('page-' + page);
+  if (pg) pg.classList.add('active');
+  var titles = {dashboard:'📊 工作台',orders:'📦 销售订单',inventory:'📊 库存管理 (5.9)',forecast:'📈 月度预测计划 (5.8)',contact:'📋 联络单 (5.7)',stats:'📊 交付率统计 (5.9)',cycle:'⏱️ 生产周期表 (5.10)',rush:'⚡ 急插单管理 (5.5)',changes:'🔄 变更评审 (5.4)','flow-summary':'📋 流程汇总'};
+  document.getElementById('pageTitle').textContent = titles[page] || '概览';
+  if (document.getElementById('sidebar')) document.getElementById('sidebar').classList.remove('open');
+
+  if (page === 'dashboard') loadDashboard();
+  else if (page === 'orders') loadOrders();
+  else if (page === 'inventory') loadInventory();
+  else if (page === 'forecast') loadForecasts();
+  else if (page === 'contact') loadContacts();
+  else if (page === 'stats') loadDeliveryStats();
+  else if (page === 'cycle') loadCycles();
+  else if (page === 'rush') loadRushOrders();
+  else if (page === 'changes') loadChanges();
+  else if (page === 'flow-summary') loadFlowSummary();
+}
+
+function statusBadge(s) {
+  var m = {draft:'badge-draft',PENDING_ENG:'badge-pending',PENDING_PLAN:'badge-pending',PENDING_BIZ:'badge-pending',confirmed:'badge-approved',APPROVED:'badge-approved',shipped:'badge-shipped',rejected:'badge-rejected',pending:'badge-pending',approved:'badge-approved'};
+  var l = {draft:'草稿',PENDING_ENG:'工程评审',PENDING_PLAN:'计划评审',PENDING_BIZ:'业务确认',confirmed:'已确认',APPROVED:'已批准',shipped:'已发货',rejected:'已驳回',pending:'待审批',approved:'已批准'};
+  return '<span class="badge ' + (m[s]||'badge-draft') + '">' + (l[s]||s) + '</span>';
+}
+
+function fmtDate(d) { return d ? d.slice(0,10) : ''; }
+
+// ====== DASHBOARD ======
+async function loadDashboard() {
+  var grid = document.getElementById('statsGrid');
+  var r = await api('GET', '/api/sales-orders/stats/info');
+  if (r.ok && r.data) {
+    grid.innerHTML = '<div class="stat-card"><div class="num">' + r.data.total + '</div><div class="label">📦 订单总数</div></div>' +
+      '<div class="stat-card"><div class="num" style="color:var(--warning)">' + (r.data.pendingEng+r.data.pendingPlan+r.data.pendingConfirm) + '</div><div class="label">⏳ 待审批</div></div>' +
+      '<div class="stat-card"><div class="num" style="color:var(--success)">' + r.data.confirmed + '</div><div class="label">✅ 已确认</div></div>' +
+      '<div class="stat-card"><div class="num" style="color:var(--info)">' + r.data.shipped + '</div><div class="label">🚚 已发货</div></div>';
+  }
+  var recent = document.getElementById('recentOrders');
+  var r2 = await api('GET', '/api/sales-orders');
+  if (r2.ok && r2.data && r2.data.length) {
+    var list = r2.data.slice(0,5);
+    recent.innerHTML = '<table><thead><tr><th>订单号</th><th>客户</th><th>产品</th><th>数量</th><th>状态</th><th>时间</th></tr></thead><tbody>' +
+      list.map(function(o){return '<tr><td>'+(o.order_no||'#'+o.id)+'</td><td>'+(o.customer_name||'')+'</td><td>'+(o.product_name||'')+'</td><td>'+o.quantity+'</td><td>'+statusBadge(o.status)+'</td><td>'+fmtDate(o.created_at)+'</td></tr>';}).join('')+'</tbody></table>';
+  } else {
+    recent.innerHTML = '<div class="empty-state">暂无订单</div>';
+  }
+}
+
+// ====== ORDERS ======
+async function loadOrders() {
+  var tbody = document.getElementById('ordersBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var status = document.getElementById('orderFilter').value;
+  var url = '/api/sales-orders' + (status ? '?status=' + status : '');
+  var r = await api('GET', url);
+  if (!r.ok || !r.data) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载失败</td></tr>'; return; }
+  var list = r.data;
+  var search = document.getElementById('orderSearch').value.trim().toLowerCase();
+  if (search) list = list.filter(function(o){return (o.customer_name||'').toLowerCase().includes(search)||(o.order_no||'').toLowerCase().includes(search);});
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  var role = currentUser.role;
+  tbody.innerHTML = list.map(function(o) {
+    var acts = [];
+    if (o.status === 'draft') acts.push('<button class="btn btn-primary btn-sm" onclick="submitReview('+o.id+')">提交评审</button>');
+    if (o.status === 'PENDING_ENG' && (role==='ENGINEER'||role==='ADMIN')) acts.push('<button class="btn btn-success btn-sm" onclick="reviewOrder('+o.id+',\'engineering\')">工程通过</button>');
+    if (o.status === 'PENDING_PLAN' && (role==='PLANNER'||role==='ADMIN')) acts.push('<button class="btn btn-success btn-sm" onclick="reviewOrder('+o.id+',\'planning\')">计划通过</button>');
+    if (o.status === 'PENDING_BIZ' && (role==='SALES'||role==='ADMIN')) acts.push('<button class="btn btn-success btn-sm" onclick="reviewOrder('+o.id+',\'business\')">业务确认</button>');
+    if ((o.status==='confirmed'||o.status==='APPROVED') && (role==='SALES'||role==='ADMIN')) acts.push('<button class="btn btn-primary btn-sm" onclick="shipOrder('+o.id+')">发货</button>');
+    if (o.status!=='shipped') acts.push('<button class="btn btn-outline btn-sm" onclick="changeOrder('+o.id+')">变更</button>');
+    acts.push('<button class="btn btn-outline btn-sm" onclick="viewOrder('+o.id+')">详情</button>');
+    return '<tr><td>'+(o.order_no||'#'+o.id)+'</td><td>'+(o.customer_name||'')+'</td><td>'+(o.product_name||'')+'</td><td>'+o.quantity+'</td><td>'+statusBadge(o.status)+'</td><td>'+(o.applicant_name||'')+'</td><td>'+fmtDate(o.created_at)+'</td><td><div class="btn-group">'+acts.join('')+'</div></td></tr>';
+  }).join('');
+}
+
+async function createOrder() {
+  var data = {
+    customer_name: document.getElementById('fOrderCustomer').value.trim(),
+    product_name: document.getElementById('fOrderProduct').value.trim(),
+    quantity: parseInt(document.getElementById('fOrderQty').value)||1,
+    unit: document.getElementById('fOrderUnit').value,
+    price: parseFloat(document.getElementById('fOrderPrice').value)||0,
+    delivery_date: document.getElementById('fOrderDelivery').value,
+    product_type: document.getElementById('fOrderType').value,
+    order_type: document.getElementById('fOrderRush').value,
+    special_requirements: document.getElementById('fOrderReq').value.trim(),
+    product_code: document.getElementById('fOrderCode').value.trim(),
+    contact_person: document.getElementById('fOrderContact').value.trim(),
+    is_rush: document.getElementById('fOrderRush').value==='rush'?1:0,
+    amount: (parseFloat(document.getElementById('fOrderPrice').value)||0)*(parseInt(document.getElementById('fOrderQty').value)||1)
+  };
+  if (!data.customer_name) { document.getElementById('fOrderError').textContent='请输入客户名称'; return; }
+  if (!data.product_name) { document.getElementById('fOrderError').textContent='请输入产品名称'; return; }
+  var r = await api('POST', '/api/sales-orders', data);
+  if (!r.ok) { document.getElementById('fOrderError').textContent=(r.data&&r.data.message)||'创建失败'; return; }
+  hideModal('orderModal'); loadOrders(); loadDashboard();
+  document.getElementById('fOrderError').textContent='';
+  document.getElementById('fOrderCustomer').value='';document.getElementById('fOrderProduct').value='';
+}
+
+async function submitReview(id) {
+  var r = await api('POST', '/api/orders/'+id+'/submit');
+  if (r.ok) { loadOrders(); loadDashboard(); }
+  else { alert((r.data&&r.data.message)||'提交失败'); }
+}
+
+async function reviewOrder(id, stage) {
+  var comment = prompt('评审意见：');
+  if (comment===null) return;
+  var r = await api('POST', '/api/sales-orders/'+id+'/review', {stage:stage, comment:comment});
+  if (r.ok) { loadOrders(); loadDashboard(); }
+  else { alert((r.data&&r.data.message)||'操作失败'); }
+}
+
+async function shipOrder(id) {
+  if (!confirm('确认发货？')) return;
+  var r = await api('POST', '/api/sales-orders/'+id+'/ship');
+  if (r.ok) { loadOrders(); loadDashboard(); }
+  else { alert((r.data&&r.data.message)||'发货失败'); }
+}
+
+async function changeOrder(id) {
+  var notes = prompt('变更说明：');
+  if (!notes) return;
+  var r = await api('POST', '/api/sales-orders/'+id+'/change', {change_notes:notes, change_type:'一般变更'});
+  if (r.ok) { alert('变更已提交，需重新评审'); loadOrders(); }
+  else { alert((r.data&&r.data.message)||'变更失败'); }
+}
+
+async function viewOrder(id) {
+  var r = await api('GET', '/api/sales-orders/'+id);
+  if (!r.ok||!r.data) return;
+  var o = r.data;
+  var msg='📦 订单详情\n\n订单号：'+(o.order_no||'#'+o.id)+'\n客户：'+(o.customer_name||'')+'\n产品：'+(o.product_name||'')+'\n数量：'+o.quantity+' '+o.unit+'\n金额：¥'+(o.amount||0)+'\n交期：'+(o.delivery_date||'')+'\n状态：'+o.status+'\n申请人：'+(o.applicant_name||'')+'\n产品编码：'+(o.product_code||'')+'\n类型：'+(o.product_type||'');
+  alert(msg);
+}
+
+// ====== INVENTORY ======
+async function loadInventory() {
+  var tbody = document.getElementById('invBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var search = document.getElementById('invSearch').value.trim();
+  var url = '/api/inventory' + (search ? '?product_code='+search : '');
+  var r = await api('GET', url);
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">加载失败</td></tr>'; return; }
+  if (!r.data.length) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(i){return '<tr><td>'+i.product_code+'</td><td>'+(i.product_name||'')+'</td><td>'+(i.category||'')+'</td><td>'+i.quantity+'</td><td>'+i.unit+'</td><td>'+(i.location||'')+'</td><td>'+i.min_stock+'</td><td>'+i.max_stock+'</td></tr>';}).join('');
+}
+
+async function saveInventory() {
+  var data = {
+    product_code: document.getElementById('fInvCode').value.trim(),
+    product_name: document.getElementById('fInvName').value.trim(),
+    quantity: parseFloat(document.getElementById('fInvQty').value)||0,
+    unit: document.getElementById('fInvUnit').value,
+    category: document.getElementById('fInvCat').value.trim(),
+    location: document.getElementById('fInvLoc').value.trim(),
+    min_stock: parseFloat(document.getElementById('fInvMin').value)||0,
+    max_stock: parseFloat(document.getElementById('fInvMax').value)||0
+  };
+  if (!data.product_code) { alert('请输入产品编码'); return; }
+  var r = await api('POST', '/api/inventory', data);
+  if (r.ok) { hideModal('invModal'); loadInventory(); }
+  else { alert((r.data&&r.data.message)||'保存失败'); }
+}
+
+// ====== FORECASTS ======
+async function loadForecasts() {
+  var tbody = document.getElementById('forecastBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/monthly-forecasts');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(f){return '<tr><td>'+(f.month||'')+'</td><td>'+(f.department||'')+'</td><td>'+(f.product_category||'')+'</td><td>'+f.forecast_quantity+'</td><td>'+(f.actual_quantity||0)+'</td><td>'+(f.variance||0)+'</td><td>'+(f.notes||'')+'</td><td>'+(f.creator_name||'')+'</td></tr>';}).join('');
+}
+
+async function saveForecast() {
+  var data = {
+    month: document.getElementById('fFcMonth').value,
+    department: document.getElementById('fFcDept').value.trim(),
+    product_category: document.getElementById('fFcCat').value.trim(),
+    forecast_quantity: parseFloat(document.getElementById('fFcQty').value)||0,
+    notes: document.getElementById('fFcNote').value.trim()
+  };
+  if (!data.month) { alert('请选择月份'); return; }
+  var r = await api('POST', '/api/monthly-forecasts', data);
+  if (r.ok) { hideModal('forecastModal'); loadForecasts(); }
+  else { alert((r.data&&r.data.message)||'保存失败'); }
+}
+
+// ====== CONTACTS ======
+async function loadContacts() {
+  var tbody = document.getElementById('contactBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/contact-forms');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(c){
+    var acts = '';
+    if (c.status==='pending' && (currentUser.role==='SALES'||currentUser.role==='DIRECTOR'||currentUser.role==='ADMIN')) {
+      acts += '<button class="btn btn-success btn-sm" onclick="approveContact('+c.id+',\'approved\')">批准</button> ';
+      acts += '<button class="btn btn-danger btn-sm" onclick="approveContact('+c.id+',\'rejected\')">驳回</button>';
+    }
+    return '<tr><td>'+(c.title||'')+'</td><td>'+(c.content||'').slice(0,30)+'</td><td>'+(c.department||'')+'</td><td>'+statusBadge(c.status)+'</td><td>'+(c.applicant_name||'')+'</td><td>'+(c.approver_name||'')+'</td><td>'+fmtDate(c.created_at)+'</td><td>'+acts+'</td></tr>';
+  }).join('');
+}
+
+async function saveContact() {
+  var data = {
+    title: document.getElementById('fCtTitle').value.trim(),
+    content: document.getElementById('fCtContent').value.trim(),
+    department: document.getElementById('fCtDept').value.trim()
+  };
+  if (!data.title) { alert('请输入标题'); return; }
+  var r = await api('POST', '/api/contact-forms', data);
+  if (r.ok) { hideModal('contactModal'); loadContacts(); }
+  else { alert((r.data&&r.data.message)||'提交失败'); }
+}
+
+async function approveContact(id, action) {
+  var comment = prompt(action==='approved'?'审批意见：':'驳回原因：');
+  if (comment===null) return;
+  var r = await api('POST', '/api/contact-forms/'+id+'/approve', {action:action, comment:comment||''});
+  if (r.ok) loadContacts();
+  else { alert((r.data&&r.data.message)||'操作失败'); }
+}
+
+// ====== DELIVERY STATS ======
+async function loadDeliveryStats() {
+  var tbody = document.getElementById('deliveryBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/delivery-stats');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(d){return '<tr><td>'+(d.month||'')+'</td><td>'+d.total_orders+'</td><td>'+d.on_time+'</td><td>'+d.delay_count+'</td><td>'+(d.on_time_pct||0)+'%</td><td>'+(d.delay_reason||'')+'</td><td>'+(d.improvement||'')+'</td><td>'+fmtDate(d.updated_at)+'</td></tr>';}).join('');
+}
+
+async function saveDelivery() {
+  var data = {
+    month: document.getElementById('fDlMonth').value,
+    total_orders: parseInt(document.getElementById('fDlTotal').value)||0,
+    on_time: parseInt(document.getElementById('fDlOntime').value)||0,
+    delay_count: parseInt(document.getElementById('fDlDelay').value)||0,
+    on_time_pct: parseFloat(document.getElementById('fDlPct').value)||0,
+    delay_reason: document.getElementById('fDlReason').value.trim(),
+    improvement: document.getElementById('fDlImprove').value.trim()
+  };
+  if (!data.month) { alert('请选择月份'); return; }
+  var r = await api('POST', '/api/delivery-stats', data);
+  if (r.ok) { hideModal('deliveryModal'); loadDeliveryStats(); }
+  else { alert((r.data&&r.data.message)||'保存失败'); }
+}
+
+// ====== CYCLES ======
+async function loadCycles() {
+  var tbody = document.getElementById('cycleBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/production-cycles');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(c){return '<tr><td>'+c.product_code+'</td><td>'+(c.product_name||'')+'</td><td>'+c.lead_days+'天</td><td>'+(c.cycle_category||'')+'</td><td>'+(c.valid_from||'')+'</td><td>'+(c.valid_to||'')+'</td><td>'+(c.approver_name||'')+'</td><td>'+fmtDate(c.created_at)+'</td></tr>';}).join('');
+}
+
+async function saveCycle() {
+  var data = {
+    product_code: document.getElementById('fCyCode').value.trim(),
+    product_name: document.getElementById('fCyName').value.trim(),
+    lead_days: parseInt(document.getElementById('fCyDays').value)||30,
+    cycle_category: document.getElementById('fCyCat').value
+  };
+  if (!data.product_code) { alert('请输入产品编码'); return; }
+  var r = await api('POST', '/api/production-cycles', data);
+  if (r.ok) { hideModal('cycleModal'); loadCycles(); }
+  else { alert((r.data&&r.data.message)||'保存失败'); }
+}
+
+// ====== RUSH ORDERS ======
+async function loadRushOrders() {
+  var tbody = document.getElementById('rushBody');
+  tbody.innerHTML = '<tr><td colspan="9" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/rush-orders');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="9" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(o){return '<tr><td>'+o.order_id+'</td><td>'+(o.order_no||'')+'</td><td>'+(o.customer_name||'')+'</td><td>'+(o.rush_reason||'')+'</td><td>'+(o.original_delivery||'')+'</td><td>'+(o.new_delivery||'')+'</td><td>'+o.days_ahead+'天</td><td>'+statusBadge(o.status)+'</td><td>'+fmtDate(o.created_at)+'</td></tr>';}).join('');
+}
+
+async function saveRush() {
+  var data = {
+    order_id: parseInt(document.getElementById('fRushOrderId').value)||0,
+    rush_reason: document.getElementById('fRushReason').value.trim(),
+    original_delivery: document.getElementById('fRushOrig').value,
+    new_delivery: document.getElementById('fRushNew').value,
+    days_ahead: parseInt(document.getElementById('fRushDays').value)||0
+  };
+  if (!data.order_id) { alert('请输入订单ID'); return; }
+  var r = await api('POST', '/api/rush-orders', data);
+  if (r.ok) { hideModal('rushModal'); loadRushOrders(); }
+  else { alert((r.data&&r.data.message)||'保存失败'); }
+}
+
+// ====== CHANGES ======
+async function loadChanges() {
+  var tbody = document.getElementById('changesBody');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty-state">加载中...</td></tr>';
+  var r = await api('GET', '/api/change-reviews');
+  if (!r.ok||!r.data) { tbody.innerHTML='<tr><td colspan="7" class="empty-state">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = r.data.map(function(c){return '<tr><td>'+c.order_id+'</td><td>'+c.change_type+'</td><td>'+(c.change_detail||'')+'</td><td>'+(c.reason||'')+'</td><td>'+statusBadge(c.status)+'</td><td>'+(c.applicant_name||'')+'</td><td>'+fmtDate(c.created_at)+'</td></tr>';}).join('');
+}
+
+// ====== FLOW SUMMARY ======
+async function loadFlowSummary() {
+  var grid = document.getElementById('flowStatsGrid');
+  var r = await api('GET', '/api/flow-summary');
+  if (r.ok && r.data && r.data.flow) {
+    grid.innerHTML = r.data.flow.map(function(f) {
+      var color = f.status==='pending' ? 'var(--warning)' : 'var(--primary)';
+      return '<div class="stat-card"><div class="num" style="color:'+color+'">'+f.count+'</div><div class="label">'+f.icon+' '+f.name+'</div></div>';
+    }).join('');
+  } else {
+    grid.innerHTML = '<div class="empty-state">暂无流程数据</div>';
+  }
+}
+
+// ====== LOGOUT ======
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/';
+}
+</script>
+</body>
+</html>

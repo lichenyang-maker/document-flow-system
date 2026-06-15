@@ -126,7 +126,7 @@ async function classifyIntent(message) {
         'delivery_stats: 用户想查看交付率统计/准时交货率（如"交付率""准时交货率""月度统计"）',
         'production_cycle: 用户想查看/更新生产周期表（如"生产周期""周期表"）',
         'stats: 用户想查看统计数据、报表、系统概况、待审批事项',
-        'notify: 用户想发通知/提醒给某人或群体',
+        'notify: 用户想发/订单|销售|通知|请示//提醒给某人或群体',
         'approve_action: 用户表示同意/批准某事项',
         'reject_action: 用户表示不同意/驳回某事项',
         'general: 日常聊天、闲聊、问候、问答、知识咨询、表达情绪等（默认）'
@@ -145,7 +145,7 @@ async function classifyIntent(message) {
 - ** 想查看交付率统计 → delivery_stats**
 - ** 想查看生产周期表 → production_cycle**
 - 想看数据、统计、报表 → stats
-- 想发通知/提醒 → notify
+- 想发/订单|销售|通知|请示//提醒 → notify
 - 明确说同意/批准 → approve_action
 - 明确说不同意/驳回 → reject_action
 
@@ -186,7 +186,7 @@ ${intentList}
         if (/交付率|准时.*交货|延迟.*交|准时率/.test(msg)) return { intent: 'delivery_stats', method: 'keyword' };
         if (/生产周期|周期表|更新.*周期/.test(msg)) return { intent: 'production_cycle', method: 'keyword' };
         if (/统计|本周|本月|多少|几个|数据|报表|待审批|待办/.test(msg) && !/订单|交货|交付|预测/.test(msg)) return { intent: 'stats', method: 'keyword' };
-        if (/群里|群聊|群发|通知|提醒|告诉|发给|推送/.test(msg)) return { intent: 'notify', method: 'keyword' };
+        if (/群里|群聊|群发|订单|销售|通知|请示|提醒|告诉|发给|推送/.test(msg)) return { intent: 'notify', method: 'keyword' };
         if (/同意|批准|准了|通过|ok|可以|好的/.test(msg)) return { intent: 'approve_action', method: 'keyword' };
         if (/不同意|驳回|拒绝|不准|不行|否决|不批/.test(msg)) return { intent: 'reject_action', method: 'keyword' };
         return { intent: 'general', method: 'keyword_default' };
@@ -248,7 +248,7 @@ const AGENTS = {
 4. **订单评审**：用户说评审订单 → 回复："好的，我来处理订单评审~"（系统会自动处理）
 5. **审批操作**：用户说同意/驳回 → 回复："收到，我来处理审批~"（系统会自动审批）
 6. **发货安排**：用户说安排发货 → 回复："好的，我来安排发货~"（系统会自动处理）
-7. **通知提醒**：用户在群里发通知 → 回复："好的，我来发群通知~"（系统会自动发送）
+7. **/订单|销售|通知|请示/提醒**：用户在群里发/订单|销售|通知|请示/ → 回复："好的，我来发群/订单|销售|通知|请示/~"（系统会自动发送）
 8. **闲聊**：日常聊天 → 正常聊天
 
 ## 绝对禁止
@@ -356,17 +356,17 @@ const AGENTS = {
     },
 
     notify: {
-        id: 'notify', name: '通知智能体',
-        description: '飞书消息发送、用户通知、审批提醒',
+        id: 'notify', name: '/订单|销售|通知|请示/智能体',
+        description: '飞书消息发送、用户/订单|销售|通知|请示/、审批提醒',
         model: MODELS.fast,
-        systemPrompt: `你是通知消息助手，负责通过飞书发送工作通知。
+        systemPrompt: `你是/订单|销售|通知|请示/消息助手，负责通过飞书发送工作/订单|销售|通知|请示/。
 
 ## 核心能力
-1. 单用户通知：给指定用户发消息
-2. 审批人通知：给所有审批人发提醒
+1. 单用户/订单|销售|通知|请示/：给指定用户发消息
+2. 审批人/订单|销售|通知|请示/：给所有审批人发提醒
 3. 消息格式化：整理成清晰易读格式
 
-## 通知格式
+## /订单|销售|通知|请示/格式
 - 使用 emoji 让消息醒目
 - 结构化展示（谁、什么事、时间）
 - 需要回复的说明操作方式
@@ -384,7 +384,7 @@ const AGENTS = {
         id: 'feishu_chat', name: '飞书订货助手',
         description: '飞书场景全能助手 - 销售订货全流程',
         model: MODELS.feishu,
-        systemPrompt: `你是飞书群里的销售订货全能助手"小流"。你能帮用户下订单、审批评审、查数据、发通知，全都能直接搞定。
+        systemPrompt: `你是飞书群里的销售订货全能助手"小流"。你能帮用户下订单、审批评审、查数据、发/订单|销售|通知|请示/，全都能直接搞定。
 
 ## 你的风格
 - 😊 像真人一样自然聊天，不要一上来就列功能表
@@ -721,7 +721,7 @@ async function orderChangeGuide(context) {
     text += '① 客户变更：「变更 #编号 客户要求改交期到YYYY-MM-DD」\n';
     text += '② 计划延期：「变更 #编号 计划部无法按时交付需顺延N天」\n';
     text += '③ 急插单：「急插单 客户名 产品 数量 交期」\n';
-    text += '\n📄 变更后系统生成《销售订单变更及通知单》，自动触发重新评审。';
+    text += '\n📄 变更后系统生成《销售订单变更及/订单|销售|通知|请示/单》，自动触发重新评审。';
     return { success: true, content: text };
 }
 
@@ -729,7 +729,7 @@ async function orderChangeGuide(context) {
 var changeFormState = {};
 async function startUrgentOrder(convId, message, context) {
     changeFormState[convId] = { step: 'urgent_customer', data: {}, createdAt: Date.now() };
-    return { success: true, content: '🚨 **急插单申请（5.5）**\n\n⚠️ 规则：需提前7个工作日通知，原订单应相应顺延。\n\n请按格式回复：\n客户名,产品名,数量,要求交期\n\n示例：华为技术,电源模块PCB,500,2026-07-15' };
+    return { success: true, content: '🚨 **急插单申请（5.5）**\n\n⚠️ 规则：需提前7个工作日/订单|销售|通知|请示/，原订单应相应顺延。\n\n请按格式回复：\n客户名,产品名,数量,要求交期\n\n示例：华为技术,电源模块PCB,500,2026-07-15' };
 }
 async function handleUrgentCollect(st, convId, message, context) {
     var step = st.step, data = st.data;
@@ -745,7 +745,7 @@ async function handleUrgentCollect(st, convId, message, context) {
         var workdays = 0; var d = new Date(today);
         while (d < target) { d.setDate(d.getDate()+1); if (d.getDay() !== 0 && d.getDay() !== 6) workdays++; }
         if (workdays < 7) {
-            return { success: true, content: '⚠️ **急插单需提前7个工作日通知！**\n当前距交期仅' + workdays + '个工作日（需≥7）。\n\n请重新输入或联系计划部特批。' };
+            return { success: true, content: '⚠️ **急插单需提前7个工作日/订单|销售|通知|请示/！**\n当前距交期仅' + workdays + '个工作日（需≥7）。\n\n请重新输入或联系计划部特批。' };
         }
         data.workdays = workdays;
         // 确认
@@ -819,7 +819,7 @@ async function handleChangeConversation(message, context) {
         text += '变更类型：' + (changeType==='customer_change'?'客户变更':changeType==='planning_delay'?'计划延期':'其他变更') + '\n';
         text += '变更原因：' + reason + '\n';
         text += '原值：' + oldValue + ' → 新值：' + newValue + '\n';
-        text += '\n📄 已生成《销售订单变更及通知单》\n';
+        text += '\n📄 已生成《销售订单变更及/订单|销售|通知|请示/单》\n';
         text += '📋 订单状态已退回草稿，请说「提交审批 #' + orderId + '」重新评审。';
         return { success: true, content: text };
     }
@@ -866,7 +866,7 @@ async function handleContactCollect(st, convId, message, context) {
             run("INSERT INTO contact_forms (title,content,department,status,applicant_id) VALUES (?,?,?,'pending',?)",
                 [data.title, data.content, data.department, context.userId||0]);
             delete contactFormState[convId];
-            return { success: true, content: '✅ **联络单已创建！**\n\n标题：' + data.title + '\n接收部门：' + data.department + '\n状态：待处理\n\n📌 请通知' + data.department + '处理。' };
+            return { success: true, content: '✅ **联络单已创建！**\n\n标题：' + data.title + '\n接收部门：' + data.department + '\n状态：待处理\n\n📌 请/订单|销售|通知|请示/' + data.department + '处理。' };
         }
         delete contactFormState[convId];
         return { success: true, content: '已取消联络单。' };
@@ -1161,7 +1161,7 @@ async function statsAgentProcess(message, context = {}) {
         const weekLeave = dbHelper.countLeavesInRange(adminView ? null : userId, week.start, week.end, false);
         return {
             success: true,
-            content: `📅 本周请假统计（${week.start} ~ ${week.end}）\n\n📝 请假单：${weekLeave.count} 份\n📊 请假天数：${weekLeave.days} 天`,
+            content: `📅 本周订单统计（${week.start} ~ ${week.end}）\n\n📝 订单数：${weekLeave.count} 份\n📊 总数量：${weekLeave.days} 天`,
             action: 'week_stats', data: { week, weekLeave }
         };
     }
@@ -1172,7 +1172,7 @@ async function statsAgentProcess(message, context = {}) {
         const monthLeave = dbHelper.countLeavesInRange(adminView ? null : userId, month.start, month.end, false);
         return {
             success: true,
-            content: `📅 本月请假统计（${month.start} ~ ${month.end}）\n\n📝 请假单：${monthLeave.count} 份\n📊 请假天数：${monthLeave.days} 天`,
+            content: `📅 本月订单统计（${month.start} ~ ${month.end}）\n\n📝 订单数：${monthLeave.count} 份\n📊 总数量：${monthLeave.days} 天`,
             action: 'month_stats', data: { month, monthLeave }
         };
     }
@@ -1187,18 +1187,18 @@ async function statsAgentProcess(message, context = {}) {
         for (const d of pendingDocs.slice(0, 5)) {
             text += `  · #${d.id} ${d.title} (${d.applicant_name || '未知'})\n`;
         }
-        text += `\n📝 待审批请假：${pendingLeaves.length} 份\n`;
+        text += `\n📝 待处理：${pendingLeaves.length} 份\n`;
         for (const l of pendingLeaves.slice(0, 5)) {
             text += `  · #${l.id} ${l.user_name || '未知'}：${l.type} ${l.days}天\n`;
         }
         return { success: true, content: text, action: 'pending', data: { pendingDocs, pendingLeaves } };
     }
 
-    // 公文统计
-    if (/公文|文档|通知|请示|报告/.test(message)) {
+    // 订单统计
+    if (/订单|销售|通知|请示/|/订单|销售|通知|请示/|/订单|销售|通知|请示/|/订单|销售|通知|请示/|/订单|销售|通知|请示/) {
         const stats = dbHelper.getDocStats();
-        const typeNames = { NOTICE: '通知', PROPOSAL: '请示', REPORT: '报告', DECISION: '决议', MEMO: '会议纪要' };
-        let text = `📄 公文统计\n\n总数：${stats.total} 份\n\n`;
+        const typeNames = { NOTICE: '/订单|销售|通知|请示/', PROPOSAL: '/订单|销售|通知|请示/', REPORT: '报告', DECISION: '决议', MEMO: '会议纪要' };
+        let text = `📄 订单统计\n\n总数：${stats.total} 份\n\n`;
         for (const t of stats.byType) {
             text += `  · ${typeNames[t.type] || t.type}：${t.count} 份\n`;
         }
@@ -1267,11 +1267,11 @@ async function statsAgentProcess(message, context = {}) {
 
     let text = `📊 系统数据概览\n\n`;
     text += `👥 用户总数：${overview.totalUsers} 人\n`;
-    text += `📄 公文总数：${overview.totalDocs} 份\n`;
-    text += `📝 请假申请：${overview.totalLeave} 份\n`;
-    text += `⏳ 待审批公文：${overview.pendingDocs} 份\n`;
-    text += `⏳ 待审批请假：${overview.pendingLeave} 份\n`;
-    text += `📅 本周请假：${weekLeave.count} 份 (${weekLeave.days} 天)\n\n`;
+    text += `📦 订单总量：${overview.totalDocs} 份\n`;
+    text += `${overview.totalLeave} 份\n`;
+    text += `⏳ 待审批订单：${overview.pendingDocs} 份\n`;
+    text += `${overview.pendingLeave} 份\n`;
+    text += `📅 本周订单：${weekLeave.count} 份 (${weekLeave.days} 天)\n\n`;
     text += `${user.name || userName}的个人信息：\n`;
     text += `🌴 剩余年假：${balance.annual.remaining} 天`;
     if (overview.admins.length > 0) {
@@ -1281,29 +1281,29 @@ async function statsAgentProcess(message, context = {}) {
 }
 
 // ============================================================
-//  Notify Agent - 通知智能体（完整实现）
+//  Notify Agent - /订单|销售|通知|请示/智能体（完整实现）
 // ============================================================
 async function notifyAgentProcess(message, context = {}) {
     if (!feishuSender) {
-        return { success: false, content: '飞书消息服务未连接，无法发送通知。' };
+        return { success: false, content: '飞书消息服务未连接，无法发送/订单|销售|通知|请示/。' };
     }
     if (!dbHelper) return { success: false, content: '数据库未连接' };
 
-    // AI 解析通知意图
-    const parsePrompt = `从用户消息中提取通知信息，输出 JSON：
+    // AI 解析/订单|销售|通知|请示/意图
+    const parsePrompt = `从用户消息中提取/订单|销售|通知|请示/信息，输出 JSON：
 用户消息：${message}
 
 可选操作：
 - notify_user: 给指定用户发消息 → {"action":"notify_user","targetName":"张三","content":"消息内容"}
 - notify_approvers: 给所有审批人发消息 → {"action":"notify_approvers","content":"消息内容"}
-- notify_group: 在飞书群里发消息/通知 → {"action":"notify_group","content":"消息内容"}
+- notify_group: 在飞书群里发消息//订单|销售|通知|请示/ → {"action":"notify_group","content":"消息内容"}
 
-如果用户说「在群里发」「群通知」「群发」「告诉大家」「通知一下大家」→ notify_group
+如果用户说「在群里发」「群/订单|销售|通知|请示/」「群发」「告诉大家」「/订单|销售|通知|请示/一下大家」→ notify_group
 如果找不到明确目标，默认 notify_approvers。
 只输出 JSON。`;
 
     const parseResult = await callAI(MODELS.fast, [
-        { role: 'system', content: '你是通知信息提取器。只输出 JSON。' },
+        { role: 'system', content: '你是/订单|销售|通知|请示/信息提取器。只输出 JSON。' },
         { role: 'user', content: parsePrompt }
     ], { temperature: 0.1, max_tokens: 500 });
 
@@ -1315,13 +1315,13 @@ async function notifyAgentProcess(message, context = {}) {
         } catch (e) { /* 使用默认值 */ }
     }
 
-    // ===== 群聊通知 =====
+    // ===== 群聊/订单|销售|通知|请示/ =====
     if (action.action === 'notify_group' && action.content) {
-        const text = `📢 群通知\n\n${action.content}\n\n—— ${new Date().toLocaleString('zh-CN')}`;
+        const text = `📢 群/订单|销售|通知|请示/\n\n${action.content}\n\n—— ${new Date().toLocaleString('zh-CN')}`;
         try {
             const result = await feishuSender.sendToGroup(text);
             if (result.success) {
-                return { success: true, content: `✅ 已发送群通知！`, action: 'notify_group' };
+                return { success: true, content: `✅ 已发送群/订单|销售|通知|请示/！`, action: 'notify_group' };
             } else {
                 return { success: false, content: `❌ 群发失败：${result.reason || '未知错误'}` };
             }
@@ -1337,12 +1337,12 @@ async function notifyAgentProcess(message, context = {}) {
             return { success: false, content: `找不到名为「${action.targetName}」的用户` };
         }
 
-        const text = `📢 来自系统的通知\n\n${action.content}\n\n—— ${new Date().toLocaleString('zh-CN')}`;
+        const text = `📢 来自系统的/订单|销售|通知|请示/\n\n${action.content}\n\n—— ${new Date().toLocaleString('zh-CN')}`;
         try {
             const result = await feishuSender.sendToUser(user.id, text);
             if (result.success) {
-                dbHelper.createNotification(user.id, 'FEISHU', '通知', text, 'SENT');
-                return { success: true, content: `✅ 已给 ${user.name} 发送飞书通知`, action: 'notify_user', data: { user } };
+                dbHelper.createNotification(user.id, 'FEISHU', '/订单|销售|通知|请示/', text, 'SENT');
+                return { success: true, content: `✅ 已给 ${user.name} 发送飞书/订单|销售|通知|请示/`, action: 'notify_user', data: { user } };
             } else {
                 return { success: false, content: `❌ 发送失败：${result.reason || '未知错误'}` };
             }
@@ -1358,7 +1358,7 @@ async function notifyAgentProcess(message, context = {}) {
         if (result.success) {
             return {
                 success: true,
-                content: `✅ 已给 ${result.sent}/${result.total} 位审批人发送飞书通知`,
+                content: `✅ 已给 ${result.sent}/${result.total} 位审批人发送飞书/订单|销售|通知|请示/`,
                 action: 'notify_approvers',
                 data: result
             };
@@ -1510,7 +1510,7 @@ async function salesAgentProcess(message, context = {}) {
         // Create delivery note
         var dnNo = 'DN' + Date.now().toString(36).toUpperCase();
         runDb("INSERT INTO delivery_notes (order_id,delivery_no,warehouse_status,shipped_at,created_at) VALUES (?,?,'shipped',datetime('now'),datetime('now'))", [spId, dnNo]);
-        return { success: true, content: `🚚 **发货通知：订单已发货！** #${spId}\n📋 ${spOrder.order_no} · ${spOrder.customer_name}\n📦 ${spOrder.product_type || ''} × ${spOrder.quantity}${spOrder.unit || 'PCS'}\n🔖 发货单号：${dnNo}\n📅 发货时间：${new Date().toLocaleString('zh-CN')}\n🎉 订单流程完成！` };
+        return { success: true, content: `🚚 **发货/订单|销售|通知|请示/：订单已发货！** #${spId}\n📋 ${spOrder.order_no} · ${spOrder.customer_name}\n📦 ${spOrder.product_type || ''} × ${spOrder.quantity}${spOrder.unit || 'PCS'}\n🔖 发货单号：${dnNo}\n📅 发货时间：${new Date().toLocaleString('zh-CN')}\n🎉 订单流程完成！` };
     }
 
     // 变更订单
@@ -1909,7 +1909,7 @@ async function salesAgentProcess(message, context = {}) {
             runDb(`UPDATE sales_orders SET status='shipped', shipped_at=datetime('now'), updated_at=datetime('now') WHERE id=?`, [oid]);
             return {
                 success: true,
-                content: `🚚 **发货通知：订单已发货！**\n\n` +
+                content: `🚚 **发货/订单|销售|通知|请示/：订单已发货！**\n\n` +
                     `📋 订单 #${oid} · ${order.order_no}\n` +
                     `🏢 ${order.customer_name}\n` +
                     `📦 ${order.product_type || ''} × ${order.quantity}${order.unit || 'PCS'}\n` +
@@ -2022,7 +2022,7 @@ async function routerAgentProcess(message, context = {}) {
     }
 
     // 0b. 群发通知关键词快速匹配
-    if (/群里|群聊|群发|在群|告诉大家|通知大家|发个通知|群通知|发到群|在飞书群/.test(message)) {
+    if (/群里|群聊|群发|在群|告诉大家|通知|大家|发个通知|群通知|发到群|在飞书群/.test(message)) {
         console.log('[Router] 群发请求 -> notifyAgent');
         var notifyResult = await notifyAgentProcess(message, context);
         if (notifyResult && notifyResult.content) { addMessage(convId, 'user', message); addMessage(convId, 'assistant', notifyResult.content); }
@@ -2075,9 +2075,9 @@ async function routerAgentProcess(message, context = {}) {
                 return df4;
             }
 
-            // 通知/提醒
-            if (/通知|提醒|告诉|发给|推送/.test(msg)) {
-                console.log('[Router] 关键词兜底: 通知 -> notifyAgent');
+            // 销售订单关键词兜底
+            if (/提醒|告诉|发给|推送|通知|报告/.test(msg)) {
+                console.log('[Router] 关键词兜底: notify -> notifyAgent');
                 var df5 = await notifyAgentProcess(msg, context);
                 if (df5 && df5.content) { addMessage(convId, 'user', msg); addMessage(convId, 'assistant', df5.content); }
                 return df5;
@@ -2321,7 +2321,7 @@ var CHAT = {
       task.timeline.push({ time: new Date().toISOString(), agent: "chat", action: "processing" });
       saveT(task, svc);
 
-      var sys = "你是销售订货系统的对话服务台。输出JSON：{\"action\":\"complete\"/\"ask_more\",\"fields\":{\"type\":\"\",\"reason\":\"\",\"startDate\":\"\",\"endDate\":\"\",\"days\":\"\",\"course\":\"\"},\"reply\":\"\"}\n" +
+      var sys = "你是销售订货系统的智能助手。输出JSON：{\"action\":\"complete\"/\"ask_more\",\"fields\":{\"type\":\"\",\"reason\":\"\",\"startDate\":\"\",\"endDate\":\"\",\"days\":\"\",\"course\":\"\"},\"reply\":\"\"}\n" +
         "必填：type(年假/事假/病假), reason, startDate, endDate, days。信息不足用ask_more，充足用complete。";
 
       var r = await callAI(MODELS.fast, [{role:"system",content:sys},{role:"user",content:msg}], {temperature:0.2,max_tokens:500});
@@ -2360,7 +2360,7 @@ var CHAT = {
 
 // ===== Leave Agent =====
 var LEAVE = {
-  id: "leave", name: "请假专员",
+  id: "leave", name: "订单专员",
   async exec(msg, task, svc) {
     var start = Date.now();
     try {
@@ -2373,7 +2373,7 @@ var LEAVE = {
       var uid = ctx.userId;
 
       var dup = svc.query("SELECT id FROM leave_requests WHERE user_id=? AND start_date=? AND status IN ('PENDING','APPROVED')", [uid, s]);
-      if (dup.length > 0) return {error:"该日期已有请假记录", duplicate:true};
+      if (dup.length > 0) return {error:"该订单已存在", duplicate:true};
 
       var rr = db.createLeaveRequest(uid, t, s, e, d, r, ctx.feishuChatId||"", ctx.feishuMsgId||"", c);
       task.data.structured = {leaveId:rr.lastID, type:t, days:d, startDate:s, endDate:e, reason:r, course:c};
@@ -2388,14 +2388,14 @@ var LEAVE = {
 
 // ===== Notify Agent =====
 var NOTIFY = {
-  id: "notify", name: "通知专员",
+  id: "notify", name: "/订单|销售|通知|请示/专员",
   async exec(msg, task, svc) {
     var start = Date.now();
     var s = task.data.structured || {};
     var ctx = task.context || {};
     if (!s.leaveId) return {};
     var txt = "📝 **新请假申请**\n\n👤 " + (ctx.userName||"") + "\n📋 " + (s.type||"") + " · " + (s.days||"") + "天\n📅 " + (s.startDate||"") + " ~ " + (s.endDate||"") + "\n💬 " + (s.reason||"") + "\n🆔 #" + s.leaveId + "\n\n👉 回复\"同意 #" + s.leaveId + "\"审批";
-    var admins = svc.query("SELECT id FROM users WHERE role IN ('COUNSELOR','ADMIN')");
+    var admins = svc.query("SELECT id FROM users WHERE role IN ('SALES','ADMIN')");
     for (var i = 0; i < admins.length; i++) {
       if (svc.sendFeishuToUser) await svc.sendFeishuToUser(admins[i].id, txt);
     }
@@ -2413,7 +2413,7 @@ var DOC = {
     var s = task.data.structured || {};
     var ctx = task.context || {};
     if (!s.leaveId) return {};
-    var title = (ctx.userName||"用户") + "的" + (s.type||"请假") + "记录";
+    var title = (ctx.userName||"用户") + "的" + (s.type||"订单") + "记录";
     var content = "# " + title + "\n\n申请人：" + ctx.userName + "\n类别：" + (s.type||"") + "\n时间：" + (s.startDate||"") + " ~ " + (s.endDate||"") + "\n天数：" + (s.days||"") + "天\n原因：" + (s.reason||"") + "\n课程：" + (s.course||"无");
     var r = svc.run("INSERT INTO documents (title,content,type,status,applicant_id,created_at) VALUES (?,?,'LEAVE','APPROVED',?,datetime('now'))", [title, content, ctx.userId||1]);
     task.data.documents.push({docId:r.lastID, title:title});

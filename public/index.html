@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>公文流转系统 · DocFlow</title>
+<title>销售订货管理系统</title>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -472,17 +472,17 @@ async function changePassword() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
         </div>
         <div class="brand-text">
-          <div class="b-name">DocFlow</div>
-          <div class="b-sub">公文流转系统</div>
+          <div class="b-name">SalesOrder</div>
+          <div class="b-sub">销售订货管理系统</div>
         </div>
       </div>
       <div class="hero-content">
         <h1>让企业办公<br>高效、规范、有序</h1>
-        <p>一站式公文流转与请假审批平台，助力企业数字化办公转型。规范流程、高效协作、安全可控。</p>
+        <p>一站式销售订货管理平台，支持订单创建、评审、变更、发货全流程。</p>
         <div class="feat-list">
           <div class="feat">
             <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <div><h4>规范化审批流程</h4><p>公文审批、请假申请统一平台管理，流程清晰可追溯</p></div>
+            <div><h4>销售订单全流程</h4><p>订单创建、工程BOM、计划交期、业务确认，流程清晰可追溯</p></div>
           </div>
           <div class="feat">
             <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
@@ -495,7 +495,7 @@ async function changePassword() {
         </div>
       </div>
       <div class="hero-footer">
-        <span>© 2025 DocFlow · 企业级办公平台</span>
+        <span>© 2025 SalesOrder · 企业级办公平台</span>
         <span class="ver">v1.2.0</span>
       </div>
     </div>
@@ -512,13 +512,13 @@ async function changePassword() {
           <table class="account-table">
             <tr class="role-admin"><td>👑 管理员</td><td><code>admin</code></td><td><b>admin123</b> · 系统管理员</td></tr>
             <tr class="role-counselor"><td>🎓 业务部/市场部</td><td><code>fudaoyuan / 123456</code></td><td>李业务部/市场部</td></tr>
-            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>wanglaoshi / 123456</code></td><td>王工程部·计算机系</td></tr>
-            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>zhanglaoshi / 123456</code></td><td>张工程部·数学系</td></tr>
-            <tr class="role-student"><td>👩 计划部</td><td><code>xiaoming / 123456</code></td><td>小明·计算机2023</td></tr>
-            <tr class="role-student"><td>👩 计划部</td><td><code>xiaohong / 123456</code></td><td>小红·数学2023</td></tr>
-            <tr class="role-student"><td>👩 计划部</td><td><code>xiaogang / 123456</code></td><td>小刚·计算机2024</td></tr>
+            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>wanglaoshi / 123456</code></td><td>王工程部·工程部</td></tr>
+            <tr class="role-teacher"><td>👨‍🏫 工程部</td><td><code>zhanglaoshi / 123456</code></td><td>张工程部·计划部</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaoming / 123456</code></td><td>赵采购·计算机2023</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaohong / 123456</code></td><td>钱品质·数学2023</td></tr>
+            <tr class="role-student"><td>👩 计划部</td><td><code>xiaogang / 123456</code></td><td>孙主管·计算机2024</td></tr>
           </table>
-          <p style="font-size:11px;margin-top:8px;color:var(--slate-400)">💡 在飞书群里说「我是小明」即可自动绑定身份</p>
+          <p style="font-size:11px;margin-top:8px;color:var(--slate-400)">💡 在飞书群里说「我是赵采购」即可自动绑定身份</p>
         </div>
       </div>
     </div>
@@ -528,7 +528,7 @@ async function changePassword() {
 <!-- 移动端顶栏 -->
 <div class="mobile-header" id="mobileHeader">
   <div class="m-btn" onclick="openSidebar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
-  <span>公文流转</span>
+  <span>订单管理</span>
   <span id="mobileUser" style="font-size:13px;opacity:0.8;font-weight:500"></span>
 </div>
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
@@ -538,7 +538,7 @@ async function changePassword() {
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="sb-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-      <div class="sb-text"><div class="sb-name">DocFlow</div><div class="sb-sub">公文流转系统</div></div>
+      <div class="sb-text"><div class="sb-name">SalesOrder</div><div class="sb-sub">销售订货管理系统</div></div>
     </div>
     <div class="sb-section">工作台</div>
     <nav>
@@ -548,7 +548,7 @@ async function changePassword() {
       </div>
       <div class="nav-item" data-page="docs" onclick="switchPage('docs',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>公文管理</span>
+        <span>订单管理</span>
       </div>
       <div class="nav-item" data-page="leave" onclick="switchPage('leave',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -578,7 +578,7 @@ async function changePassword() {
       <div class="tb-right">
         <div class="tb-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input placeholder="搜索公文 / 申请...">
+          <input placeholder="搜索订单 / 编号...">
         </div>
         <button class="tb-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="tb-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></button>
@@ -600,11 +600,11 @@ async function changePassword() {
         <div class="hb-right">
           <button class="btn btn-ghost" onclick="switchPage('docs',document.querySelector('[data-page=docs]'))">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            查看公文
+            查看订单
           </button>
           <button class="btn btn-accent" onclick="showDocModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            新建公文
+            新建订单
           </button>
         </div>
       </div>
@@ -612,7 +612,7 @@ async function changePassword() {
       <div class="stats">
         <div onclick="switchPage('docs',document.querySelector('[data-page=docs]'))" class="stat-card c-primary">
           <div class="sc-top">
-            <div class="sc-label">公文总数</div>
+            <div class="sc-label">订单总数</div>
             <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
           </div>
           <div class="sc-num" id="statDocs">—</div>
@@ -667,19 +667,19 @@ async function changePassword() {
             <div class="quick-grid">
               <div class="quick-item" onclick="showDocModal()">
                 <div class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                <div class="quick-text"><h5>新建公文</h5><p>发布通知 / 公告</p></div>
+                <div class="quick-text"><h5>新建订单</h5><p>发布通知 / 公告</p></div>
               </div>
               <div class="quick-item" onclick="showLeaveModal()">
                 <div class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div>
-                <div class="quick-text"><h5>申请请假</h5><p>年假 / 病假 / 调休</p></div>
+                <div class="quick-text"><h5>创建订单</h5><p>销售订单创建</p></div>
               </div>
               <div class="quick-item" onclick="switchPage('docs',document.querySelector('[data-page=docs]'))">
                 <div class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-                <div class="quick-text"><h5>公文列表</h5><p>查看所有公文</p></div>
+                <div class="quick-text"><h5>订单列表</h5><p>查看所有订单</p></div>
               </div>
               <div class="quick-item" onclick="switchPage('leave',document.querySelector('[data-page=leave]'))">
                 <div class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-                <div class="quick-text"><h5>请假审批</h5><p>查看审批进度</p></div>
+                <div class="quick-text"><h5>订单审批</h5><p>查看待审批订单</p></div>
               </div>
             </div>
           </div>
@@ -690,10 +690,10 @@ async function changePassword() {
     <!-- Docs -->
     <div class="page" id="page-docs" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
-        <div><h2 style="font-size:17px;font-weight:700">公文管理</h2><p style="font-size:12.5px;color:var(--slate-500);margin-top:4px">管理和审批所有公文文件</p></div>
+        <div><h2 style="font-size:17px;font-weight:700">订单管理</h2><p style="font-size:12.5px;color:var(--slate-500);margin-top:4px">管理和审批所有公文文件</p></div>
         <button class="btn btn-accent" onclick="showDocModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新建公文
+          新建订单
         </button>
       </div>
       <div class="table-wrap">
@@ -705,7 +705,7 @@ async function changePassword() {
         </div>
         <div style="overflow-x:auto">
           <table class="table">
-            <thead><tr><th style="width:38%">公文标题</th><th>类型</th><th>状态</th><th>申请人</th><th>创建时间</th><th style="text-align:right;padding-right:20px">操作</th></tr></thead>
+            <thead><tr><th style="width:38%">订单标题</th><th>类型</th><th>状态</th><th>申请人</th><th>创建时间</th><th style="text-align:right;padding-right:20px">操作</th></tr></thead>
             <tbody id="docsBody"></tbody>
           </table>
         </div>
@@ -718,7 +718,7 @@ async function changePassword() {
         <div><h2 style="font-size:17px;font-weight:700">请假管理</h2><p style="font-size:12.5px;color:var(--slate-500);margin-top:4px">查看和审批所有请假申请</p></div>
         <button class="btn btn-accent" onclick="showLeaveModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          申请请假
+          创建订单
         </button>
       </div>
       <div class="table-wrap">
@@ -838,12 +838,12 @@ async function changePassword() {
 <div class="modal-mask hidden" id="docModal" onclick="if(event.target.id==='docModal')closeDocModal()">
   <div class="modal">
     <div class="modal-header">
-      <h3 style="font-size:15px;font-weight:600">新建公文</h3>
+      <h3 style="font-size:15px;font-weight:600">新建订单</h3>
       <button class="modal-close" onclick="closeDocModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="form-field"><label class="form-label">公文标题 <span class="req">*</span></label>
-        <input class="form-input" id="docTitle" placeholder="请输入公文标题"></div>
+      <div class="form-field"><label class="form-label">订单标题 <span class="req">*</span></label>
+        <input class="form-input" id="docTitle" placeholder="请输入订单标题"></div>
       <div class="form-row">
         <div class="form-field"><label class="form-label">类型</label>
           <select class="form-select" id="docType">
@@ -857,7 +857,7 @@ async function changePassword() {
           </select></div>
       </div>
       <div class="form-field"><label class="form-label">内容</label>
-        <textarea class="form-textarea" id="docContent" placeholder="请输入公文内容"></textarea></div>
+        <textarea class="form-textarea" id="docContent" placeholder="请输入订单内容"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeDocModal()">取消</button>
@@ -870,7 +870,7 @@ async function changePassword() {
 <div class="modal-mask hidden" id="leaveModal" onclick="if(event.target.id==='leaveModal')closeLeaveModal()">
   <div class="modal">
     <div class="modal-header">
-      <h3 style="font-size:15px;font-weight:600">申请请假</h3>
+      <h3 style="font-size:15px;font-weight:600">创建订单</h3>
       <button class="modal-close" onclick="closeLeaveModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
@@ -924,29 +924,7 @@ async function doLogin() {
 }
 
 async function initApp() {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
-  try {
-    const res = await fetch(API + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!res.ok) { logout(); return; }
-    currentUser = await res.json();
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    userRole = currentUser.role || '';
-    isAdmin = (userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'MANAGER');
-    const roleNames = { ADMIN:'管理员', SALES:'业务部/市场部', ENGINEER:'工程部', PLANNER:'计划部', EMPLOYEE:'员工', MANAGER:'部门经理', HR:'人事' };
-    const name = currentUser.name || currentUser.username || '用户';
-    document.getElementById('sidebarUser').textContent = name;
-    document.getElementById('sidebarRole').textContent = roleNames[userRole] || userRole;
-    document.getElementById('avatarLetter').textContent = name.charAt(0).toUpperCase();
-    document.getElementById('mobileUser').textContent = name;
-    document.getElementById('welcomeText').textContent = name + '，欢迎回来';
-    const now = new Date();
-    document.getElementById('todayDate').textContent = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' });
-    // 根据角色显示/隐藏菜单
-    buildSidebar(userRole);
-  } catch (e) {}
-  checkMobile();
-  loadDashboard();
+  window.location.href = '/sales';
 }
 
 function logout() {
@@ -1102,7 +1080,7 @@ async function submitDoc() {
   try {
     const res = await fetch(API + '/api/docs', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
     if (!res.ok) { showToast('提交失败', 'error'); return; }
-    showToast('公文已提交审批'); closeDocModal();
+    showToast('订单已提交'); closeDocModal();
     document.getElementById('docTitle').value = ''; document.getElementById('docContent').value = '';
     loadDocs(); loadDashboard();
   } catch (e) { showToast('网络错误', 'error'); }
@@ -1285,9 +1263,9 @@ function switchPage(page) {
   var titles = {dashboard:'\u5de5\u4f5c\u53f0',sales:'\u9500\u552e\u8ba2\u5355',docs:'\u516c\u6587\u7ba1\u7406',leave:'\u8bf7\u5047\u7ba1\u7406',users:'\u7528\u6237\u7ba1\u7406'};
   var pt = document.getElementById('pageTitle');
   if (pt) pt.textContent = titles[page] || '\u5de5\u4f5c\u53f0';
-  if (page === 'docs') loadDocs();
+  if (page === 'docs') { switchPage('sales'); return; }
   else if (page === 'sales') loadSalesOrders();
-  else if (page === 'leave') loadLeave();
+  else if (page === 'leave') { switchPage('sales'); return; }
   else if (page === 'users') loadUsers();
   else if (page === 'dashboard') loadDashboard();
 }

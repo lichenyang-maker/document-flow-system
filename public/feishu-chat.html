@@ -58,7 +58,7 @@
 <div id="loginScreen" class="login-screen" style="display:none;">
   <div class="login-card">
     <h3><i class="bi bi-robot" style="color:#3b82f6"></i> AI 智能助手</h3>
-    <p>企业公文流转系统 AI 服务</p>
+    <p>企业销售订货系统 AI 服务</p>
     <input type="text" id="loginUser" placeholder="用户名 (admin / user1 / user2)" value="admin">
     <input type="password" id="loginPass" placeholder="密码" value="123456">
     <button onclick="doLogin()">登录</button>
@@ -101,11 +101,11 @@ let agentsList = [];
 let msgCount = 0;
 
 const quickMap = {
-  general: ['介绍系统功能', '如何提交请假？', '今日提醒'],
+  general: ['介绍系统功能', '如何创建订单？', '今日提醒'],
   coder: ['Python 读 Excel', 'SQL 查询优化', 'REST API 示例'],
   document: ['写会议通知', '润色文档', '工作总结模板'],
-  approval: ['分析请假申请', '审批回复模板', '审批流程设计'],
-  data: ['分析请假数据', '制作统计报告', '数据采集建议'],
+  approval: ['分析订单问题', '审批回复模板', '审批流程设计'],
+  data: ['分析订单数据', '制作统计报告', '数据采集建议'],
   reasoning: ['是否引入新功能？', '方案对比分析', '深度业务分析']
 };
 
