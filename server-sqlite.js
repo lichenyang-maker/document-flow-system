@@ -1710,6 +1710,130 @@ app.get('/api/leave/:id', auth, (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
+// ============================================================
+//  销售订单管理 API
+// ============================================================
+
+// 获取销售订单列表
+app.get('/api/sales-orders', auth, (req, res) => {
+    try {
+        const user = query('SELECT role FROM users WHERE id = ?', [req.userId])[0];
+        const canSeeAll = user && ['ADMIN', 'COUNSELOR', 'MANAGER'].includes(user.role);
+        let sql = 'SELECT * FROM sales_orders WHERE 1=1';
+        const p = [];
+        if (!canSeeAll) { sql += ' AND applicant_id = ?'; p.push(req.userId); }
+        if (req.query.status) { sql += ' AND status = ?'; p.push(req.query.status); }
+        if (req.query.type) { sql += ' AND order_type = ?'; p.push(req.query.type); }
+        sql += ' ORDER BY created_at DESC';
+        res.json(query(sql, p));
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 获取单个销售订单
+app.get('/api/sales-orders/:id', auth, (req, res) => {
+    try {
+        const order = query('SELECT * FROM sales_orders WHERE id = ?', [parseInt(req.params.id)])[0];
+        if (!order) return res.status(404).json({ message: '订单不存在' });
+        res.json(order);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 创建销售订单
+app.post('/api/sales-orders', auth, (req, res) => {
+    try {
+        const b = req.body;
+        if (!b.customer_name) return res.status(400).json({ message: '客户名称不能为空' });
+        var applicant = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+        var orderNo = 'SO' + Date.now().toString(36).toUpperCase();
+        var r = run(`INSERT INTO sales_orders (
+            order_no, customer_name, contact_person, contact_phone, order_type,
+            product_type, is_rush, quantity, unit, price, amount,
+            delivery_date, required_date, special_requirements, status,
+            applicant_id, applicant_name
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',?,?)`,
+        [orderNo, b.customer_name, b.contact_person||'', b.contact_phone||'', b.order_type||'normal',
+         b.product_type||'standard', b.is_rush?1:0, b.quantity||1, b.unit||'PCS', b.price||0, b.amount||0,
+         b.delivery_date||'', b.required_date||'', b.special_requirements||'',
+         req.userId, applicant?.name||'']);
+        console.log('[销售订单] 创建 #' + r.lastID + ' ' + orderNo);
+        res.json({ success: true, id: r.lastID, order_no: orderNo });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 提交评审（工程部/计划部/业务部确认）
+app.post('/api/sales-orders/:id/review', auth, async (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var order = query('SELECT * FROM sales_orders WHERE id = ?', [orderId])[0];
+        if (!order) return res.status(404).json({ message: '订单不存在' });
+        
+        var b = req.body;
+        var stage = b.stage || ''; // engineering / planning / business
+        var comment = b.comment || '';
+        var approver = query('SELECT name FROM users WHERE id = ?', [req.userId])[0];
+        var now = new Date().toISOString();
+
+        if (stage === 'engineering') {
+            run(`UPDATE sales_orders SET status='pending_planning', bom_status=?, bom_notes=?,
+                 reviewer_eng_id=?, reviewer_eng_comment=?, reviewer_eng_at=? WHERE id=?`,
+                [b.bom_status||'completed', b.bom_notes||'', req.userId, comment, now, orderId]);
+            console.log('[销售订单] #' + orderId + ' 工程部评审完成');
+        } else if (stage === 'planning') {
+            var newDelivery = b.delivery_date || order.delivery_date;
+            run(`UPDATE sales_orders SET status='pending_confirmation', delivery_date=?,
+                 reviewer_plan_id=?, reviewer_plan_comment=?, reviewer_plan_at=? WHERE id=?`,
+                [newDelivery, req.userId, comment, now, orderId]);
+            console.log('[销售订单] #' + orderId + ' 计划部评审完成');
+        } else if (stage === 'business') {
+            run(`UPDATE sales_orders SET status='confirmed',
+                 reviewer_biz_id=?, reviewer_biz_comment=?, reviewer_biz_at=? WHERE id=?`,
+                [req.userId, comment, now, orderId]);
+            console.log('[销售订单] #' + orderId + ' 业务部确认完成');
+        } else {
+            return res.status(400).json({ message: '未知评审阶段: ' + stage });
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 订单变更
+app.post('/api/sales-orders/:id/change', auth, (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        var b = req.body;
+        if (!b.change_notes) return res.status(400).json({ message: '变更说明不能为空' });
+        run(`UPDATE sales_orders SET status='draft', change_notes=?, updated_at=datetime('now') WHERE id=?`,
+            [b.change_notes, orderId]);
+        console.log('[销售订单] #' + orderId + ' 已变更');
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 发货
+app.post('/api/sales-orders/:id/ship', auth, (req, res) => {
+    try {
+        var orderId = parseInt(req.params.id);
+        run(`UPDATE sales_orders SET status='shipped', shipped_at=datetime('now'), updated_at=datetime('now') WHERE id=?`, [orderId]);
+        console.log('[销售订单] #' + orderId + ' 已发货');
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 销售订单统计
+app.get('/api/sales-orders/stats/info', auth, (req, res) => {
+    try {
+        res.json({
+            total: query('SELECT COUNT(*) as c FROM sales_orders')[0].c,
+            draft: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='draft'")[0].c,
+            pendingEng: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='pending_engineering'")[0].c,
+            pendingPlan: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='pending_planning'")[0].c,
+            pendingConfirm: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='pending_confirmation'")[0].c,
+            confirmed: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='confirmed'")[0].c,
+            shipped: query("SELECT COUNT(*) as c FROM sales_orders WHERE status='shipped'")[0].c
+        });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
 // 取消请假
 app.put('/api/leave/:id/cancel', auth, (req, res) => {
     try {
@@ -2819,7 +2943,47 @@ async function start() {
             { name: 'leave_requests', sql: `CREATE TABLE IF NOT EXISTS leave_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days INTEGER, reason TEXT, status TEXT DEFAULT 'PENDING', approver_id INTEGER, approver_comment TEXT, feishu_chat_id TEXT, feishu_msg_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)` },
             { name: 'approvals', sql: `CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER, approver_id INTEGER, action TEXT, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
             { name: 'feishu_user_map', sql: `CREATE TABLE IF NOT EXISTS feishu_user_map (id INTEGER PRIMARY KEY AUTOINCREMENT, feishu_open_id TEXT UNIQUE NOT NULL, system_user_id INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
-            { name: 'conversations', sql: `CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, source TEXT DEFAULT 'web', role TEXT, content TEXT, agent TEXT, feishu_chat_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` }
+                        { name: 'conversations', sql: `CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, source TEXT DEFAULT 'web', role TEXT, content TEXT, agent TEXT, feishu_chat_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)` },
+            { name: 'sales_orders', sql: `CREATE TABLE IF NOT EXISTS sales_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_no TEXT UNIQUE NOT NULL,
+                customer_name TEXT NOT NULL,
+                contact_person TEXT DEFAULT '',
+                contact_phone TEXT DEFAULT '',
+                order_type TEXT DEFAULT 'normal',
+                product_type TEXT DEFAULT 'standard',
+                is_rush INTEGER DEFAULT 0,
+                quantity INTEGER DEFAULT 1,
+                unit TEXT DEFAULT 'PCS',
+                price REAL DEFAULT 0,
+                amount REAL DEFAULT 0,
+                delivery_date TEXT,
+                required_date TEXT,
+                bom_status TEXT DEFAULT 'pending',
+                bom_notes TEXT DEFAULT '',
+                special_requirements TEXT DEFAULT '',
+                attachments TEXT DEFAULT '',
+                status TEXT DEFAULT 'draft',
+                applicant_id INTEGER,
+                applicant_name TEXT DEFAULT '',
+                reviewer_eng_id INTEGER,
+                reviewer_eng_comment TEXT DEFAULT '',
+                reviewer_eng_at TEXT,
+                reviewer_plan_id INTEGER,
+                reviewer_plan_comment TEXT DEFAULT '',
+                reviewer_plan_at TEXT,
+                reviewer_biz_id INTEGER,
+                reviewer_biz_comment TEXT DEFAULT '',
+                reviewer_biz_at TEXT,
+                change_notes TEXT DEFAULT '',
+                shipped_at TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )` }
+        ];
+
+        let createdCount = 0;
+        tables.forEach(t => { if (safeRun(t.sql, t.name)) createdCount++; });
         ];
 
         let createdCount = 0;

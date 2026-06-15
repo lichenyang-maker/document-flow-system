@@ -740,6 +740,92 @@ async function changePassword() {
 
 
 
+<!-- 销售订单管理 -->
+<div class="page" id="page-sales" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+    <div><h2 style="font-size:17px;font-weight:700">📦 销售订单管理</h2><p style="font-size:12.5px;color:var(--slate-500);margin-top:4px">订单下达 · 评审跟进 · 发货管理</p></div>
+    <button class="btn btn-accent" onclick="showSalesModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建订单
+    </button>
+  </div>
+  <div class="table-wrap">
+    <div class="filters">
+      <select id="filterSalesStatus" onchange="loadSalesOrders()">
+        <option value="">全部状态</option>
+        <option value="draft">草稿</option>
+        <option value="pending_engineering">工程部评审</option>
+        <option value="pending_planning">计划部评审</option>
+        <option value="pending_confirmation">业务确认</option>
+        <option value="confirmed">已确认</option>
+        <option value="shipped">已发货</option>
+        <option value="cancelled">已取消</option>
+      </select>
+      <select id="filterSalesType" onchange="loadSalesOrders()">
+        <option value="">全部类型</option>
+        <option value="normal">普通订单</option>
+        <option value="forecast">预测订单</option>
+        <option value="rush">急插单</option>
+      </select>
+      <div class="spacer"></div>
+      <span style="font-size:12.5px;color:var(--slate-500)">共 <b id="salesCount" style="color:var(--text);font-weight:600">0</b> 条记录</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="table">
+        <thead><tr>
+          <th>订单号</th><th>客户名称</th><th>类型</th><th>数量</th><th>交期</th><th>状态</th><th style="text-align:right;padding-right:20px">操作</th>
+        </tr></thead>
+        <tbody id="salesBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新建订单模态框 -->
+<div class="modal-mask hidden" id="salesModal" onclick="if(event.target.id==='salesModal')closeSalesModal()">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><h3>📦 新建销售订单</h3></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field" style="flex:2"><label class="form-label">客户名称 *</label><input class="form-input" id="soCustomer" placeholder="请输入客户名称"></div>
+        <div class="form-field" style="flex:1"><label class="form-label">联系人</label><input class="form-input" id="soContact"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field" style="flex:1"><label class="form-label">联系电话</label><input class="form-input" id="soPhone"></div>
+        <div class="form-field" style="flex:1"><label class="form-label">数量</label><input class="form-input" id="soQty" type="number" value="1" min="1"></div>
+        <div class="form-field" style="flex:1"><label class="form-label">单价(元)</label><input class="form-input" id="soPrice" type="number" value="0" step="0.01"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field" style="flex:1"><label class="form-label">订单类型</label>
+          <select class="form-input" id="soType"><option value="normal">普通订单</option><option value="forecast">预测订单</option><option value="rush">急插单</option></select>
+        </div>
+        <div class="form-field" style="flex:1"><label class="form-label">产品类型</label>
+          <select class="form-input" id="soProdType"><option value="standard">标准产品</option><option value="nonstandard">非标产品</option></select>
+        </div>
+        <div class="form-field" style="flex:1"><label class="form-label">要求交期</label><input class="form-input" id="soRequiredDate" type="date"></div>
+      </div>
+      <div class="form-field"><label class="form-label">特殊要求</label><textarea class="form-textarea" id="soRequirements" rows="3" placeholder="如有特殊要求请在此填写..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSalesModal()">取消</button>
+      <button class="btn btn-accent" onclick="submitSalesOrder()">提交订单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 订单详情/评审模态框 -->
+<div class="modal-mask hidden" id="salesDetailModal" onclick="if(event.target.id==='salesDetailModal')closeSalesDetail()">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header"><h3 id="salesDetailTitle">订单详情</h3></div>
+    <div class="modal-body">
+      <div id="salesDetailContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSalesDetail()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 用户管理页面 -->
 <div id="page-users" class="page" style="display:none">
   <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
@@ -846,6 +932,7 @@ async function initApp() {
     currentUser = await res.json();
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     userRole = currentUser.role || '';
+    isAdmin = (userRole === 'ADMIN' || userRole === 'COUNSELOR');
     const roleNames = { ADMIN:'管理员', COUNSELOR:'辅导员', TEACHER:'老师', STUDENT:'学生', EMPLOYEE:'职工', MANAGER:'部门经理', HR:'人事' };
     const name = currentUser.name || currentUser.username || '用户';
     document.getElementById('sidebarUser').textContent = name;
@@ -977,10 +1064,34 @@ async function loadLeave() {
   } catch (e) { document.getElementById('leaveBody').innerHTML = '<tr><td colspan="7" style="padding:48px;text-align:center;color:#94a3b8;font-size:13px">加载失败</td></tr>'; }
 }
 
-async function approveLeave(id) { try { await fetch(API + '/api/leave/' + id + '/approve', { method: 'POST', headers: getHeaders() }); showToast('已通过'); } catch (e) { showToast('操作失败', 'error'); } loadLeave(); loadDashboard(); }
-async function rejectLeave(id) { try { await fetch(API + '/api/leave/' + id + '/reject', { method: 'POST', headers: getHeaders() }); showToast('已驳回'); } catch (e) { showToast('操作失败', 'error'); } loadLeave(); loadDashboard(); }
-async function approveDoc(id) { try { await fetch(API + '/api/docs/' + id + '/approve', { method: 'POST', headers: getHeaders() }); showToast('已通过'); } catch (e) { showToast('操作失败', 'error'); } loadDocs(); loadDashboard(); }
-async function rejectDoc(id) { try { await fetch(API + '/api/docs/' + id + '/reject', { method: 'POST', headers: getHeaders() }); showToast('已驳回'); } catch (e) { showToast('操作失败', 'error'); } loadDocs(); loadDashboard(); }
+async function approveLeave(id) {
+  try {
+    const r = await fetch(API + '/api/leave/' + id + '/approve', { method: 'POST', headers: getHeaders() });
+    if (r.ok) { showToast('已通过'); } else { const d = await r.json(); showToast(d.message || '审批失败', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
+  loadLeave(); loadDashboard();
+}
+async function rejectLeave(id) {
+  try {
+    const r = await fetch(API + '/api/leave/' + id + '/reject', { method: 'POST', headers: getHeaders() });
+    if (r.ok) { showToast('已驳回'); } else { const d = await r.json(); showToast(d.message || '驳回失败', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
+  loadLeave(); loadDashboard();
+}
+async function approveDoc(id) {
+  try {
+    const r = await fetch(API + '/api/docs/' + id + '/approve', { method: 'POST', headers: getHeaders() });
+    if (r.ok) { showToast('已通过'); } else { const d = await r.json(); showToast(d.message || '审批失败', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
+  loadDocs(); loadDashboard();
+}
+async function rejectDoc(id) {
+  try {
+    const r = await fetch(API + '/api/docs/' + id + '/reject', { method: 'POST', headers: getHeaders() });
+    if (r.ok) { showToast('已驳回'); } else { const d = await r.json(); showToast(d.message || '驳回失败', 'error'); }
+  } catch (e) { showToast('操作失败', 'error'); }
+  loadDocs(); loadDashboard();
+}
 
 function showDocModal() { document.getElementById('docModal').classList.remove('hidden'); document.getElementById('docTitle').focus(); }
 function closeDocModal() { document.getElementById('docModal').classList.add('hidden'); }
@@ -1020,13 +1131,132 @@ async function submitLeave() {
   } catch (e) { showToast('网络错误', 'error'); }
 }
 
+// ===== 销售订单管理 =====
+async function loadSalesOrders() {
+  const status = document.getElementById('filterSalesStatus').value;
+  const type = document.getElementById('filterSalesType').value;
+  try {
+    var params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (type) params.set('type', type);
+    var qs = params.toString();
+    const res = await fetch(API + '/api/sales-orders' + (qs ? '?' + qs : ''), { headers: getHeaders() });
+    if (!res.ok) return;
+    const list = await res.json();
+    document.getElementById('salesCount').textContent = list.length;
+    if (!list.length) { document.getElementById('salesBody').innerHTML = '<tr><td colspan="7" style="padding:48px;text-align:center;color:#94a3b8;font-size:13px">暂无数据</td></tr>'; return; }
+    var typeMap = {normal:'普通',forecast:'预测',rush:'急插单'};
+    var statusText = {draft:'草稿',pending_engineering:'工程评审',pending_planning:'交期评审',pending_confirmation:'业务确认',confirmed:'已确认',shipped:'已发货',cancelled:'已取消'};
+    var statusCls = {draft:'draft',pending_engineering:'pending',pending_planning:'pending',pending_confirmation:'pending',confirmed:'approved',shipped:'approved',cancelled:'rejected'};
+    document.getElementById('salesBody').innerHTML = list.map(function(d){
+      var acts = '';
+      if (isAdmin || userRole === 'MANAGER') {
+        if (d.status === 'draft') acts = '<button class="btn-sm btn-approve" onclick="reviewSalesOrder('+d.id+',\'engineering\')">提交评审</button>';
+        else if (d.status === 'pending_engineering') acts = '<button class="btn-sm btn-approve" onclick="reviewSalesOrder('+d.id+',\'engineering\')">工程评审</button>';
+        else if (d.status === 'pending_planning') acts = '<button class="btn-sm btn-approve" onclick="reviewSalesOrder('+d.id+',\'planning\')">交期评审</button>';
+        else if (d.status === 'pending_confirmation') acts = '<button class="btn-sm btn-approve" onclick="reviewSalesOrder('+d.id+',\'business\')">确认订单</button>';
+        else if (d.status === 'confirmed') acts = '<button class="btn-sm btn-approve" onclick="shipSalesOrder('+d.id+')">发货</button>';
+        if (d.status !== 'shipped' && d.status !== 'cancelled') acts += ' <button class="btn-sm btn-reject" onclick="changeSalesOrder('+d.id+')">变更</button>';
+      }
+      acts += ' <button class="btn-sm" style="background:#f1f5f9;color:#475569" onclick="showSalesDetail('+d.id+')">详情</button>';
+      var dt = d.delivery_date ? d.delivery_date.slice(0,10) : '—';
+      return '<tr><td><b>'+d.order_no+'</b></td><td>'+d.customer_name+'</td><td>'+(typeMap[d.order_type]||d.order_type)+'</td><td>'+d.quantity+'</td><td>'+dt+'</td><td><span class="badge badge-'+statusCls[d.status]+'">'+(statusText[d.status]||d.status)+'</span></td><td style="text-align:right;padding-right:20px"><div class="actions">'+acts+'</div></td></tr>';
+    }).join('');
+  } catch (e) { document.getElementById('salesBody').innerHTML = '<tr><td colspan="7" style="padding:48px;text-align:center;color:#94a3b8;font-size:13px">加载失败</td></tr>'; }
+}
+function showSalesModal() { document.getElementById('salesModal').classList.remove('hidden'); }
+function closeSalesModal() { document.getElementById('salesModal').classList.add('hidden'); }
+async function submitSalesOrder() {
+  var c = document.getElementById('soCustomer').value.trim();
+  if (!c) { showToast('请输入客户名称', 'error'); return; }
+  var body = {
+    customer_name: c,
+    contact_person: document.getElementById('soContact').value.trim(),
+    contact_phone: document.getElementById('soPhone').value.trim(),
+    order_type: document.getElementById('soType').value,
+    product_type: document.getElementById('soProdType').value,
+    quantity: parseInt(document.getElementById('soQty').value) || 1,
+    price: parseFloat(document.getElementById('soPrice').value) || 0,
+    required_date: document.getElementById('soRequiredDate').value,
+    special_requirements: document.getElementById('soRequirements').value.trim(),
+    is_rush: document.getElementById('soType').value === 'rush' ? 1 : 0
+  };
+  body.amount = body.quantity * body.price;
+  try {
+    const res = await fetch(API + '/api/sales-orders', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { const d = await res.json(); showToast(d.message || '提交失败', 'error'); return; }
+    showToast('订单已创建'); closeSalesModal();
+    document.getElementById('soCustomer').value = ''; document.getElementById('soContact').value = '';
+    document.getElementById('soPhone').value = ''; document.getElementById('soRequirements').value = '';
+    loadSalesOrders();
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+async function showSalesDetail(id) {
+  try {
+    const res = await fetch(API + '/api/sales-orders/' + id, { headers: getHeaders() });
+    if (!res.ok) return;
+    var d = await res.json();
+    var typeMap = {normal:'普通订单',forecast:'预测订单',rush:'急插单'};
+    var statusText = {draft:'草稿',pending_engineering:'工程部评审中',pending_planning:'计划部交期评审',pending_confirmation:'业务部确认',confirmed:'已确认',shipped:'已发货',cancelled:'已取消'};
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">'+
+      '<div><b>订单号：</b>'+d.order_no+'</div><div><b>状态：</b>'+(statusText[d.status]||d.status)+'</div>'+
+      '<div><b>客户：</b>'+d.customer_name+'</div><div><b>类型：</b>'+(typeMap[d.order_type]||d.order_type)+'</div>'+
+      '<div><b>联系人：</b>'+(d.contact_person||'—')+'</div><div><b>数量：</b>'+d.quantity+'</div>'+
+      '<div><b>单价：</b>¥'+(d.price||0).toFixed(2)+'</div><div><b>金额：</b>¥'+(d.amount||0).toFixed(2)+'</div>'+
+      '<div><b>要求交期：</b>'+(d.required_date?d.required_date.slice(0,10):'—')+'</div><div><b>承诺交期：</b>'+(d.delivery_date?d.delivery_date.slice(0,10):'—')+'</div>'+
+      '</div>';
+    if (d.special_requirements) html += '<div style="margin-top:8px;font-size:13px"><b>特殊要求：</b>'+d.special_requirements+'</div>';
+    if (d.bom_notes) html += '<div style="margin-top:4px;font-size:13px"><b>BOM备注：</b>'+d.bom_notes+'</div>';
+    if (d.change_notes) html += '<div style="margin-top:4px;font-size:13px;color:var(--danger)"><b>变更记录：</b>'+d.change_notes+'</div>';
+    html += '<hr style="margin:12px 0">';
+    html += '<div style="font-size:12px;color:var(--text-sub)"><div>📋 创建人：'+d.applicant_name+' | '+d.created_at+'</div>';
+    if (d.reviewer_eng_at) html += '<div>🏭 工程部：'+(d.reviewer_eng_comment||'已通过')+' | '+d.reviewer_eng_at+'</div>';
+    if (d.reviewer_plan_at) html += '<div>📅 计划部：'+(d.reviewer_plan_comment||'已通过')+' | '+d.reviewer_plan_at+'</div>';
+    if (d.reviewer_biz_at) html += '<div>✅ 业务部：'+(d.reviewer_biz_comment||'已确认')+' | '+d.reviewer_biz_at+'</div>';
+    if (d.shipped_at) html += '<div>🚚 发货时间：'+d.shipped_at+'</div>';
+    html += '</div>';
+    document.getElementById('salesDetailTitle').textContent = '📋 订单详情 - ' + d.order_no;
+    document.getElementById('salesDetailContent').innerHTML = html;
+    document.getElementById('salesDetailModal').classList.remove('hidden');
+  } catch (e) { showToast('加载失败', 'error'); }
+}
+function closeSalesDetail() { document.getElementById('salesDetailModal').classList.add('hidden'); }
+async function reviewSalesOrder(id, stage) {
+  var labels = {engineering:'工程部评审',planning:'交期评审',business:'业务确认'};
+  var comment = prompt('请输入' + labels[stage] + '意见（留空默认通过）：');
+  if (comment === null) return;
+  var body = {stage:stage, comment:comment||'已通过'};
+  if (stage === 'engineering') body.bom_status = 'completed';
+  try {
+    const res = await fetch(API + '/api/sales-orders/' + id + '/review', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
+    if (res.ok) { showToast(labels[stage] + '完成'); } else { const d = await res.json(); showToast(d.message||'操作失败','error'); }
+  } catch (e) { showToast('网络错误','error'); }
+  loadSalesOrders();
+}
+async function changeSalesOrder(id) {
+  var notes = prompt('请输入变更原因：');
+  if (!notes) return;
+  try {
+    const res = await fetch(API + '/api/sales-orders/' + id + '/change', { method: 'POST', headers: getHeaders(), body: JSON.stringify({change_notes:notes}) });
+    if (res.ok) { showToast('已提交变更'); } else { const d = await res.json(); showToast(d.message||'操作失败','error'); }
+  } catch (e) { showToast('网络错误','error'); }
+  loadSalesOrders();
+}
+async function shipSalesOrder(id) {
+  if (!confirm('确认该订单已发货？')) return;
+  try {
+    const res = await fetch(API + '/api/sales-orders/' + id + '/ship', { method: 'POST', headers: getHeaders() });
+    if (res.ok) { showToast('已标记为发货'); } else { const d = await res.json(); showToast(d.message||'操作失败','error'); }
+  } catch (e) { showToast('网络错误','error'); }
+  loadSalesOrders();
+}
 
 // ===== 角色菜单构建 =====
 function buildSidebar(role) {
   var nav = document.getElementById('sidebarNav');
   if (!nav) return;
   var menus = {
-    ADMIN:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u7ba1\u7406'},{p:'users',i:'\ud83d\udc65',l:'\u7528\u6237\u7ba1\u7406'}],
+    ADMIN:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'sales',i:'\ud83d\udce6',l:'\u9500\u552e\u8ba2\u5355'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u7ba1\u7406'},{p:'users',i:'\ud83d\udc65',l:'\u7528\u6237\u7ba1\u7406'}],
     COUNSELOR:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'},{p:'docs',i:'\ud83d\udcc4',l:'\u516c\u6587\u7ba1\u7406'}],
     TEACHER:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udccb',l:'\u8bf7\u5047\u5ba1\u6279'}],
     STUDENT:[{p:'dashboard',i:'\ud83d\udcca',l:'\u5de5\u4f5c\u53f0'},{p:'leave',i:'\ud83d\udcdd',l:'\u8bf7\u5047\u7533\u8bf7'}],
@@ -1043,7 +1273,7 @@ function buildSidebar(role) {
 }
 
 function switchPage(page) {
-  var pages = ['dashboard','docs','leave','users'];
+  var pages = ['dashboard','sales','docs','leave','users'];
   if (page === 'users' && userRole !== 'ADMIN') { showToast('\u65e0\u6743\u9650','error'); return; }
   document.querySelectorAll('.nav-item').forEach(function(i){i.classList.remove('active')});
   var activeEl = document.querySelector('.nav-item[onclick*="'+page+'"]');
@@ -1052,10 +1282,11 @@ function switchPage(page) {
     var pg = document.getElementById('page-'+p);
     if (pg) pg.style.display = p === page ? 'block' : 'none';
   });
-  var titles = {dashboard:'\u5de5\u4f5c\u53f0',docs:'\u516c\u6587\u7ba1\u7406',leave:'\u8bf7\u5047\u7ba1\u7406',users:'\u7528\u6237\u7ba1\u7406'};
+  var titles = {dashboard:'\u5de5\u4f5c\u53f0',sales:'\u9500\u552e\u8ba2\u5355',docs:'\u516c\u6587\u7ba1\u7406',leave:'\u8bf7\u5047\u7ba1\u7406',users:'\u7528\u6237\u7ba1\u7406'};
   var pt = document.getElementById('pageTitle');
   if (pt) pt.textContent = titles[page] || '\u5de5\u4f5c\u53f0';
   if (page === 'docs') loadDocs();
+  else if (page === 'sales') loadSalesOrders();
   else if (page === 'leave') loadLeave();
   else if (page === 'users') loadUsers();
   else if (page === 'dashboard') loadDashboard();
